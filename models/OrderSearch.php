@@ -39,7 +39,7 @@ class OrderSearch extends Orders
      *
      * @return ActiveDataProvider
      */
-    public function search($params, $active = true, $start = null, $end = null)
+    public function search($params, $active = true, $start = null, $end = null, $state=null)
     {
         $query = Orders::find();
 
@@ -80,6 +80,10 @@ class OrderSearch extends Orders
         }
         if (!empty($end)) {
             $query->andWhere('date<=:e', [':e' => date('Y-m-d', strtotime($end))." 23:59:59"]);
+        }
+
+        if (!empty($state)) {
+            $query->andWhere('state=:s', [':s' => $state]);
         }
 
         $query->andFilterWhere(['like', 'defaultStoreId', $this->defaultStoreId])

@@ -468,7 +468,7 @@ class Iiko extends Model
         $supplierId = "";
         foreach ($items as $item) {
             $i++;
-            if (empty($item['price']) || empty($item['supplierId']) || empty($item['factSupplierQuantity'])) {
+            if (empty($item['price']) || empty($item['supplierId']) || empty($item['factOfficeQuantity'])) {
                 continue;
             }
             $supplierId = $item['supplierId'];
@@ -476,11 +476,11 @@ class Iiko extends Model
             $sum = $price * $item['factSupplierQuantity'];
             $itemsXml .= "<item>
                              <num>{$i}</num>
-                             <actualAmount>{$item['factSupplierQuantity']}</actualAmount>
+                             <actualAmount>{$item['factOfficeQuantity']}</actualAmount>
                              <product>{$item['productId']}</product>
                              <store>{$model->storeId}</store>
                              <price>{$price}</price>
-                             <amount>{$item['supplierQuantity']}</amount>
+                             <amount>{$item['factOfficeQuantity']}</amount>
                              <sum>{$sum}</sum>
                           </item>";
         }
@@ -602,13 +602,14 @@ class Iiko extends Model
      * @return bool
      * @throws \yii\db\Exception
      */
-    private function supplierOutStockDoc($model)
+    public function supplierOutStockDoc($model)
     {
         $sql = "select supplierId from order_items oi where oi.orderId=:id and oi.supplierQuantity>0 and oi.supplierId!='' group by oi.supplierId";
         $suppliers = Yii::$app->db->createCommand($sql)
             ->bindParam(":id", $model->id, PDO::PARAM_INT)
             ->queryColumn();
         $k = 0;
+        $storeId = Settings::getValue('stock-id');
         foreach ($suppliers as $supplier) {
             if (empty($supplier))
                 continue;
@@ -623,19 +624,20 @@ class Iiko extends Model
             $itemsXml = "";
 //            $defaultStoreId = Settings::getValue('stock-id');
             $defaultStoreId = '';
+            $defaultSupplierFromId = '';
             foreach ($items as $item) {
-                if (empty($item['price']) || empty($item['productId']) || empty($item['supplierQuantity'])) {
+                if (empty($item['price']) || empty($item['productId']) || empty($item['factOfficeQuantity'])) {
                     continue;
                 }
                 $price = $item['price'] * (100 + $model->user->percentage) / 100;
-                $sum = $price * $item['supplierQuantity'];
+                $sum = $price * $item['factOfficeQuantity'];
 
                 $defaultStoreId = $item['storeId'];
+                $defaultSupplierFromId = $item['supplierId'];
                 $itemsXml .= "<item>
                             <productId>{$item['productId']}</productId>
-                            <storeId>{$defaultStoreId}</storeId>
                             <price>{$price}</price>
-                            <amount>{$item['supplierQuantity']}</amount>
+                            <amount>{$item['factOfficeQuantity']}</amount>
                             <sum>{$sum}</sum>
                             <discountSum>0.00</discountSum>
                             <vatPercent>0.000000000</vatPercent>
@@ -653,8 +655,8 @@ class Iiko extends Model
                         <documentNumber>{$number}</documentNumber>
                         <dateIncoming>{$date}</dateIncoming>
                         <useDefaultDocumentTime>true</useDefaultDocumentTime>
-                        <defaultStoreId>{$defaultStoreId}</defaultStoreId>
-                        <counteragentId>{$model->supplierId}</counteragentId>
+                        <defaultStoreId>{$storeId}</defaultStoreId>
+                        <counteragentId>{$defaultSupplierFromId}</counteragentId>
                         <items>{$itemsXml}</items>
                     </document>";
             if ($this->auth()) {

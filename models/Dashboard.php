@@ -48,6 +48,9 @@ class Dashboard extends Model
             case User::ROLE_ADMIN:
                 $menu = Yii::$app->controller->renderPartial('//menu/admin');
                 break;
+            case User::ROLE_OFFICE:
+                $menu = Yii::$app->controller->renderPartial('//menu/office');
+                break;
 //            case User::ROLE_MANAGER:
 //                $menu = Yii::$app->controller->renderPartial('//menu/manager');
 //                break;

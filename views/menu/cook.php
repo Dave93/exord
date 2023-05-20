@@ -16,7 +16,9 @@ use yii\helpers\Html;
         <?= Html::a('Использование товаров', ['products-usage/create-usage'], ['class' => 'nav-link']) ?>
     </li>
 */?>
-
+    <li class="<?= Dashboard::isNavActive('invoice', 'index') ? 'active' : '' ?>">
+        <?= Html::a('Накадная', ['invoice/index']) ?>
+    </li>
     <li class="<?= Dashboard::isNavActive('orders', 'customer-history') ? 'active' : '' ?>">
         <?= Html::a('Архив', ['orders/customer-history'], ['class' => 'nav-link']) ?>
     </li>

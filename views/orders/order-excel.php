@@ -6,6 +6,8 @@ use app\models\UserCategories;
 use yii\helpers\Html;
 use yii\widgets\ActiveForm;
 use yii\widgets\DetailView;
+use app\models\Dashboard;
+use app\models\OrderItems;
 
 /* @var $this yii\web\View */
 /* @var $model Orders */
@@ -25,16 +27,28 @@ $groupId = null;
         <th>Ед. Изм.</th>
         <th>Коиличество</th>
         <th>Факт</th>
+        <th>Готовность</th>
     </tr>
     </thead>
     <tbody>
-    <?php foreach ($products as $key => $product): ?>
-        <tr>
-            <td><?= $product['name'] ?></td>
-            <td><?= $product['mainUnit'] ?></td>
-            <td><?= $product['quantity'] ?></td>
-            <td></td>
-        </tr>
-    <?php endforeach; ?>
+    <? foreach ($groupedProducts as $group) {?>
+        <tr><th colspan="4" class="text-center"><?=($group['name'] ? $group['name'] : 'Остальные продукты')?></th></tr>
+        <?php foreach ($group['products'] as $item): ?>
+            <?php
+            $i++;
+            $price = $item['price'] * (100 + $model->user->percentage) / 100;
+            $priceString = Dashboard::price($price);
+            $sum = $item['storeQuantity'] * $price;
+            $total += $sum;
+            ?>
+            <tr>
+                <td><?= $i ?></td>
+                <td><?= $item['name'] ?></td>
+                <td width="30" align="center"><?= $item['mainUnit'] ?></td>
+                <td width="100" align="center"><?= $item['storeQuantity'] ?></td>
+                <td align="center"></td>
+            </tr>
+        <?php endforeach; ?>
+    <?}?>
     </tbody>
 </table>

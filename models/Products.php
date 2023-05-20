@@ -155,6 +155,35 @@ class Products extends \yii\db\ActiveRecord
         return "<ul class=\"category-tree\">{$li}</ul>";
     }
 
+    public static function getProductsGroupHierarchy($id = 0, $selected = null) {
+        if (empty($id))
+            $sql = "select * from (select p.id,p.name,(select count(*) from products where parentId=p.id) as count from products p where parentId=:id order by name asc) q1 where q1.count>0 order by name";
+        else
+            $sql = "select name,id,productType from products where parentId=:id order by name asc";
+        $data = Yii::$app->db->createCommand($sql)
+            ->bindParam(":id", $id, PDO::PARAM_STR)
+            ->queryAll();
+        $li = "";
+        if (empty($data))
+            return "";
+        foreach ($data as $row) {
+            $ul = self::getProductsGroupHierarchy($row['id'], $selected);
+            $sel = "";
+            if (in_array($row['id'], $selected))
+                $sel = "checked";
+            $productType = $row['productType'];
+            if (isset($row['productType']) && !empty($row['productType']))
+                $input = "<input type=\"checkbox\" name=\"ProductGroups[productIds][]\" value=\"{$row['id']}\" class=\"group-check\" {$sel}>";
+            else
+                $input = "";
+//            if (empty($ul))
+//                $input = "";
+            $li .= "<li>{$input} <a href=\"#\">{$row['name']}</a>{$ul}</li>";
+        }
+
+        return "<ul class=\"category-tree\">{$li}</ul>";
+    }
+
     public static function getProductParents($user)
     {
         $sql = "select p.id,p.parentId,p.name from products p

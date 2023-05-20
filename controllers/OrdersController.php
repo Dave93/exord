@@ -13,6 +13,7 @@ use app\models\OrderSearch;
 use app\models\Settings;
 use app\models\Stores;
 use app\models\TelegramBot;
+use app\models\Terminals;
 use app\models\User;
 use app\models\Zone;
 use PhpOffice\PhpSpreadsheet\IOFactory;
@@ -62,13 +63,15 @@ class OrdersController extends Controller
                             User::ROLE_BARMEN,
                             User::ROLE_PASTRY,
                             User::ROLE_MANAGER,
+                            User::ROLE_ADMIN,
                         ],
                     ],
                     [
-                        'actions' => ['update', 'stock-orders', 'stock', 'stock-order', 'stock-update', 'stock-close', 'send', 'stock-fact-supplier', 'stock-by-product', 'stock-by-product-excel', 'stock-excel', 'stock-excel-zone', 'order-excel', 'view', 'close', 'invoice'],
+                        'actions' => ['update', 'delete-from-stock', 'add-items-to-stock', 'stock-orders', 'stock', 'stock-order', 'stock-update', 'stock-close', 'send', 'stock-fact-supplier', 'stock-by-product', 'stock-by-product-excel', 'stock-excel', 'stock-excel-zone', 'order-excel', 'view', 'close', 'invoice'],
                         'allow' => true,
                         'roles' => [
-                            User::ROLE_STOCK
+                            User::ROLE_STOCK,
+                            User::ROLE_ADMIN,
                         ],
                     ],
                     [
@@ -181,6 +184,7 @@ class OrdersController extends Controller
 
     public function actionCreate()
     {
+        $webroot = Yii::getAlias('@webroot');
         $now = date("Y-m-d H:i:s");
         $start = date("Y-m-d 18:00");
         $end = date("Y-m-d 00:00", strtotime($now . " +1 day"));
@@ -200,14 +204,32 @@ class OrdersController extends Controller
 
         if (Yii::$app->request->isPost) {
             $model->load(Yii::$app->request->post());
-            $stockId = Settings::getValue("stock-id");
-            $supplierId = Settings::getValue("supplier-id");
+            $stockId = User::getStoreId();
+            $supplierId = User::getSupplierId();
 
             $items = Yii::$app->request->post("Items");
             $available = Yii::$app->request->post("Available");
             $model->addDate = date("Y-m-d H:i:s");
             $model->state = 0;
             if (count($items) > 0 && $model->save()) {
+                $arrytData = [];
+                if (!empty(Yii::$app->user->identity->terminalId)) {
+                    $terminal = Terminals::findOne(Yii::$app->user->identity->terminalId);
+                    $arrytData = [
+                        'terminal_id' => 'b9b407ae-4f2b-4b27-bf1d-551a56b0065b',
+                        'order_number' => $model->id,
+                        'customerName' => Yii::$app->user->identity->fullname,
+                        'customerPhone' => Yii::$app->user->identity->phone,
+                        'toLat' => (float)$terminal->latitude,
+                        'toLon' => (float)$terminal->longitude,
+                        'address' => $terminal->address,
+                        'price' => 0,
+                        'payment_method' => 'Наличными',
+                        "comment" => "",
+                        'orderItems' => []
+                    ];
+                }
+
                 OrderItems::deleteAll(['orderId' => $model->id]);
                 foreach ($items as $key => $value) {
 //                    if (empty($value) && empty($available[$key]))
@@ -223,14 +245,62 @@ class OrdersController extends Controller
                     $oi->supplierId = $supplierId;
                     $oi->storeQuantity = 0;
                     $oi->supplierQuantity = $value;
-                    $oi->available = $available[$key];
+                    $oi->available = $available[$key] ?? 0;
                     $oi->userId = Yii::$app->user->id;
                     $oi->save();
+                    if (!empty(Yii::$app->user->identity->terminalId)) {
+                        $arrytData['orderItems'][] = [
+                            'productId' => $oi->productId,
+                            'quantity' => $oi->quantity,
+                            'price' => $oi->product->price,
+                            'name' => $oi->product->name,
+                        ];
+                    }
+                }
+
+                if (!empty(Yii::$app->user->identity->terminalId)) {
+                    // http post query of $arrytData
+                    $ch = curl_init();
+                    curl_setopt($ch, CURLOPT_URL, 'https://api.warehouse.arryt.uz/api/external/create-order');
+                    curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+                    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($arrytData));
+                    curl_setopt($ch, CURLOPT_POST, 1);
+                    curl_setopt($ch, CURLOPT_ENCODING, 'gzip, deflate');
+
+                    $headers = array();
+
+                    $headers[] = 'Accept: application/json';
+                    $headers[] = 'Content-Type: application/json';
+                    $headers[] = 'Authorization: Bearer x6kngzqofvr0bhytbe07ul6o0tv8sx';
+
+                    curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+
+                    $result = curl_exec($ch);
+
+                    if (curl_errno($ch)) {
+                        echo 'Error:' . curl_error($ch);
+                    }
+                    curl_close($ch);
+                    $result = json_decode($result);
                 }
                 $d = date("d.m.Y", strtotime($model->date));
                 $text = "Поступил новый заказ: <b>#{$model->id}</b>\nЗаказчик: {$model->user->username}\nДата поставки: {$d}";
+
+                $content = $this->renderPartial('preview-invoice', [
+                    'model' => $model
+                ]);
+
+                $pdf = new \kartik\mpdf\Pdf([
+                    'mode' => \kartik\mpdf\Pdf::MODE_UTF8, // leaner size using standard fonts
+                    'content' => $content,
+                ]);
+                $filePath = '/uploads/'.sha1($model->id).'.pdf';
+
+                $pdf->output($content, $webroot.$filePath, 'F');
+
                 $bot = new TelegramBot();
-                $bot->sendMessage(-195675906, $text, 'HTML');
+                $message = $bot->sendDocument(-195675906, 'https://exord.lesailes.uz/'.$filePath);
+                $bot->sendMessage(-195675906, $text, 'HTML', false, $message['result']['message_id']);
                 return $this->redirect(['orders/view', 'id' => $model->id]);
             }
         }
@@ -238,6 +308,42 @@ class OrdersController extends Controller
         return $this->render('create', [
             'model' => $model,
             'availability' => $av
+        ]);
+    }
+    public function actionAddItemsToStock($orderId, $storeId, $supplierId)
+    {
+
+        $model = Orders::findOne(['id' => $orderId]);
+        if (Yii::$app->request->isPost) {
+            $model->load(Yii::$app->request->post());
+
+            $items = Yii::$app->request->post("Items");
+            if (count($items) > 0 && $model->save()) {
+
+                foreach ($items as $key => $value) {
+//                    if (empty($value) && empty($available[$key]))
+//                        continue;
+                    if (empty($value))
+                        continue;
+                    $oi = new OrderItems();
+                    $oi->orderId = $model->id;
+                    $oi->productId = $key;
+                    $oi->quantity = $value;
+                    $oi->storeId = $storeId;
+                    $oi->supplierId = $supplierId;
+                    $oi->storeQuantity = 0;
+                    $oi->supplierQuantity = $value;
+                    $oi->available = 0;
+                    $oi->userId = Yii::$app->user->id;
+                    $oi->save();
+                }
+
+                return $this->redirect(['orders/stock', 'tab' => $model->id]);
+            }
+        }
+
+        return $this->render('add-items-to-stock', [
+            'model' => $model
         ]);
     }
 
@@ -286,6 +392,18 @@ class OrdersController extends Controller
             'user_id' => $userId,
             'model' => $model,
         ]);
+    }
+
+    public function actionDeleteFromStock($orderId, $itemId) {
+        $model = Orders::findOne(['id' => $orderId]);
+        if ($model == null) {
+            throw new NotFoundHttpException('The requested page does not exist.');
+        }
+        $oi = OrderItems::findOne(['orderId' => $orderId, 'productId' => $itemId]);
+        if ($oi != null) {
+            $oi->delete();
+        }
+        return $this->redirect(['orders/stock', 'tab' => $model->id]);
     }
 
     public function actionFactStock($id)
@@ -411,20 +529,26 @@ class OrdersController extends Controller
         if (Yii::$app->request->isPost) {
             $orderId = Yii::$app->request->post("orderId");
             $items = Yii::$app->request->post("Items");
-
+            $isSave = Yii::$app->request->post("save");
+            $isSend = Yii::$app->request->post("send");
+            $comment = Yii::$app->request->post("comment");
             foreach ($items as $key => $value) {
                 $oi = OrderItems::findOne(['orderId' => $orderId, 'productId' => $key]);
-                $oi->storeId = $stockId;
+//                $oi->storeId = $stockId;
+
                 $oi->storeQuantity = $value['s'];
-                $oi->supplierQuantity = $value['b'];
+//                $oi->supplierQuantity = $value['b'];
+                $oi->shipped_from_warehouse = $value['s'];
                 if (!$oi->save()) {
                     return print_r($oi->firstErrors);
                 }
             }
 
             $model = Orders::findOne(['id' => $orderId]);
-
-            $model->state = 1;
+            $model->comment = $comment;
+            if ($isSend == 'Y') {
+                $model->state = 1;
+            }
             $model->save();
             return $this->redirect(['orders/stock', 'tab' => $orderId]);
         }
@@ -583,6 +707,7 @@ class OrdersController extends Controller
             'destination' => Pdf::DEST_BROWSER,
             // your html content input
             'content' => $content,
+            'cssFile' => 'css/invoice.css',
             // format content from your own css file if needed or use the
             // enhanced bootstrap css built by Krajee for mPDF formatting
 //            'cssFile' => '@vendor/kartik-v/yii2-mpdf/src/assets/kv-mpdf-bootstrap.min.css',
@@ -594,6 +719,12 @@ class OrdersController extends Controller
                 'SetFooter' => ['{PAGENO}'],
             ]
         ]);
+
+//        $stylesheet = file_get_contents(__DIR__.'/invoice.css');
+//
+//        $stylesheet = '<head><link rel="stylesheet" type="text/css" href="'.Yii::getAlias('@web').'\css\exam_report.css'.'"/></head>';
+//        $pdf->WriteHTML($stylesheet, \Mpdf\HTMLParserMode::HEADER_CSS);
+//        $pdf->WriteHTML($stylesheet,Pdf\HTMLParserMode::HEADER_CSS);
 
         // return the pdf output as per the destination setting
         return $pdf->render();
@@ -767,9 +898,22 @@ class OrdersController extends Controller
     {
         $model = $this->findModel($id);
         $products = Orders::getOrderProducts($model->id);
+        $groupedProducts = [];
+        foreach ($products as $product) {
+            if (empty($groupedProducts[$product['groupName']])) {
+                $groupedProducts[$product['groupName']] = [
+                    'name' => $product['groupName'],
+                    'products' => []
+                ];
+            }
+            $groupedProducts[$product['groupName']]['products'][] = $product;
+        }
+        uasort($groupedProducts, function ($a, $b) {
+            return strcmp($a['name'], $b['name']);
+        });
         $content = $this->renderPartial('order-excel', [
             'model' => $model,
-            'products' => $products,
+            'groupedProducts' => $groupedProducts,
         ]);
 
         $file = "Заказ-#{$model->id}.xls";

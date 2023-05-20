@@ -1,8 +1,8 @@
 <?php
 
+
 $params = require __DIR__ . '/params.php';
 $db = require __DIR__ . '/db.php';
-
 $config = [
     'id' => 'basic',
     'name' => 'EXORD',
@@ -85,14 +85,14 @@ if (YII_ENV_DEV) {
     $config['modules']['debug'] = [
         'class' => 'yii\debug\Module',
         // uncomment the following to add your IP if you are not connecting from localhost.
-        'allowedIPs' => ['83.221.172.5'],
+        'allowedIPs' => ['83.221.172.5', '95.47.153.124'],
     ];
 
     $config['bootstrap'][] = 'gii';
     $config['modules']['gii'] = [
         'class' => 'yii\gii\Module',
         // uncomment the following to add your IP if you are not connecting from localhost.
-        'allowedIPs' => ['83.221.172.5'],
+        'allowedIPs' => ['83.221.172.5', '95.47.153.124'],
     ];
 }
 

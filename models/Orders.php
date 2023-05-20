@@ -33,6 +33,7 @@ class Orders extends \yii\db\ActiveRecord
         0 => "Новый",
         1 => "Отправлен",
         2 => "Завершен",
+        3 => "Проверка офисом",
     ];
 
     /**
@@ -180,9 +181,11 @@ class Orders extends \yii\db\ActiveRecord
     public static function getOrderProducts($id)
     {
         $query = new Query();
-        return $query->select("products.id,products.parentId,p1.name as groupName,products.name,products.mainUnit,order_items.*")
+        return $query->select("products.id,products.parentId,pg.name as groupName,products.name,products.mainUnit,order_items.*,products.price")
             ->from("order_items")
             ->leftJoin("products", "products.id=order_items.productId")
+            ->leftJoin("product_groups_link pgl", "pgl.productId=products.id")
+            ->leftJoin("product_groups pg", "pg.id=pgl.productGroupId")
             ->leftJoin("products p1", "p1.id=products.parentId")
             ->where("order_items.orderId=:id and order_items.productId in(select category_id from user_categories where user_id=:u)", [":id" => $id, ':u' => Yii::$app->user->id])
 //            ->orderBy("p1.name,products.name")

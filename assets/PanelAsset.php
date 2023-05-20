@@ -38,6 +38,7 @@ class PanelAsset extends AssetBundle
         'js/push.min.js',
         'assets/panel/js/light-bootstrap-dashboard.js?v=1.4.0',
         'vendor/bootstrap-datepicker/dist/js/bootstrap-datepicker.min.js',
+        'js/toast.min.js',
         'js/scripts.js?v=1.0.13',
     ];
     public $depends = [

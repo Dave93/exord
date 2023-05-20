@@ -29,6 +29,7 @@ use yii\web\IdentityInterface;
  * @property string $regDate
  * @property string $lastVisit
  * @property int $showPrice
+ * @property int $terminalId
  *
  * @property Stores $store
  * @property Suppliers $supplier
@@ -48,6 +49,8 @@ class User extends ActiveRecord implements IdentityInterface
     const ROLE_COOK = 6;
     const ROLE_PASTRY = 7;
 
+    const ROLE_OFFICE = 8;
+
     public static $roles = [
         1 => 'Администратор',
         2 => 'Менеджер',
@@ -56,6 +59,7 @@ class User extends ActiveRecord implements IdentityInterface
         5 => 'Бариста',
         6 => 'Повар',
         7 => 'Кондитер',
+        8 => 'Офис'
     ];
 
     public static $states = [
@@ -90,6 +94,7 @@ class User extends ActiveRecord implements IdentityInterface
             [['category'], 'safe'],
             [['authKey', 'accessToken'], 'string', 'max' => 255],
             [['username'], 'unique'],
+            [['terminalId'], 'string']
         ];
     }
 
@@ -119,6 +124,7 @@ class User extends ActiveRecord implements IdentityInterface
             'lastVisit' => 'Последний визит',
             'category' => 'Категории',
             'showPrice' => 'Показать сумму',
+            'terminalId' => 'Ид филиала'
         ];
     }
 
@@ -308,5 +314,23 @@ class User extends ActiveRecord implements IdentityInterface
     {
         $model = self::findOne(Yii::$app->user->id);
         return $model->supplier_id;
+    }
+
+    /**
+     * Returns user role name according to RBAC
+     * @return string
+     */
+    public function getRoleName()
+    {
+        $roles = Yii::$app->authManager->getRolesByUser($this->id);
+        if (!$roles) {
+            return null;
+        }
+
+        reset($roles);
+        /* @var $role \yii\rbac\Role */
+        $role = current($roles);
+
+        return $role->name;
     }
 }

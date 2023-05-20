@@ -11,11 +11,20 @@ use yii\helpers\Html;
     <li class="<?= Dashboard::isNavActive('orders', 'index') ? 'active' : '' ?>">
         <?= Html::a('Заказы', ['orders/index']) ?>
     </li>
+    <li class="<?= Dashboard::isNavActive('orders', 'stock') ? 'active' : '' ?>">
+        <?= Html::a('Заказы на сегодня', ['orders/stock'], ['class' => 'nav-link']) ?>
+    </li>
+    <li class="<?= Dashboard::isNavActive('invoice', 'index') ? 'active' : '' ?>">
+        <?= Html::a('Накадная', ['invoice/index']) ?>
+    </li>
     <li class="<?= Dashboard::isNavActive('stores') ? 'active' : '' ?>">
         <?= Html::a('Склады', ['stores/index']) ?>
     </li>
     <li class="<?= Dashboard::isNavActive('products') ? 'active' : '' ?>">
         <?= Html::a('Продукты', ['products/index']) ?>
+    </li>
+    <li class="<?= Dashboard::isNavActive('product-groups') ? 'active' : '' ?>">
+        <?= Html::a('Группы продуктов', ['product-groups/index']) ?>
     </li>
 <!--    <li class="--><?//= Dashboard::isNavActive('products') ? 'active' : '' ?><!--">-->
 <!--        --><?//= Html::a('История использование товаров', ['/']) ?>

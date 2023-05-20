@@ -2,9 +2,9 @@
 
 return [
     'class' => 'yii\db\Connection',
-    'dsn' => 'mysql:host=localhost;dbname=les_exord_db',
-    'username' => 'root',
-    'password' => 'LesAiles@2019',
+    'dsn' => 'mysql:host=localhost;dbname=les_exord',
+    'username' => 'davr',
+    'password' => 'TgwypAP8U3zh3gZ5',
     'charset' => 'utf8',
 
     // Schema cache options (for production environment)
