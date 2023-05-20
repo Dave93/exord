@@ -62,6 +62,8 @@ else
 
             <?= $form->field($model, 'supplier_id')->dropDownList(Suppliers::getList(), ['class' => 'selectpicker form-control  show-tick', 'prompt' => 'Выберите поставщика', 'data-header' => "Выберите поставщика", 'data-live-search' => 'true']) ?>
 
+            <?= $form->field($model, 'terminalId')->dropDownList(\app\models\Terminals::getList(), ['class' => 'selectpicker form-control  show-tick', 'prompt' => 'Выберите филиал', 'data-header' => "Выберите филиал", 'data-live-search' => 'true']) ?>
+
             <div class="form-group categories required">
                 <div class="row">
                     <div class="col-md-6">

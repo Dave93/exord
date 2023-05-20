@@ -13,6 +13,7 @@ use app\models\OrderSearch;
 use app\models\Settings;
 use app\models\Stores;
 use app\models\TelegramBot;
+use app\models\Terminals;
 use app\models\User;
 use app\models\Zone;
 use PhpOffice\PhpSpreadsheet\IOFactory;
@@ -208,6 +209,24 @@ class OrdersController extends Controller
             $model->addDate = date("Y-m-d H:i:s");
             $model->state = 0;
             if (count($items) > 0 && $model->save()) {
+                $arrytData = [];
+                if (!empty(Yii::$app->user->identity->terminalId)) {
+                    $terminal = Terminals::findOne(Yii::$app->user->identity->terminalId);
+                    $arrytData = [
+                        'terminal_id' => 'b9b407ae-4f2b-4b27-bf1d-551a56b0065b',
+                        'order_number' => $model->id,
+                        'customerName' => Yii::$app->user->identity->fullname,
+                        'customerPhone' => Yii::$app->user->identity->phone,
+                        'toLat' => (float)$terminal->latitude,
+                        'toLon' => (float)$terminal->longitude,
+                        'address' => $terminal->address,
+                        'price' => 0,
+                        'payment_method' => 'Наличными',
+                        "comment" => "",
+                        'orderItems' => []
+                    ];
+                }
+
                 OrderItems::deleteAll(['orderId' => $model->id]);
                 foreach ($items as $key => $value) {
 //                    if (empty($value) && empty($available[$key]))
@@ -226,6 +245,40 @@ class OrdersController extends Controller
                     $oi->available = $available[$key];
                     $oi->userId = Yii::$app->user->id;
                     $oi->save();
+                    if (!empty(Yii::$app->user->identity->terminalId)) {
+                        $arrytData['orderItems'][] = [
+                            'productId' => $oi->productId,
+                            'quantity' => $oi->quantity,
+                            'price' => $oi->product->price,
+                            'name' => $oi->product->name,
+                        ];
+                    }
+                }
+
+                if (!empty(Yii::$app->user->identity->terminalId)) {
+                    // http post query of $arrytData
+                    $ch = curl_init();
+                    curl_setopt($ch, CURLOPT_URL, 'https://api.warehouse.arryt.uz/api/external/create-order');
+                    curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+                    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($arrytData));
+                    curl_setopt($ch, CURLOPT_POST, 1);
+                    curl_setopt($ch, CURLOPT_ENCODING, 'gzip, deflate');
+
+                    $headers = array();
+
+                    $headers[] = 'Accept: application/json';
+                    $headers[] = 'Content-Type: application/json';
+                    $headers[] = 'Authorization: Bearer x6kngzqofvr0bhytbe07ul6o0tv8sx';
+
+                    curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+
+                    $result = curl_exec($ch);
+
+                    if (curl_errno($ch)) {
+                        echo 'Error:' . curl_error($ch);
+                    }
+                    curl_close($ch);
+                    $result = json_decode($result);
                 }
                 $d = date("d.m.Y", strtotime($model->date));
                 $text = "Поступил новый заказ: <b>#{$model->id}</b>\nЗаказчик: {$model->user->username}\nДата поставки: {$d}";

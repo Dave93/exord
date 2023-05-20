@@ -29,6 +29,7 @@ use yii\web\IdentityInterface;
  * @property string $regDate
  * @property string $lastVisit
  * @property int $showPrice
+ * @property int $terminalId
  *
  * @property Stores $store
  * @property Suppliers $supplier
@@ -90,6 +91,7 @@ class User extends ActiveRecord implements IdentityInterface
             [['category'], 'safe'],
             [['authKey', 'accessToken'], 'string', 'max' => 255],
             [['username'], 'unique'],
+            [['terminalId'], 'string']
         ];
     }
 
@@ -119,6 +121,7 @@ class User extends ActiveRecord implements IdentityInterface
             'lastVisit' => 'Последний визит',
             'category' => 'Категории',
             'showPrice' => 'Показать сумму',
+            'terminalId' => 'Ид филиала'
         ];
     }
 
