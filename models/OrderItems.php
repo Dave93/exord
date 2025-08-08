@@ -22,7 +22,12 @@ use yii\db\mssql\PDO;
  * @property string $price
  * @property string $supplierDescription
  * @property string $factSupplierQuantity
+ * @property string $factOfficeQuantity
  * @property int $userId
+ * @property int $shipped_from_warehouse
+ * @property int $returned_quantity
+ * @property int $prepared
+ * @property int $minused
  *
  * @property Products $product
  */
@@ -44,7 +49,7 @@ class OrderItems extends \yii\db\ActiveRecord
         return [
             [['orderId', 'productId', 'quantity'], 'required'],
             [['orderId', 'userId'], 'integer'],
-            [['quantity', 'storeQuantity', 'factStoreQuantity', 'supplierQuantity', 'purchaseQuantity', 'price', 'factSupplierQuantity', 'available'], 'number'],
+            [['quantity', 'storeQuantity', 'factStoreQuantity', 'supplierQuantity', 'purchaseQuantity', 'price', 'factSupplierQuantity', 'available', 'shipped_from_warehouse', 'factOfficeQuantity', 'returned_quantity', 'prepared', 'minused'], 'number'],
             [['productId', 'storeId', 'supplierId', 'storeSupplierId'], 'string', 'max' => 36],
             [['supplierDescription'], 'string'],
             [['orderId', 'productId'], 'unique', 'targetAttribute' => ['orderId', 'productId']],
@@ -64,11 +69,16 @@ class OrderItems extends \yii\db\ActiveRecord
             'storeId' => 'Default Store ID',
             'storeSupplierId' => 'Store Supplier ID',
             'storeQuantity' => 'Кол. склад',
-            'factStoreQuantity' => 'Факт склад',
+            'factStoreQuantity' => 'Факт приёма',
             'supplierId' => 'Supplier ID',
             'supplierQuantity' => 'Кол. закуп.',
             'factSupplierQuantity' => 'Факт закуп.',
             'userId' => 'User ID',
+            'shipped_from_warehouse' => 'Отправлен со склада',
+            'factOfficeQuantity' => 'Факт офис',
+            'returned_quantity' => 'Возврат',
+            'prepared' => 'Подготовлено',
+            'minused' => 'Обнулён'
         ];
     }
 

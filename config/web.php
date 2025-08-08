@@ -55,6 +55,12 @@ $config = [
                 '/' => 'site/index',
                 '/login' => 'site/login',
                 '/logout' => 'site/logout',
+                ['class' => 'yii\rest\UrlRule', 'controller' => 'api/tguser', 'extraPatterns' => [
+                    'GET check-user' => 'check-user',
+                    'POST post-video' => 'post-video',
+                    'POST post-calendar-message' => 'post-calendar-message',
+                    'POST post-calendar-date' => 'post-calendar-date',
+                ]]
             ]
         ],
         'session' => [
@@ -85,14 +91,14 @@ if (YII_ENV_DEV) {
     $config['modules']['debug'] = [
         'class' => 'yii\debug\Module',
         // uncomment the following to add your IP if you are not connecting from localhost.
-        'allowedIPs' => ['83.221.172.5'],
+        'allowedIPs' => ['83.221.172.5', '95.47.153.124'],
     ];
 
     $config['bootstrap'][] = 'gii';
     $config['modules']['gii'] = [
         'class' => 'yii\gii\Module',
         // uncomment the following to add your IP if you are not connecting from localhost.
-        'allowedIPs' => ['83.221.172.5'],
+        'allowedIPs' => ['83.221.172.5', '95.47.153.124'],
     ];
 }
 

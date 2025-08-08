@@ -2,6 +2,7 @@
 
 use app\models\Dashboard;
 use app\models\Products;
+use app\models\ProductTimeLimitation;
 use yii\helpers\Html;
 use yii\widgets\ActiveForm;
 
@@ -14,6 +15,13 @@ use yii\widgets\ActiveForm;
 $this->title = "Заказ: " . $model->store->name . ' на ' . date("d.m.Y", strtotime($model->date));
 $this->params['breadcrumbs'][] = $this->title;
 
+// Check if current time is within allowed order period (10:00 - 04:00)
+$currentHour = (int)date('H');
+$isOrderingAllowed = ($currentHour >= 11 || $currentHour < 4);
+
+// Current time for time limitation check
+$currentTime = date('H:i');
+
 $i = 0;
 $list = "";
 $content = "";
@@ -22,14 +30,68 @@ $priceClass = '';
 if (!Yii::$app->user->identity->showPrice) {
     $priceClass = 'hidden';
 }
+
+// Get all product IDs to fetch limitations
+$allProductIds = [];
+$folders = Products::getProductParents(Yii::$app->user->id);
+foreach ($folders as $folder) {
+    $items = Products::getProducts($folder['id'], $model->id, Yii::$app->user->id, false);
+    foreach ($items as $item) {
+        $allProductIds[] = $item['id'];
+    }
+}
+
+// Fetch all time limitations in a single query
+$timeLimitations = [];
+if (!empty($allProductIds)) {
+    $limitations = ProductTimeLimitation::find()
+        ->where(['productId' => $allProductIds])
+        ->all();
+    
+    foreach ($limitations as $limitation) {
+        $timeLimitations[$limitation->productId] = [
+            'startTime' => $limitation->startTime,
+            'endTime' => $limitation->endTime
+        ];
+    }
+}
+
 $folders = Products::getProductParents(Yii::$app->user->id);
 foreach ($folders as $folder) {
     $itemList = "";
-    $items = Products::getProducts($folder['id'], $model->id, Yii::$app->user->id);
+    $items = Products::getProducts($folder['id'], $model->id, Yii::$app->user->id, false);
     foreach ($items as $item) {
         $price = $item['price'] * (100 + Yii::$app->user->identity->percentage) / 100;
         $priceString = Dashboard::price($price);
 
+        // Check if this product has time limitations
+        $quantityField = "";
+        
+        if (isset($timeLimitations[$item['id']])) {
+            $startTime = $timeLimitations[$item['id']]['startTime'];
+            $endTime = $timeLimitations[$item['id']]['endTime'];
+            
+            // Check if current time is within allowed range
+            $isTimeAllowed = false;
+            
+            // If end time is less than start time (spans midnight)
+            if ($endTime < $startTime) {
+                $isTimeAllowed = ($currentTime >= $startTime || $currentTime < $endTime);
+            } else {
+                $isTimeAllowed = ($currentTime >= $startTime && $currentTime < $endTime);
+            }
+            
+            if ($isTimeAllowed) {
+                // Time is allowed, show input
+                $quantityField = '<input type="number" class="form-control quantity" name="Items[' . $item['id'] . ']" value="' . $item['quantity'] . '" step="any" />';
+            } else {
+                // Time is not allowed, show message
+                $quantityField = '<div class="text-danger">Доступно с ' . $startTime . ' до ' . $endTime . '</div>';
+            }
+        } else {
+            // No time limitation, show input
+            $quantityField = '<input type="number" class="form-control quantity" name="Items[' . $item['id'] . ']" value="' . $item['quantity'] . '" step="any" />';
+        }
 
         $availableInput = "";
         if (in_array($item['id'], $availability)) {
@@ -45,11 +107,12 @@ HTML;
             <td width="100" class="text-center">{$item['mainUnit']}</td>
             <td class="text-right {$priceClass} price" data-price="{$price}">{$priceString} сум</td>
             <td width="200">
-                <input type="text" class="form-control quantity" name="Items[{$item['id']}]" value="{$item['quantity']}" />
+                {$quantityField}
             </td>
-            <td width="200">
+            <!-- td width="200">
                 {$availableInput}
-            </td>
+            </td -->
+            
         </tr>
 HTML;
     }
@@ -70,7 +133,7 @@ HTML;
                                         <th class="text-center">Ед. изм.</th>
                                         <th class="text-right {$priceClass}">Цена</th>
                                         <th>Количество</th>
-                                        <th>В наличии</th>
+<!--                                        <th>В наличии</th>-->
                                     </tr>
                                     </thead>
                                     <tbody>
@@ -125,7 +188,7 @@ $('#order-form').on('beforeSubmit',function(e){
     //          res = false;
     //      }
     //  }
-    if(!isFormValid){
+    if(!isFormValid && $("input.quantity").length > 0){
         alert('Пожалуйста выберите продукты для заказа!');
         res = false;
     }
@@ -155,6 +218,21 @@ function calculateOrderTotal() {
     });
     $(".total-price").text(formatPrice(total) + " сум");
 }
+
+window.isSubmitting = false;
+$(document).on('submit', '#order-form', function(e){
+
+    if (window.isSubmitting) {
+        e.stopPropagation();
+        e.preventDefault();
+        return false;
+    }
+
+    if (!window.isSubmitting) {
+        window.isSubmitting = true;
+        return true;
+    }
+});
 JS;
 $this->registerJs($js);
 ?>
@@ -169,29 +247,41 @@ $this->registerJs($js);
     <div class="content table-responsive">
         <button id="button"></button>
         <div class="orders-list">
-            <h4 class="title" style="padding-bottom: 20px">Продукты</h4>
-            <?= Html::textInput('search', null, ['id' => 'searchField', 'class' => 'form-control', 'placeholder' => 'Введите название продукта']) ?>
-            <hr>
-            <?php $form = ActiveForm::begin([
-                'id' => 'order-form'
-            ]); ?>
-            <div class="panel-group" id="accordion">
-                <?= $list ?>
-            </div>
-            <hr>
-            <?= $form->field($model, 'comment')->textarea(['rows' => 7]) ?>
-            <hr>
-            <div class="form-group">
-                <div class="row">
-                    <div class="col-md-6">
-                        <?= Html::submitButton('Сохранить', ['class' => 'btn btn-success btn-fill']) ?>
-                    </div>
-                    <div class="col-md-6 text-right">
-                        <strong class="total-price <?= $priceClass ?>"></strong>
+            <?php if (!$isOrderingAllowed): ?>
+                <!-- <div class="alert alert-warning">
+                    <h4>Внимание!</h4>
+                    <p>Заказ можно оформлять только в период с 11:00 до 04:00.</p>
+                </div> -->
+            <?php else: ?>
+                <h4 class="title" style="padding-bottom: 20px">Продукты</h4>
+                <?= Html::textInput('search', null, ['id' => 'searchField', 'class' => 'form-control', 'placeholder' => 'Введите название продукта']) ?>
+                <hr>
+                <?php $form = ActiveForm::begin([
+                    'id' => 'order-form'
+                ]); ?>
+                <div class="panel-group" id="accordion">
+                    <?= $list ?>
+                </div>
+                <hr>
+                <?= $form->field($model, 'comment')->textarea(['rows' => 7]) ?>
+                <hr>
+                <div class="form-group">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <?= Html::submitButton('Сохранить', ['class' => 'btn btn-success btn-fill']) ?>
+                        </div>
+                        <div class="col-md-6 text-right">
+                            <strong class="total-price <?= $priceClass ?>"></strong>
+                        </div>
                     </div>
                 </div>
-            </div>
-            <?php ActiveForm::end(); ?>
+                <?php ActiveForm::end(); ?>
+            <?php endif; ?>
         </div>
     </div>
 </div>
+
+
+<script>
+
+</script>

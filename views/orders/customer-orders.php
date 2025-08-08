@@ -19,7 +19,12 @@ $isOrderMan = Dashboard::isOrderMan();
     <div class="header clearfix">
         <h2 class="pull-left title"><?= Html::encode($this->title) ?></h2>
         <p class="pull-right">
-            <?= Html::a('Добавить', ['create'], ['class' => 'btn btn-success btn-fill']) ?>
+            <?php
+            $currentHour = (int)date('H');
+            if ($currentHour >= 10 || $currentHour < 4) {
+                echo Html::a('Добавить', ['create'], ['class' => 'btn btn-success btn-fill']);
+            }
+            ?>
         </p>
     </div>
     <hr>
@@ -28,7 +33,7 @@ $isOrderMan = Dashboard::isOrderMan();
             'dataProvider' => $dataProvider,
             'summary' => false,
             'tableOptions' => [
-                'class' => 'table table-hover',
+                'class' => 'table table-hover', 
             ],
             'rowOptions' => function ($model) {
                 $class = "";
@@ -110,7 +115,11 @@ $isOrderMan = Dashboard::isOrderMan();
                     'template' => '{update}',
                     'buttons' => [
                         'update' => function ($url, $model, $key) {
-                            return $model->editable ? Html::a('<span class="glyphicon glyphicon-pencil"></span>', $url) : '';
+                            $addTime = strtotime($model->addDate);
+                            $currentTime = time();
+                            $hoursDiff = ($currentTime - $addTime) / 3600;
+                            
+                            return ($hoursDiff < 2) ? Html::a('<span class="glyphicon glyphicon-pencil"></span>', $url) : '';
                         },
                     ],
                     'contentOptions' => [

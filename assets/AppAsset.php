@@ -23,13 +23,15 @@ class AppAsset extends AssetBundle
         'css/bootstrap.vertical-tabs.css',
         'css/fullcalendar.min.css',
         'css/bootstrap-select.min.css',
-        'css/site.css?v=1.0',
+        'css/site.css?v=1.2',
     ];
     public $js = [
         'js/moment.min.js',
         'js/fullcalendar.min.js',
         'js/fullcalendar.ru.js',
         'js/bootstrap-select.min.js',
+        'js/jquery.min.js',
+        'js/jquery.fancybox.min.js',
         'vendor/bootstrap-datepicker/dist/js/bootstrap-datepicker.min.js',
         'js/scripts.js?v=2',
     ];

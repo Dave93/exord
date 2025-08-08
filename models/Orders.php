@@ -22,6 +22,11 @@ use yii\db\Query;
  * @property string $addDate
  * @property int $state
  * @property int $editable
+ * @property string $sent_date
+ * @property bool $is_market
+ * @property bool $is_locked
+ * @property string $deleted_at
+ * @property string $deleted_by
  *
  * @property Stores $store
  * @property User $user
@@ -33,6 +38,7 @@ class Orders extends \yii\db\ActiveRecord
         0 => "Новый",
         1 => "Отправлен",
         2 => "Завершен",
+        3 => "Проверка офисом",
     ];
 
     /**
@@ -51,10 +57,12 @@ class Orders extends \yii\db\ActiveRecord
         return [
             [['userId', 'date'], 'required'],
             [['userId', 'state', 'editable'], 'integer'],
-            [['date', 'addDate'], 'safe'],
+            [['date', 'addDate', 'sent_date'], 'safe'],
             [['comment'], 'string'],
-            [['defaultStoreId', 'storeId', 'supplierId', 'outgoingDocumentId', 'incomingDocumentId', 'supplierDocumentId'], 'string', 'max' => 36],
+            [['office_comment'], 'string'],
+            [['defaultStoreId', 'storeId', 'supplierId', 'outgoingDocumentId', 'incomingDocumentId', 'supplierDocumentId', 'deleted_at', 'deleted_by'], 'string', 'max' => 36],
             [['userId'], 'exist', 'skipOnError' => true, 'targetClass' => User::className(), 'targetAttribute' => ['userId' => 'id']],
+            [['is_market'], 'boolean'],
         ];
     }
 
@@ -74,6 +82,11 @@ class Orders extends \yii\db\ActiveRecord
             'addDate' => 'Добавлен в',
             'state' => 'Статус',
             'editable' => 'Editable',
+            'office_comment' => 'Комментарий офиса',
+            'sent_date' => 'Отправлено в',
+            'is_market' => 'Базар',
+            'deleted_at' => 'Удалено в',
+            'deleted_by' => 'Удалено пользователем',
         ];
     }
 
@@ -177,16 +190,33 @@ class Orders extends \yii\db\ActiveRecord
         return $r;
     }
 
-    public static function getOrderProducts($id)
+    public static function getOrderProducts($id, $is_market = false)
     {
         $query = new Query();
-        return $query->select("products.id,products.parentId,p1.name as groupName,products.name,products.mainUnit,order_items.*")
-            ->from("order_items")
-            ->leftJoin("products", "products.id=order_items.productId")
-            ->leftJoin("products p1", "p1.id=products.parentId")
-            ->where("order_items.orderId=:id and order_items.productId in(select category_id from user_categories where user_id=:u)", [":id" => $id, ':u' => Yii::$app->user->id])
+        if (!empty(Yii::$app->user->identity->product_group_id)) {
+            return $query->select("products.id,products.parentId,pg.name as groupName,products.name,products.mainUnit,order_items.*,products.price,order_items.prepared,order_items.minused")
+                ->from("order_items")
+                ->leftJoin("products", "products.id=order_items.productId")
+                ->leftJoin("product_groups_link pgl", "pgl.productId=products.id")
+                ->leftJoin("product_groups pg", "pg.id=pgl.productGroupId")
+                ->leftJoin("products p1", "p1.id=products.parentId")
+                ->where("order_items.orderId=:id and order_items.productId in(select category_id from user_categories where user_id=:u) and pgl.productGroupId = :d and (pg.is_market = :m or pg.is_market is null)", [":id" => $id, ':u' => Yii::$app->user->id, ':d' => Yii::$app->user->identity->product_group_id, ':m' => $is_market ? 1 : 0])
+                ->groupBy("order_items.productId")
 //            ->orderBy("p1.name,products.name")
-            ->all();
+                ->all();
+
+        } else {
+            return $query->select("products.id,products.parentId,pg.name as groupName,products.name,products.mainUnit,order_items.*,products.price")
+                ->from("order_items")
+                ->leftJoin("products", "products.id=order_items.productId")
+                ->leftJoin("product_groups_link pgl", "pgl.productId=products.id")
+                ->leftJoin("product_groups pg", "pg.id=pgl.productGroupId")
+                ->leftJoin("products p1", "p1.id=products.parentId")
+                ->where("order_items.orderId=:id and order_items.productId in(select category_id from user_categories where user_id=:u) and (pg.is_market = :m or pg.is_market is null)", [":id" => $id, ':u' => Yii::$app->user->id, ':m' => $is_market ? 1 : 0])
+                ->groupBy("order_items.productId")
+//            ->orderBy("p1.name,products.name")
+                ->all();
+        }
     }
 
     public static function getOrderSupplier($id)
@@ -251,3 +281,4 @@ class Orders extends \yii\db\ActiveRecord
         return false;
     }
 }
+

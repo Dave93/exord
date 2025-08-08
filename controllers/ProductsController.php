@@ -35,7 +35,7 @@ class ProductsController extends Controller
                 'only' => ['*'],
                 'rules' => [
                     [
-                        'actions' => ['index', 'subs'],
+                        'actions' => ['index', 'subs', 'links'],
                         'allow' => true,
                         'roles' => [
                             User::ROLE_ADMIN
@@ -113,6 +113,126 @@ class ProductsController extends Controller
             'searchModel' => $searchModel,
             'dataProvider' => $dataProvider,
         ]);
+    }
+
+
+    public function actionLinks()
+    {
+
+
+        if (Yii::$app->request->post()) {
+            $data = Yii::$app->request->post();
+
+            if (isset($data['user']) && isset($data['product'])) {
+                $userCategory = (new Query())
+                    ->select(['user_id'])
+                    ->from('user_categories')
+                    ->where(['user_id' => $data['user'], 'category_id' => $data['product']])
+                    ->one();
+
+                if ($data['checked'] == 1) {
+                    if (empty($userCategory)) {
+                        Yii::$app->db->createCommand()->insert('user_categories', [
+                            'user_id' => $data['user'],
+                            'category_id' => $data['product'],
+                        ])->execute();
+                    }
+                } else {
+                    if (!empty($userCategory)) {
+                        Yii::$app->db->createCommand()->delete('user_categories', [
+                            'user_id' => $data['user'],
+                            'category_id' => $data['product'],
+                        ])->execute();
+                    }
+                }
+            }
+        }
+
+        /**
+         * get all products where productType is not null and orderBy name
+         * white active record query
+         */
+        $products = Products::find()
+            ->where(['<>','productType' , ''])
+            ->orderBy('name')
+            ->asArray()
+            ->all();
+
+        $arCategoryIds = [];
+        foreach ($products as $product) {
+            $arCategoryIds[$product['parentId']] = $product['parentId'];
+        }
+
+        if (!empty($arCategoryIds)) {
+            $categories = Products::find()
+                ->where(['in', 'id', array_values($arCategoryIds)])
+                ->orderBy('name')
+                ->asArray()
+                ->all();
+
+            foreach ($categories as $category) {
+                foreach ($products as $key => $product) {
+                    if ($product['parentId'] == $category['id']) {
+                        $products[$key]['category'] = $category['name'];
+                    }
+                }
+            }
+
+            // please sort $products by name and category
+            usort($products, function($a, $b) {
+                if ($a['category'] == $b['category']) {
+                    return strcmp($a['name'], $b['name']);
+                }
+                return strcmp($a['category'], $b['category']);
+            });
+
+
+            /**
+             * get all users where role is equal to 6
+             */
+
+            $users = User::find()
+                ->where(['role' => 6])
+                ->andWhere(['state' => 1])
+                ->orderBy('fullname')
+                ->asArray()
+                ->all();
+
+            $arUserIds = [];
+
+            foreach ($users as $user) {
+                $arUserIds[$user['id']] = $user['id'];
+            }
+
+            $userCategories = (new Query())
+                ->select(['user_id', 'category_id'])
+                ->from('user_categories')
+                ->where(['in', 'user_id', array_values($arUserIds)])
+                ->all();
+
+            $userByProduct = [];
+
+            foreach ($userCategories as $userCategory) {
+                $userByProduct[$userCategory['category_id']][] = $userCategory['user_id'];
+            }
+
+            foreach ($products as $key => $product) {
+                if (empty($products[$key]['users'])) {
+                    $products[$key]['users'] = [];
+                }
+
+                foreach ($users as $user) {
+                    $products[$key]['users'][$user['id']] = (in_array($user['id'], $userByProduct[$product['id']]) ? 1 : 0);
+                }
+            }
+
+
+            return $this->render('links', [
+                'products' => $products,
+                'users' => $users,
+            ]);
+        }
+
     }
 
     /**

@@ -1,33 +1,87 @@
-# phpstorm project files
+# IDE project files
 .idea
-
-# netbeans project files
+.vscode
+*.sublime-project
+*.sublime-workspace
 nbproject
-
-# zend studio for eclipse project files
 .buildpath
 .project
 .settings
 
-# windows thumbnail cache
-Thumbs.db
-
-# composer vendor dir
-/vendor
-
-# composer itself is not needed
-composer.phar
-
-# Mac DS_Store Files
+# OS generated files
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
 
-# phpunit itself is not needed
+# Composer
+/vendor
+composer.phar
+composer.lock
+
+# Yii2 specific
+/runtime/*
+!/runtime/.gitkeep
+/web/assets/*
+!/web/assets/.gitignore
+/tests/_output/*
+/tests/_support/_generated
+
+# Environment files
+.env
+.env.local
+.env.*.local
+/config/db-local.php
+/config/params-local.php
+
+# Logs
+*.log
+/log/*
+!/log/.gitkeep
+
+# Database
+*.sql
+*.sqlite
+*.db
+
+# Backup files
+*.bak
+*.backup
+*~
+*.swp
+*.swo
+
+# Cache
+/cache/*
+!/cache/.gitkeep
+
+# PHPUnit
 phpunit.phar
-# local phpunit config
 /phpunit.xml
+.phpunit.result.cache
 
-tests/_output/*
-tests/_support/_generated
+# Node modules (if using any JS build tools)
+node_modules/
+npm-debug.log
+yarn-error.log
 
-#vagrant folder
+# Vagrant
 /.vagrant
+Vagrantfile.local
+
+# Docker
+docker-compose.override.yml
+
+# Uploaded files (keeping the directory but not the files)
+/web/uploads/*
+!/web/uploads/.gitkeep
+
+# Temporary files
+*.tmp
+*.temp
+/tmp/*
+!/tmp/.gitkeep

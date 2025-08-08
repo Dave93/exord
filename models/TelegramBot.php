@@ -175,7 +175,7 @@ class TelegramBot
     public function sendDocument($chat_id, $document, $reply_to_message_id = null, $reply_markup = null)
     {
         $data = compact('chat_id', 'document', 'reply_to_message_id', 'reply_markup');
-        if (((!is_dir($document)) && (filter_var($document, FILTER_VALIDATE_URL) === FALSE)))
+        if (((!is_dir($document)) && (filter_var($document, FILTER_VALIDATE_URL))))
             return $this->sendRequest('sendDocument', $data);
         return $this->uploadFile('sendDocument', $data);
     }

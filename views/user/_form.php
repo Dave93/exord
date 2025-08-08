@@ -64,6 +64,8 @@ else
 
             <?= $form->field($model, 'terminalId')->dropDownList(\app\models\Terminals::getList(), ['class' => 'selectpicker form-control  show-tick', 'prompt' => 'Выберите филиал', 'data-header' => "Выберите филиал", 'data-live-search' => 'true']) ?>
 
+            <?= $form->field($model, 'product_group_id')->dropDownList(\app\models\ProductGroups::getList(), ['class' => 'selectpicker form-control  show-tick', 'prompt' => 'Выберите этаж', 'data-header' => "Выберите этаж", 'data-live-search' => 'true']) ?>
+
             <div class="form-group categories required">
                 <div class="row">
                     <div class="col-md-6">

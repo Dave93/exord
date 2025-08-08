@@ -28,6 +28,8 @@ class MainAsset extends AssetBundle
         'js/slick.min.js',
         'js/wavesurfer.min.js',
         'js/script.js?v=1.0.1',
+        'js/jquery.min.js',
+        'js/jquery.fancybox.min.js',
     ];
     public $depends = [
         'yii\web\YiiAsset',

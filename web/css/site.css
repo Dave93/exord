@@ -279,3 +279,20 @@ a.desc:after {
 .bg-red {
     background-color: rgba(255, 0, 0, .3);
 }
+
+
+.flex {
+    display: flex;
+}
+
+.justify-between {
+    justify-content: space-between;
+}
+
+.mr-5 {
+    margin-right: 5rem;
+}
+
+.mt-20 {
+    margin-top: 20rem;
+}

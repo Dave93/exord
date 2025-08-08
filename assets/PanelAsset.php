@@ -27,7 +27,8 @@ class PanelAsset extends AssetBundle
         'css/bootstrap.vertical-tabs.css',
         'css/fullcalendar.min.css',
         'css/bootstrap-select.min.css',
-        'assets/panel/css/demo.css?v=1.0.11',
+        'css/site.css?v=3.2.2',
+        'assets/panel/css/demo.css?v=1.0.35',
     ];
     public $js = [
         'js/moment.min.js',
@@ -37,8 +38,11 @@ class PanelAsset extends AssetBundle
         'js/chartjs.min.js',
         'js/push.min.js',
         'assets/panel/js/light-bootstrap-dashboard.js?v=1.4.0',
-        'vendor/bootstrap-datepicker/dist/js/bootstrap-datepicker.min.js',
-        'js/scripts.js?v=1.0.13',
+        'vendor/bootstrap-datepicker/dist/js/bootstrap-datepicker.min.js?v=1.0.13',
+        'js/jquery.min.js',
+        'js/jquery.fancybox.min.js',
+        'js/toast.min.js',
+        'js/scripts.js?v=1.0.14',
     ];
     public $depends = [
         'yii\web\YiiAsset',
@@ -46,6 +50,6 @@ class PanelAsset extends AssetBundle
     ];
 
     public $jsOptions = [
-        'position' => \yii\web\View::POS_END
+        'position' => \yii\web\View::POS_HEAD
     ];
 }

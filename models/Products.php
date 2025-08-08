@@ -12,7 +12,7 @@ use yii\db\Query;
  * @property string $id
  * @property string $parentId
  * @property int $code
- * @property int $num
+ * @property string $num
  * @property string $name
  * @property string $zone
  * @property string $mainUnit
@@ -58,11 +58,11 @@ class Products extends \yii\db\ActiveRecord
     {
         return [
             [['id'], 'required'],
-            [['code', 'num', 'showOnReport'], 'integer'],
+            [['code', 'showOnReport'], 'integer'],
             [['price_start', 'price_end', 'delta', 'inStock', 'minBalance'], 'number'],
             [['syncDate','price'], 'safe'],
             [['id', 'parentId'], 'string', 'max' => 36],
-            [['cookingPlaceType', 'productType'], 'string', 'max' => 50],
+            [['cookingPlaceType', 'productType', 'num'], 'string', 'max' => 50],
             [['mainUnit'], 'string', 'max' => 20],
             [['name', 'zone'], 'string', 'max' => 255],
             [['description'], 'string'],
@@ -155,7 +155,36 @@ class Products extends \yii\db\ActiveRecord
         return "<ul class=\"category-tree\">{$li}</ul>";
     }
 
-    public static function getProductParents($user)
+    public static function getProductsGroupHierarchy($id = 0, $selected = null) {
+        if (empty($id))
+            $sql = "select * from (select p.id,p.name,(select count(*) from products where parentId=p.id) as count from products p where parentId=:id order by name asc) q1 where q1.count>0 order by name";
+        else
+            $sql = "select name,id,productType from products where parentId=:id order by name asc";
+        $data = Yii::$app->db->createCommand($sql)
+            ->bindParam(":id", $id, PDO::PARAM_STR)
+            ->queryAll();
+        $li = "";
+        if (empty($data))
+            return "";
+        foreach ($data as $row) {
+            $ul = self::getProductsGroupHierarchy($row['id'], $selected);
+            $sel = "";
+            if (in_array($row['id'], $selected))
+                $sel = "checked";
+            $productType = $row['productType'];
+            if (isset($row['productType']) && !empty($row['productType']))
+                $input = "<input type=\"checkbox\" name=\"ProductGroups[productIds][]\" value=\"{$row['id']}\" class=\"group-check\" {$sel}>";
+            else
+                $input = "";
+//            if (empty($ul))
+//                $input = "";
+            $li .= "<li>{$input} <a href=\"#\">{$row['name']}</a>{$ul}</li>";
+        }
+
+        return "<ul class=\"category-tree\">{$li}</ul>";
+    }
+
+    public static function getProductParents($user, $is_market = false)
     {
         $sql = "select p.id,p.parentId,p.name from products p
                 where p.id in(select category_id from user_categories where user_id=:u) and p.productType=''
@@ -164,16 +193,20 @@ class Products extends \yii\db\ActiveRecord
             ->bindValue(":u", $user, PDO::PARAM_INT)->queryAll();
     }
 
-    public static function getProducts($id, $order, $user)
+    public static function getProducts($id, $order, $user, $is_market = false)
     {
-        $sql = "select p.id,p.parentId,p.name,p.price,p.mainUnit,oi.quantity from products p
+        $sql = "select p.id,p.parentId,p.name,p.price,p.mainUnit,oi.quantity, oi.prepared from products p
                  left join order_items oi on oi.productId=p.id and oi.orderId=:o
-                where p.id in(select category_id from user_categories where user_id=:u) and p.parentId=:p and p.productType!=''
+                 left join product_groups_link pgl ON p.id = pgl.productId
+                left join product_groups pg ON pg.id = pgl.productGroupId
+                where p.id in(select category_id from user_categories where user_id=:u) and p.parentId=:p and p.productType!='' and (pg.is_market=:m or pg.is_market is null)
+                group by p.id
                 order by p.name";
         return Yii::$app->db->createCommand($sql)
             ->bindValue(":p", $id, PDO::PARAM_STR)
             ->bindValue(":o", $order, PDO::PARAM_INT)
             ->bindValue(":u", $user, PDO::PARAM_INT)
+            ->bindValue(":m", $is_market ? 1 : 0, PDO::PARAM_INT)
             ->queryAll();
     }
 

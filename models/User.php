@@ -30,6 +30,7 @@ use yii\web\IdentityInterface;
  * @property string $lastVisit
  * @property int $showPrice
  * @property int $terminalId
+ * @property int $product_group_id
  *
  * @property Stores $store
  * @property Suppliers $supplier
@@ -48,7 +49,9 @@ class User extends ActiveRecord implements IdentityInterface
     const ROLE_BARMEN = 5;
     const ROLE_COOK = 6;
     const ROLE_PASTRY = 7;
+    const ROLE_ETAJ = 9;
 
+    const ROLE_OFFICE = 8;
     public static $roles = [
         1 => 'Администратор',
         2 => 'Менеджер',
@@ -57,6 +60,8 @@ class User extends ActiveRecord implements IdentityInterface
         5 => 'Бариста',
         6 => 'Повар',
         7 => 'Кондитер',
+        8 => 'Офис',
+        9 => 'Этаж склада'
     ];
 
     public static $states = [
@@ -80,7 +85,7 @@ class User extends ActiveRecord implements IdentityInterface
         return [
             [['role', 'username', 'password', 'fullname', 'phone'], 'required', 'on' => 'create'],
             [['role', 'username', 'fullname', 'phone'], 'required', 'on' => 'update'],
-            [['state', 'role', 'percentage', 'showPrice'], 'integer'],
+            [['state', 'role', 'percentage', 'showPrice', 'product_group_id'], 'integer'],
             [['regDate', 'lastVisit'], 'safe'],
             [['username', 'email'], 'string', 'max' => 30],
             [['password'], 'string', 'max' => 150],
@@ -121,7 +126,8 @@ class User extends ActiveRecord implements IdentityInterface
             'lastVisit' => 'Последний визит',
             'category' => 'Категории',
             'showPrice' => 'Показать сумму',
-            'terminalId' => 'Ид филиала'
+            'terminalId' => 'Ид филиала',
+            'product_group_id' => 'Этаж товаров'
         ];
     }
 
@@ -147,6 +153,14 @@ class User extends ActiveRecord implements IdentityInterface
     public function getCategories()
     {
         return $this->hasMany(Products::className(), ['id' => 'category_id'])->viaTable('user_categories', ['user_id' => 'id']);
+    }
+
+    /**
+     * @return \yii\db\ActiveQuery
+     */
+    public function getProductGroup()
+    {
+        return $this->hasOne(ProductGroups::className(), ['id' => 'product_group_id']);
     }
 
     /**
@@ -311,5 +325,34 @@ class User extends ActiveRecord implements IdentityInterface
     {
         $model = self::findOne(Yii::$app->user->id);
         return $model->supplier_id;
+    }
+
+
+    /**
+     * Returns user role name according to RBAC
+     * @return string
+     */
+    public function getRoleName()
+    {
+        $roles = Yii::$app->authManager->getRolesByUser($this->id);
+        if (!$roles) {
+            return null;
+        }
+
+        reset($roles);
+        /* @var $role \yii\rbac\Role */
+        $role = current($roles);
+
+        return $role->name;
+    }
+
+    public static function getUsers() {
+        $query = new Query();
+        $data = $query->select("id,username")
+            ->from("user")
+            ->where("state=1")
+            ->orderBy("username")
+            ->all();
+        return ArrayHelper::map($data, 'id', 'username');
     }
 }

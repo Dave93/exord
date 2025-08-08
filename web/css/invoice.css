@@ -1,0 +1,11 @@
+
+table {
+    border-collapse: collapse;
+}
+table, th, td {
+    border: 1px solid black;
+}
+
+.ml-2 {
+    padding-left: 10px;
+}

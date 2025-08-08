@@ -73,7 +73,7 @@ class ParserController extends Controller
             return ExitCode::OK;
         }
         $text = "<b>Продукты</b>\n" . $text;
-        $bot->sendMessage(-195675906, $text, 'HTML');
+        $bot->sendMessage(-1001879316029, $text, 'HTML');
 
         return ExitCode::OK;
     }
@@ -108,7 +108,7 @@ class ParserController extends Controller
             return ExitCode::OK;
         }
         $text = "<b>Завышенные цены</b>\n" . $text;
-        $bot->sendMessage(-195675906, $text, 'HTML');
+        $bot->sendMessage(-1001879316029, $text, 'HTML');
 
         return ExitCode::OK;
     }

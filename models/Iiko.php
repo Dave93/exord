@@ -2,6 +2,7 @@
 
 namespace app\models;
 
+use app\commands\OrderInitController;
 use SimpleXMLElement;
 use Yii;
 use yii\base\Model;
@@ -14,6 +15,8 @@ class Iiko extends Model
     private $token;
     private $login;
     private $password;
+
+    public $rmsToken;
 
     /**
      * Iiko constructor.
@@ -28,10 +31,10 @@ class Iiko extends Model
 
     public function auth()
     {
-        $arrContextOptions=array(
-            "ssl"=>array(
-                "verify_peer"=>false,
-                "verify_peer_name"=>false,
+        $arrContextOptions = array(
+            "ssl" => array(
+                "verify_peer" => false,
+                "verify_peer_name" => false,
             ),
         );
         $hash = sha1($this->password);
@@ -44,16 +47,31 @@ class Iiko extends Model
         return true;
     }
 
+
+    public function rmsAuth($login = '946888c6-87d')
+    {
+//        echo '<pre>'; print_r($login); echo '</pre>';
+        $tokenData = $this->post('https://api-ru.iiko.services/api/1/access_token', json_encode([
+            'apiLogin' => $login
+        ]), [
+            CURLOPT_HTTPHEADER => [
+                'Content-Type: application/json'
+            ]
+        ]);
+
+        $this->rmsToken = json_decode($tokenData, true)['token'];
+    }
+
     public function getReport($store)
     {
         $data = [];
         $this->auth();
         $date = date("Y-m-d\TH:i:s");
         $url = "{$this->baseUrl}v2/reports/balance/stores?timestamp={$date}&key={$this->token}&store={$store}";
-        $arrContextOptions=array(
-            "ssl"=>array(
-                "verify_peer"=>false,
-                "verify_peer_name"=>false,
+        $arrContextOptions = array(
+            "ssl" => array(
+                "verify_peer" => false,
+                "verify_peer_name" => false,
             ),
         );
         $response = file_get_contents($url, false, stream_context_create($arrContextOptions));
@@ -66,10 +84,10 @@ class Iiko extends Model
 
     private function getData($url)
     {
-        $arrContextOptions=array(
-            "ssl"=>array(
-                "verify_peer"=>false,
-                "verify_peer_name"=>false,
+        $arrContextOptions = array(
+            "ssl" => array(
+                "verify_peer" => false,
+                "verify_peer_name" => false,
             ),
         );
         $data = file_get_contents("{$this->baseUrl}{$url}?key={$this->token}", false, stream_context_create($arrContextOptions));
@@ -160,7 +178,7 @@ class Iiko extends Model
                 $row['parentId'] = 0;
             $model->parentId = (string)$row['parentId'];
             $model->name = trim((string)$row['name']);
-            $model->num = (int)$row['num'];
+            $model->num = $row['num'];
             $model->code = (int)$row['code'];
             $model->productType = $type;
             $model->cookingPlaceType = (string)$row['cookingPlaceType'];
@@ -185,10 +203,10 @@ class Iiko extends Model
         $start = date("01.m.Y");
         $end = date("t.m.Y");
         $url = "{$this->baseUrl}reports/olap?key={$this->token}&report=TRANSACTIONS&from=01.01.2018&to={$end}&groupRow=Product.Name&groupRow=Product.Type&groupRow=Product.MeasureUnit&groupRow=Product.Id&agr=Amount";
-        $arrContextOptions=array(
-            "ssl"=>array(
-                "verify_peer"=>false,
-                "verify_peer_name"=>false,
+        $arrContextOptions = array(
+            "ssl" => array(
+                "verify_peer" => false,
+                "verify_peer_name" => false,
             ),
         );
         $response = file_get_contents($url, false, stream_context_create($arrContextOptions));
@@ -468,7 +486,7 @@ class Iiko extends Model
         $supplierId = "";
         foreach ($items as $item) {
             $i++;
-            if (empty($item['price']) || empty($item['supplierId']) || empty($item['factSupplierQuantity'])) {
+            if (empty($item['price']) || empty($item['supplierId']) || empty($item['factOfficeQuantity'])) {
                 continue;
             }
             $supplierId = $item['supplierId'];
@@ -476,11 +494,11 @@ class Iiko extends Model
             $sum = $price * $item['factSupplierQuantity'];
             $itemsXml .= "<item>
                              <num>{$i}</num>
-                             <actualAmount>{$item['factSupplierQuantity']}</actualAmount>
+                             <actualAmount>{$item['factOfficeQuantity']}</actualAmount>
                              <product>{$item['productId']}</product>
                              <store>{$model->storeId}</store>
                              <price>{$price}</price>
-                             <amount>{$item['supplierQuantity']}</amount>
+                             <amount>{$item['factOfficeQuantity']}</amount>
                              <sum>{$sum}</sum>
                           </item>";
         }
@@ -596,46 +614,159 @@ class Iiko extends Model
         return false;
     }
 
+    public function pendingDeliveries($start, $end, $terminalIds = [], $orgKey)
+    {
+        $startDate = date('Y-m-d', strtotime($start)) . " 00:00:00.123";
+        $endDate = date('Y-m-d', strtotime($end)) . " 23:59:59.123";
+//        echo '<pre>'; print_r($startDate); echo '</pre>';
+
+        $data = $this->post('https://api-ru.iiko.services/api/1/deliveries/by_delivery_date_and_source_key_and_filter', json_encode([
+            "organizationIds" => [
+                $orgKey
+            ],
+            "terminalGroupIds" => $terminalIds,
+            "deliveryDateFrom" => $startDate,
+            "deliveryDateTo" => $endDate,
+            "rowsCount" => 200,
+            "statuses" => [
+                "Unconfirmed",
+                "WaitCooking",
+                "ReadyForCooking",
+                "CookingStarted",
+                "CookingCompleted",
+                "Waiting",
+                "OnWay",
+                "Delivered",
+//                "Closed",
+//                "Cancelled"
+            ],
+            "hasProblem" => true
+        ]), [
+            CURLOPT_HTTPHEADER => [
+                'Content-Type: application/json',
+                'Authorization: Bearer ' . $this->rmsToken
+            ]
+        ]);
+//echo '<pre>'; print_r(json_encode([
+//        "organizationIds" => [
+//            $orgKey
+//        ],
+//        "terminalGroupIds" => $terminalIds,
+//        "deliveryDateFrom" => $startDate,
+//        "deliveryDateTo" => $endDate,
+//        "rowsCount" => 200,
+//        "statuses" => [
+//            "Unconfirmed",
+//            "WaitCooking",
+//            "ReadyForCooking",
+//            "CookingStarted",
+//            "CookingCompleted",
+////            "Waiting",
+////            "OnWay",
+//            "Delivered",
+////            "Closed",
+////            "Cancelled"
+//        ],
+//    ])); echo '</pre>';
+//         echo '<pre>'; print_r(json_decode($data, true)); echo '</pre>';
+        $orders = [];
+        $orderByOrganization = json_decode($data, true)['ordersByOrganizations'];
+        if (!empty($orderByOrganization)) {
+            $orders = $orderByOrganization[0]['orders'];
+        }
+
+        return array_filter($orders, function ($order) {
+            return !$order['order']['isDeleted'];
+        });
+    }
+
+    public function cancelDeliveryOrder($orderId = null, $organizationId = null, $removalTypeId = null)
+    {
+
+        $data = $this->post('https://api-ru.iiko.services/api/1/deliveries/cancel', json_encode([
+            "organizationId" => $organizationId,
+            "orderId" => $orderId,
+//            "movedOrderId" => "28af7243-7f48-4210-86f7-7f7d9464a036",
+            "removalTypeId" => $removalTypeId,
+//            "userIdForWriteoff" => "a6034758-9dec-455e-9b47-12cb676b45d8"
+        ]), [CURLOPT_HTTPHEADER => [
+            'Content-Type: application/json',
+            'Authorization: Bearer ' . $this->rmsToken
+        ]]);
+        //Get status of command.
+        sleep(2);
+        $statusMessage = $this->post('https://api-ru.iiko.services/api/1/commands/status', json_encode([
+            "organizationId" => $organizationId,
+            "correlationId" => json_decode($data, true)['correlationId']
+        ]), [CURLOPT_HTTPHEADER => [
+            'Content-Type: application/json',
+            'Authorization: Bearer ' . $this->rmsToken
+        ]]);
+
+        file_put_contents(__DIR__ . '/data.txt', json_encode([
+                "organizationId" => $organizationId,
+                "orderId" => $orderId,
+//            "movedOrderId" => "28af7243-7f48-4210-86f7-7f7d9464a036",
+                "removalTypeId" => $removalTypeId,
+//            "userIdForWriteoff" => "a6034758-9dec-455e-9b47-12cb676b45d8"
+            ]) . "\n\n", FILE_APPEND);
+        file_put_contents(__DIR__ . '/data.txt', $data . "\n\n" . $statusMessage . "\n\n", FILE_APPEND);
+    }
+
     /**
      * Расходной накладной
      * @param Orders $model
      * @return bool
      * @throws \yii\db\Exception
      */
-    private function supplierOutStockDoc($model)
+    public function supplierOutStockDoc($model, $debug = false)
     {
-        $sql = "select supplierId from order_items oi where oi.orderId=:id and oi.supplierQuantity>0 and oi.supplierId!='' group by oi.supplierId";
-        $suppliers = Yii::$app->db->createCommand($sql)
-            ->bindParam(":id", $model->id, PDO::PARAM_INT)
-            ->queryColumn();
-        $k = 0;
-        foreach ($suppliers as $supplier) {
-            if (empty($supplier))
-                continue;
-            $k++;
+//        echo '<pre>';
+//        print_r($model->id);
+//        echo '</pre>';
+        $orderId = $model->id;
+        // $sql = "select supplierId from order_items oi where oi.orderId=:id and oi.supplierQuantity>0 and oi.supplierId!='' group by oi.supplierId";
+        // $suppliers = Yii::$app->db->createCommand($sql)
+        //     ->bindParam(":id", $orderId, PDO::PARAM_INT)
+        //     ->queryColumn();
+        // $k = 0;
+        $storeId = Settings::getValue('stock-id');
+        if ($debug) {
+            echo '<pre>';
+            print_r($model->supplierId);
+            echo '</pre>';
+        }
+        // foreach ($suppliers as $supplier) {
+        //     if (empty($supplier))
+        //         continue;
+        //     $k++;
             $sql = "select * from order_items oi where oi.orderId=:id and oi.supplierQuantity>0";
             $items = Yii::$app->db->createCommand($sql)
-                ->bindParam(":id", $model->id, PDO::PARAM_INT)
+                ->bindParam(":id", $orderId, PDO::PARAM_INT)
                 ->queryAll();
+//            echo '<pre>'; var_dump(empty($items)); echo '</pre>';
             if (empty($items))
                 return false;
 
             $itemsXml = "";
 //            $defaultStoreId = Settings::getValue('stock-id');
             $defaultStoreId = '';
+            $defaultSupplierFromId = $model->supplierId;
             foreach ($items as $item) {
-                if (empty($item['price']) || empty($item['productId']) || empty($item['supplierQuantity'])) {
+                if (empty($item['price']) || empty($item['productId']) || empty($item['shipped_from_warehouse'])) {
                     continue;
                 }
                 $price = $item['price'] * (100 + $model->user->percentage) / 100;
-                $sum = $price * $item['supplierQuantity'];
+                $sum = $price * $item['shipped_from_warehouse'];
 
                 $defaultStoreId = $item['storeId'];
+                // if (empty($defaultSupplierFromId)) {
+                //     $defaultSupplierFromId = $item['supplierId'];
+                // }
                 $itemsXml .= "<item>
                             <productId>{$item['productId']}</productId>
-                            <storeId>{$defaultStoreId}</storeId>
                             <price>{$price}</price>
-                            <amount>{$item['supplierQuantity']}</amount>
+                            <amount>{$item['shipped_from_warehouse']}</amount>
                             <sum>{$sum}</sum>
                             <discountSum>0.00</discountSum>
                             <vatPercent>0.000000000</vatPercent>
@@ -646,17 +777,31 @@ class Iiko extends Model
             if (empty($itemsXml))
                 return false;
 
-            $number = "sup-out-{$k}-{$model->id}";
+            $number = "sup-out-1-{$orderId}";
             $date = date("Y-m-d\TH:i:s");
             $doc = "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>
                     <document>
                         <documentNumber>{$number}</documentNumber>
                         <dateIncoming>{$date}</dateIncoming>
                         <useDefaultDocumentTime>true</useDefaultDocumentTime>
-                        <defaultStoreId>{$defaultStoreId}</defaultStoreId>
-                        <counteragentId>{$model->supplierId}</counteragentId>
+                        <defaultStoreId>{$storeId}</defaultStoreId>
+                        <counteragentId>{$defaultSupplierFromId}</counteragentId>
+                        <status>PROCESSED</status>
                         <items>{$itemsXml}</items>
                     </document>";
+            if ($debug) {
+                echo '<pre>';
+                print_r("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>
+                    <document>
+                        <documentNumber>{$number}</documentNumber>
+                        <dateIncoming>{$date}</dateIncoming>
+                        <useDefaultDocumentTime>true</useDefaultDocumentTime>
+                        <defaultStoreId>{$storeId}</defaultStoreId>
+                        <counteragentId>{$defaultSupplierFromId}</counteragentId>
+                        <status>PROCESSED</status>
+                    </document>");
+                echo '</pre>';
+            }
             if ($this->auth()) {
                 $url = "{$this->baseUrl}documents/import/outgoingInvoice?key={$this->token}";
                 $result = $this->post($url, $doc);
@@ -671,8 +816,30 @@ class Iiko extends Model
                     return $e->getMessage();
                 }
             }
-        }
+        // }
         return false;
+    }
+
+
+    public function getOutgoingDocs($start = null, $end = null)
+    {
+        $url = "{$this->baseUrl}documents/export/outgoingInvoice?key={$this->token}";
+
+        if (empty($start)) {
+            $start = date('Y-m-d');
+        }
+
+        if (empty($end)) {
+            $end = date('Y-m-d');
+        }
+
+        if (!empty($start) && !empty($end)) {
+            $start = date('Y-m-d', strtotime($start));
+            $end = date('Y-m-d', strtotime($end));
+            $url .= "&from={$start}&to={$end}";
+        }
+        $result = $this->get($url);
+        return $this->xmlToArray($result);
     }
 
     private function xmlToArray($xml)
@@ -706,6 +873,37 @@ class Iiko extends Model
                 'Content-Type: application/xml',
             ],
             CURLOPT_POSTFIELDS => $post
+        ];
+        $ch = curl_init();
+        curl_setopt_array($ch, ($options + $defaults));
+        if (!$result = curl_exec($ch)) {
+            @trigger_error(curl_error($ch));
+        }
+        curl_close($ch);
+        return $result;
+    }
+
+    /**
+     * Send a GET request using cURL
+     * @param string $url to request
+     * @param array|string $post values to send
+     * @param array $options for cURL
+     * @return string
+     * @internal param array $get
+     */
+    private function get($url, $post = null, array $options = array())
+    {
+        $defaults = [
+            CURLOPT_HEADER => 0,
+            CURLOPT_URL => $url,
+            CURLOPT_FRESH_CONNECT => 1,
+            CURLOPT_RETURNTRANSFER => 1,
+            CURLOPT_FORBID_REUSE => 1,
+            CURLOPT_SSL_VERIFYHOST => 0, //unsafe, but the fastest solution for the error " SSL certificate problem, verify that the CA cert is OK"
+            CURLOPT_SSL_VERIFYPEER => 0, //unsafe, but the fastest solution for the error " SSL certificate problem, verify that the CA cert is OK"
+            CURLOPT_HTTPHEADER => [
+                'Content-Type: application/xml',
+            ]
         ];
         $ch = curl_init();
         curl_setopt_array($ch, ($options + $defaults));

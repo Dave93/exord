@@ -238,7 +238,7 @@ $(document).ready(function () {
             format: "dd.mm.yyyy",
             language: "ru",
             weekStart: 1,
-            startDate: "01.01." + (new Date).getFullYear(),
+            startDate: "01.01.2000",
             defaultViewDate: {
                 year: new Date().getFullYear(),
                 month: new Date().getMonth(),

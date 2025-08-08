@@ -10,48 +10,69 @@ use app\models\Orders;
 $i = 0;
 $total = 0;
 $items = OrderItems::find()->where('orderId=:id and storeQuantity>0', [':id' => $model->id])->all();
+$products = Orders::getOrderProducts($model->id);
+$groupedProducts = [];
+uasort($products, function ($a, $b) {
+    return strcmp($a['name'], $b['name']);
+});
+foreach ($products as $product) {
+    if (empty($groupedProducts[$product['groupName']])) {
+        $groupedProducts[$product['groupName']] = [
+            'name' => $product['groupName'],
+            'products' => []
+        ];
+    }
+    $groupedProducts[$product['groupName']]['products'][] = $product;
+}
+uasort($groupedProducts, function ($a, $b) {
+    return strcmp($a['name'], $b['name']);
+});
 ?>
-<h2>РАСХОДНАЯ НАКЛАДНАЯ</h2>
-<p>Номер документа: <?= $model->id ?></p>
-<p>Дата документа: <?= date('d.m.Y H:i', strtotime($model->date)) ?></p>
-<p>Поставщик: Центральный склад Chain</p>
-<p>Получатель: <?= $model->store->name ?></p>
-<p>Примечание: <?= $model->comment ?></p>
+<div style="font-size: 20px; font-weight: bold">РАСХОДНАЯ НАКЛАДНАЯ</div>
+<div style="font-weight: bold;display: inline-block; margin: 20px 0;">
+    Ушбу накладнойни КОНТРОЛЬ группага ташаш эсингиздан чикмасин!
+</div>
+        <div>Номер документа: <?= $model->id ?></div>
+        <div>Дата документа: <?= (!empty($model->sent_date) ? date('d.m.Y', strtotime($model->sent_date)) : date('d.m.Y')) ?></div>
+        <div>Оператор склада: <?= Yii::$app->user->identity->fullname ?> (<?= Yii::$app->user->identity->username ?>)</div>
+        <div>Поставщик: Центральный склад Chain</div>
+        <div>Получатель: <?= $model->store->name ?></div>
+        <div>Примечание: <?= $model->comment ? $model->comment : '______________________________________' ?></div>
+
 
 <meta http-equiv="content-type" content="application/vnd.ms-excel; charset=UTF-8">
-<table border="1" width="100%" cellpadding="0" cellspacing="0">
-    <thead>
-    <tr>
-        <th>№</th>
-        <th>Продукт</th>
-        <th>Ед. изм.</th>
-        <th>Кол-во</th>
-        <th class="text-right">Цена</th>
-        <th class="text-right">Сумма</th>
-    </tr>
-    </thead>
-    <tbody>
-    <?php foreach ($items as $item): ?>
-        <?php
-        $i++;
-        $price = $item->product->price * (100 + $model->user->percentage) / 100;
-        $priceString = Dashboard::price($price);
-        $sum = $item->storeQuantity * $price;
-        $total += $sum;
-        ?>
+
+    <table border="1" width="100%" cellpadding="0" cellspacing="0">
+        <thead>
         <tr>
-            <td><?= $i ?></td>
-            <td><?= $item->product->name ?></td>
-            <td><?= $item->product->mainUnit ?></td>
-            <td><?= $item->storeQuantity ?></td>
-            <td class="text-right"><?= Dashboard::price($price) ?> сум</td>
-            <td class="text-right"><?= Dashboard::price($sum) ?> сум</td>
+            <th>№</th>
+            <th align="center">Продукт</th>
+            <th width="30" align="center">Ед. изм.</th>
+            <th width="100" align="center">Кол-во</th>
+            <th align="center">Готовность</th>
         </tr>
-    <?php endforeach; ?>
-    <tr>
-        <td></td>
-        <td>Итого</td>
-        <td colspan="4" class="text-right"><?= Dashboard::price($total) ?> сум</td>
-    </tr>
-    </tbody>
-</table>
+        </thead>
+        <tbody>
+            <?php foreach ($groupedProducts as $group) {?>
+                <tr>
+                    <th colspan="4" class="text-center"><?=($group['name'] ? $group['name'] : 'Остальные продукты')?></th>
+                </tr>
+                <?php foreach ($group['products'] as $item): ?>
+                    <?php
+                    $i++;
+                    $price = $item['price'] * (100 + $model->user->percentage) / 100;
+                    $priceString = Dashboard::price($price);
+                    $sum = $item['storeQuantity'] * $price;
+                    $total += $sum;
+                    ?>
+                    <tr>
+                        <td width="20" align="center"><?= $i ?></td>
+                        <td class="ml-2"><?= $item['name'] ?></td>
+                        <td width="30" align="center"><?= $item['mainUnit'] ?></td>
+                        <td width="100" align="center"><?= $item['storeQuantity'] ?></td>
+                        <td align="center"></td>
+                    </tr>
+                <?php endforeach; ?>
+            <?php }?>
+        </tbody>
+    </table>

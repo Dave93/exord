@@ -197,10 +197,29 @@ $isOrderMan = Dashboard::isOrderMan();
                 ],
                 [
                     'class' => 'yii\grid\ActionColumn',
-                    'template' => '{view}',
+                    'template' => '{view} {try_again} {return}',
                     'contentOptions' => [
                         'width' => 60,
                         'class' => 'text-center'
+                    ],
+                    'buttons' => [
+                        'view'=>function ($url, $model) {
+                            $customurl=Yii::$app->getUrlManager()->createUrl(['orders/view','id'=>$model['id']]);
+                            return \yii\helpers\Html::a( '<span class="glyphicon glyphicon-eye-open"></span>', $customurl,
+                                ['title' => Yii::t('yii', 'View'), 'data-pjax' => '0']);
+                        },
+                        'try_again' => function ($url, $model) {
+                            $customurl=Yii::$app->getUrlManager()->createUrl(['orders/try-again','id'=>$model['id'], 'back' => urlencode(Yii::$app->request->url)]);
+                            return \yii\helpers\Html::a( '<span class="glyphicon glyphicon-refresh"></span>', $customurl,
+                                ['title' => Yii::t('yii', 'Подтвердить'), 'data-pjax' => '0']);
+                        },
+                        'return' => function ($url, $model) {
+                            if (Yii::$app->user->identity->role == User::ROLE_ADMIN && $model->deleted_at != null) {
+                                $customurl=Yii::$app->getUrlManager()->createUrl(['orders/return-back','id'=>$model['id'], 'back' => urlencode(Yii::$app->request->url)]);
+                                return \yii\helpers\Html::a( '<span class="glyphicon glyphicon-share-alt"></span>', $customurl,
+                                    ['title' => Yii::t('yii', 'Подтвердить'), 'data-pjax' => '0']);
+                            }
+                        }
                     ]
                 ],
             ],

@@ -18,6 +18,12 @@ use yii\widgets\DetailView;
 $this->title = "Заказ: #" . $model->id . "; " . $model->store->name . ' на ' . date("d.m.Y", strtotime($model->date));
 $this->params['breadcrumbs'][] = $this->title;
 
+// Проверка, прошло ли больше двух часов с момента создания заказа
+$orderCreatedAt = strtotime($model->addDate);
+$currentTime = time();
+$twoHoursInSeconds = 2 * 60 * 60;
+$canEdit = ($currentTime - $orderCreatedAt) <= $twoHoursInSeconds && !$model->is_locked;
+
 $i = 0;
 $list = "";
 $content = "";
@@ -34,13 +40,16 @@ foreach ($folders as $folder) {
     foreach ($items as $item) {
         $price = $item['price'] * (100 + Yii::$app->user->identity->percentage) / 100;
         $priceString = Dashboard::price($price);
+        $inputField = ($item['prepared'] == 1)
+            ? '<input type="text" class="form-control quantity" name="Items[' . $item['id'] . ']" value="' . $item['quantity'] . '" disabled>'
+            : '<input type="text" class="form-control quantity" name="Items[' . $item['id'] . ']" value="' . $item['quantity'] . '">';
         $itemList .= <<<HTML
         <tr id="p-{$item['id']}">
             <td>{$item['name']}</td>
             <td width="100" class="text-center">{$item['mainUnit']}</td>
             <td class="text-right {$priceClass} price" data-price="{$price}">{$priceString} сум</td>
             <td width="200">
-                <input type="text" class="form-control quantity" name="Items[{$item['id']}]" value="{$item['quantity']}">
+                {$inputField}
             </td>
         </tr>
 HTML;
@@ -135,7 +144,20 @@ $this->registerJs($js);
         </p>
     </div>
     <hr>
-    <div class="content table-responsive">
+    <div class="content">
+        <div class="alert <?= $canEdit ? 'alert-info' : 'alert-danger' ?>">
+            <h4><i class="fa fa-info-circle"></i> Информация</h4>
+            <p>Заказ можно редактировать в течение двух часов с момента создания заказа.</p>
+            <?php if ($canEdit): ?>
+                <p>Время создания заказа: <?= date('d.m.Y H:i:s', $orderCreatedAt) ?></p>
+                <p>Редактирование возможно до: <?= date('d.m.Y H:i:s', $orderCreatedAt + $twoHoursInSeconds) ?></p>
+            <?php else: ?>
+                <p>Время редактирования заказа истекло.</p>
+                <p>Время создания заказа: <?= date('d.m.Y H:i:s', $orderCreatedAt) ?></p>
+            <?php endif; ?>
+        </div>
+        
+        <?php if ($canEdit): ?>
         <div class="orders-list">
             <h4 class="title" style="padding-bottom: 20px">Продукты</h4>
             <?= Html::textInput('search', null, ['id' => 'searchField', 'class' => 'form-control', 'placeholder' => 'Введите название продукта']) ?>
@@ -151,5 +173,6 @@ $this->registerJs($js);
             </div>
             <?php ActiveForm::end(); ?>
         </div>
+        <?php endif; ?>
     </div>
 </div>

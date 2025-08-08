@@ -39,7 +39,7 @@ class OrderSearch extends Orders
      *
      * @return ActiveDataProvider
      */
-    public function search($params, $active = true, $start = null, $end = null)
+    public function search($params, $active = true, $start = null, $end = null, $state=null)
     {
         $query = Orders::find();
 
@@ -67,6 +67,7 @@ class OrderSearch extends Orders
             'userId' => $this->userId,
             'date' => $this->date,
             'addDate' => $this->addDate,
+            'is_market' => $this->is_market,
         ]);
 
         if ($active) {
@@ -76,10 +77,18 @@ class OrderSearch extends Orders
         }
 
         if (!empty($start)) {
-            $query->andWhere('date>=:s', [':s' => date('Y-m-d', strtotime($start))." 00:00:00"]);
+            $query->andWhere('date>=:z', [':z' => date('Y-m-d', strtotime($start))." 00:00:00"]);
         }
         if (!empty($end)) {
             $query->andWhere('date<=:e', [':e' => date('Y-m-d', strtotime($end))." 23:59:59"]);
+        }
+
+        if (!empty($state)) {
+            $query->andWhere('state=:s', [':s' => $state]);
+        }
+
+        if (Yii::$app->user->identity->role != User::ROLE_ADMIN) {
+            $query->andWhere('deleted_at is null');
         }
 
         $query->andFilterWhere(['like', 'defaultStoreId', $this->defaultStoreId])

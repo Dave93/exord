@@ -31,7 +31,7 @@ class Terminals extends \yii\db\ActiveRecord
     public function rules()
     {
         return [
-            [['name', 'address', 'external_id', 'latitude', 'longitude'], 'string', 'max' => 250],
+            [['name', 'address', 'external_id', 'latitude', 'longitude', 'organization_id'], 'string', 'max' => 250],
         ];
     }
 
@@ -47,6 +47,7 @@ class Terminals extends \yii\db\ActiveRecord
             'latitude' => 'Latitude',
             'longitude' => 'Longitude',
             'id' => 'ID',
+            'organization_id' => 'organization_id'
         ];
     }
 
