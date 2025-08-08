@@ -16,9 +16,10 @@ use yii\helpers\Html;
     <style>
         body {
             font-family: 'Courier New', Courier, monospace;
-            font-size: 10px;
+            font-size: 12px;
+            font-weight: 600;
             margin: 0;
-            padding: 5mm 3mm;
+            padding: 5mm 3mm 15mm 3mm; /* Добавлен отступ снизу */
             width: 58mm; /* Thermal printer width */
             min-height: auto;
         }
@@ -36,14 +37,16 @@ use yii\helpers\Html;
             border-bottom: none;
             border-top: 1px dashed #000;
             margin-top: 5px;
+            padding-bottom: 10mm; /* Дополнительный отступ снизу */
         }
         .receipt-body table {
             width: 100%;
             border-collapse: collapse;
         }
         .receipt-body th, .receipt-body td {
-            padding: 2px 0;
-            font-size: 9px;
+            padding: 3px 0;
+            font-size: 11px;
+            font-weight: 600;
         }
         .receipt-body tr:last-child td {
             border-bottom: none;
@@ -52,7 +55,8 @@ use yii\helpers\Html;
             text-align: right;
         }
         strong {
-            font-size: 11px;
+            font-size: 13px;
+            font-weight: 700;
         }
         p {
             margin: 2px 0;
@@ -65,7 +69,7 @@ use yii\helpers\Html;
             body {
                 width: 58mm;
                 margin: 0;
-                padding: 2mm;
+                padding: 3mm 3mm 15mm 3mm;
             }
             .no-print {
                 display: none;
