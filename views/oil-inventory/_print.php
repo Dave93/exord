@@ -24,10 +24,6 @@ $this->title = 'Инвентаризация масла #' . $model->id;
             <td class="text-right"><?= number_format($model->return_amount_kg, 2) ?></td>
         </tr>
         <tr>
-            <td>Возврат л:</td>
-            <td class="text-right"><?= number_format($model->return_amount, 2) ?></td>
-        </tr>
-        <tr>
             <td colspan="2"><div class="divider"></div></td>
         </tr>
     </table>

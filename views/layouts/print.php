@@ -20,7 +20,7 @@ use yii\helpers\Html;
             font-weight: 700;
             margin: 0;
             padding: 5mm 3mm 15mm 3mm; /* Добавлен отступ снизу */
-            width: 58mm; /* Thermal printer width */
+            width: 72mm; /* Standard thermal printer width */
             min-height: auto;
         }
         .receipt {
@@ -69,7 +69,7 @@ use yii\helpers\Html;
         }
         @media print {
             body {
-                width: 58mm;
+                width: 72mm;
                 margin: 0;
                 padding: 3mm 3mm 15mm 3mm;
             }
@@ -77,7 +77,7 @@ use yii\helpers\Html;
                 display: none;
             }
             @page {
-                size: 58mm auto;
+                size: 72mm auto;
                 margin: 0;
             }
         }
