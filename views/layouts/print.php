@@ -16,37 +16,63 @@ use yii\helpers\Html;
     <style>
         body {
             font-family: 'Courier New', Courier, monospace;
-            font-size: 12px;
+            font-size: 10px;
             margin: 0;
-            padding: 10mm;
-            width: 80mm; /* Standard receipt width */
+            padding: 5mm 3mm;
+            width: 58mm; /* Thermal printer width */
+            min-height: auto;
         }
         .receipt {
-            margin: 0 auto;
+            margin: 0;
+            padding: 0;
         }
         .receipt-header, .receipt-footer {
             text-align: center;
-            margin-bottom: 10px;
+            margin-bottom: 5px;
+            padding: 3px 0;
+            border-bottom: 1px dashed #000;
+        }
+        .receipt-footer {
+            border-bottom: none;
+            border-top: 1px dashed #000;
+            margin-top: 5px;
         }
         .receipt-body table {
             width: 100%;
             border-collapse: collapse;
         }
         .receipt-body th, .receipt-body td {
-            padding: 5px 0;
-            border-bottom: 1px dashed #ccc;
+            padding: 2px 0;
+            font-size: 9px;
+        }
+        .receipt-body tr:last-child td {
+            border-bottom: none;
         }
         .text-right {
             text-align: right;
         }
+        strong {
+            font-size: 11px;
+        }
+        p {
+            margin: 2px 0;
+        }
+        .divider {
+            border-bottom: 1px dashed #000;
+            margin: 3px 0;
+        }
         @media print {
             body {
-                width: auto;
+                width: 58mm;
                 margin: 0;
-                padding: 0;
+                padding: 2mm;
             }
             .no-print {
                 display: none;
+            }
+            @page {
+                size: 58mm auto;
+                margin: 0;
             }
         }
     </style>
