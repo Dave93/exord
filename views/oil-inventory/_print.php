@@ -36,4 +36,10 @@ $this->title = 'Инвентаризация масла #' . $model->id;
 <div class="receipt-footer">
     <p>Статус: <?= Html::encode($model->getStatusLabel()) ?></p>
     <p>* * *</p>
+    <br>
+    <br>
+    <br>
+    <br>
+    <br>
+    <br>
 </div> 
