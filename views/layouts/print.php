@@ -16,7 +16,7 @@ use yii\helpers\Html;
     <style>
         body {
             font-family: 'Courier New', Courier, monospace;
-            font-size: 14px;
+            font-size: 30px;
             font-weight: 700;
             margin: 0;
             padding: 5mm 3mm 15mm 3mm; /* Добавлен отступ снизу */
@@ -45,7 +45,7 @@ use yii\helpers\Html;
         }
         .receipt-body th, .receipt-body td {
             padding: 4px 0;
-            font-size: 13px;
+            font-size: 27.5px;
             font-weight: 700;
         }
         .receipt-body tr:last-child td {
@@ -55,12 +55,12 @@ use yii\helpers\Html;
             text-align: right;
         }
         strong {
-            font-size: 16px;
+            font-size: 32.5px;
             font-weight: 800;
         }
         p {
             margin: 3px 0;
-            font-size: 14px;
+            font-size: 28px;
             font-weight: 700;
         }
         .divider {
