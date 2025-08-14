@@ -21,11 +21,22 @@ $this->params['breadcrumbs'][] = $this->title;
                         <?= Html::encode($this->title) ?>
                     </h3>
                     <div class="box-tools pull-right">
-                        <?php if (in_array($model->status, [OilInventory::STATUS_NEW, OilInventory::STATUS_REJECTED])): ?>
+                        <?php if ($model->status !== OilInventory::STATUS_ACCEPTED): ?>
                             <?= Html::a('<i class="fa fa-pencil"></i> Редактировать', ['update', 'id' => $model->id], [
                                 'class' => 'btn btn-primary btn-sm'
                             ]) ?>
+                            <?= Html::a('<i class="fa fa-trash"></i> Удалить', ['delete', 'id' => $model->id], [
+                                'class' => 'btn btn-danger btn-sm',
+                                'data' => [
+                                    'confirm' => 'Вы уверены, что хотите удалить эту запись?',
+                                    'method' => 'post',
+                                ],
+                            ]) ?>
                         <?php endif; ?>
+                        <?= Html::a('<i class="fa fa-print"></i> Печать', ['print', 'id' => $model->id], [
+                            'class' => 'btn btn-default btn-sm',
+                            'target' => '_blank',
+                        ]) ?>
                     </div>
                 </div>
 
