@@ -191,6 +191,12 @@ class OilInventoryController extends Controller
         
         // Проверяем, что запись принадлежит магазину текущего пользователя
         $this->checkStoreAccess($model);
+        
+        // Проверяем, что запись не имеет статус "Принят"
+        if ($model->status === OilInventory::STATUS_ACCEPTED) {
+            Yii::$app->session->setFlash('error', 'Невозможно редактировать запись со статусом "Принят".');
+            return $this->redirect(['view', 'id' => $model->id]);
+        }
 
         if ($model->load(Yii::$app->request->post()) && $model->save()) {
             Yii::$app->session->setFlash('success', 'Запись успешно обновлена.');
@@ -215,6 +221,12 @@ class OilInventoryController extends Controller
         
         // Проверяем, что запись принадлежит магазину текущего пользователя
         $this->checkStoreAccess($model);
+        
+        // Проверяем, что запись не имеет статус "Принят"
+        if ($model->status === OilInventory::STATUS_ACCEPTED) {
+            Yii::$app->session->setFlash('error', 'Невозможно удалить запись со статусом "Принят".');
+            return $this->redirect(['index']);
+        }
         
         $model->delete();
         Yii::$app->session->setFlash('success', 'Запись успешно удалена.');
@@ -264,6 +276,9 @@ class OilInventoryController extends Controller
         $searchModel->status = OilInventory::STATUS_FILLED;
         
         $dataProvider = $searchModel->search(Yii::$app->request->queryParams);
+        
+        // Добавляем дополнительный фильтр для записей с возвратом больше нуля
+        $dataProvider->query->andWhere(['>', 'return_amount_kg', 0]);
 
         return $this->render('filled', [
             'searchModel' => $searchModel,
