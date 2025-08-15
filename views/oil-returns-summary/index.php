@@ -20,7 +20,7 @@ $this->params['breadcrumbs'][] = $this->title;
                 <?= DatePicker::widget([
                     'name' => 'date_from',
                     'value' => $dateFrom,
-                    'type' => DatePicker::TYPE_INPUT,
+                    'removeButton' => false,
                     'pluginOptions' => [
                         'autoclose' => true,
                         'format' => 'yyyy-mm-dd',
@@ -28,6 +28,7 @@ $this->params['breadcrumbs'][] = $this->title;
                     ],
                     'options' => [
                         'placeholder' => 'Дата с',
+                        'autocomplete' => 'off',
                     ]
                 ]); ?>
             </div>
@@ -36,7 +37,7 @@ $this->params['breadcrumbs'][] = $this->title;
                 <?= DatePicker::widget([
                     'name' => 'date_to',
                     'value' => $dateTo,
-                    'type' => DatePicker::TYPE_INPUT,
+                    'removeButton' => false,
                     'pluginOptions' => [
                         'autoclose' => true,
                         'format' => 'yyyy-mm-dd',
@@ -44,6 +45,7 @@ $this->params['breadcrumbs'][] = $this->title;
                     ],
                     'options' => [
                         'placeholder' => 'Дата по',
+                        'autocomplete' => 'off',
                     ]
                 ]); ?>
             </div>
