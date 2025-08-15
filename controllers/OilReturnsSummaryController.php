@@ -42,13 +42,13 @@ class OilReturnsSummaryController extends Controller
 
         $query = (new Query())
             ->select([
-                's.name COLLATE utf8_unicode_ci as terminal_name',
+                's.name as terminal_name',
                 's.id as store_id',
                 'SUM(oi.return_amount_kg) as total_return_kg',
                 'SUM(oi.return_amount) as total_return_liters'
             ])
             ->from(['oi' => OilInventory::tableName()])
-            ->leftJoin(['s' => Stores::tableName()], 's.id COLLATE utf8_unicode_ci = oi.store_id COLLATE utf8_unicode_ci')
+            ->leftJoin(['s' => Stores::tableName()], 'BINARY s.id = BINARY oi.store_id')
             ->where(['between', 'DATE(oi.created_at)', $dateFrom, $dateTo])
             ->andWhere(['oi.status' => OilInventory::STATUS_ACCEPTED])
             ->groupBy(['s.id', 's.name'])
