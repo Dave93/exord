@@ -48,6 +48,7 @@ use yii\helpers\Html;
             <li><?= Html::a('Пользователи', ['user/index']) ?></li>
             <li><?= Html::a('Telegram Пользователи', ['tgusers/index']) ?></li>
             <li><?= Html::a('Приём масла', ['/oil-inventory/filled']) ?></li>
+            <li><?= Html::a('Сводка возврата масла', ['/oil-returns-summary/index']) ?></li>
             <li><?= Html::a('Списания', ['write-offs/index']) ?></li>
             <li><?= Html::a('Привязка товаров', ['products/links']) ?></li>
             <li><?= Html::a('Настройки', ['settings/index']) ?></li>
