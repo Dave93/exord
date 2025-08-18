@@ -326,66 +326,66 @@ class OrdersController extends Controller
             //     die();
             // }
 
-                if (!empty($arBazarItems)) {
-                    $arBazarItemIds = [];
-                    foreach ($arBazarItems as $key => $value) {
-                        $arBazarItemIds[] = $key;
-                    }
-                    $query = new Query();
-                    $products = $query->select('products.id,product_groups.is_market')
-                        ->from('products')
-                        ->leftJoin('product_groups_link', 'product_groups_link.productId = products.id')
-                        ->leftJoin('product_groups', 'product_groups.id = product_groups_link.productGroupId')
-                        ->where(['products.id' => $arBazarItemIds, 'product_groups.is_market' => 1])
-                        ->all();
-                    // if (Yii::$app->user->id == 158) {
-                    //     echo "<pre>";
-                    //     print_r($arBazarItemIds);
-                    //     echo "</pre>";
-                    //     echo "<pre>";
-                    //     print_r($products);
-                    //     echo "</pre>";
-                    // }
-                    $arBazarItemIds = ArrayHelper::getColumn($products, 'id');
+                // if (!empty($arBazarItems)) {
+                //     $arBazarItemIds = [];
+                //     foreach ($arBazarItems as $key => $value) {
+                //         $arBazarItemIds[] = $key;
+                //     }
+                //     $query = new Query();
+                //     $products = $query->select('products.id,product_groups.is_market')
+                //         ->from('products')
+                //         ->leftJoin('product_groups_link', 'product_groups_link.productId = products.id')
+                //         ->leftJoin('product_groups', 'product_groups.id = product_groups_link.productGroupId')
+                //         ->where(['products.id' => $arBazarItemIds, 'product_groups.is_market' => 1])
+                //         ->all();
+                //     // if (Yii::$app->user->id == 158) {
+                //     //     echo "<pre>";
+                //     //     print_r($arBazarItemIds);
+                //     //     echo "</pre>";
+                //     //     echo "<pre>";
+                //     //     print_r($products);
+                //     //     echo "</pre>";
+                //     // }
+                //     $arBazarItemIds = ArrayHelper::getColumn($products, 'id');
                     
-                    // Keep only the items that exist in $arBazarItemIds
-                    $arBazarItems = array_intersect_key($arBazarItems, array_flip($arBazarItemIds));
+                //     // Keep only the items that exist in $arBazarItemIds
+                //     $arBazarItems = array_intersect_key($arBazarItems, array_flip($arBazarItemIds));
 
-                    // if (Yii::$app->user->id == 158) {
-                    //     echo "<pre>";
-                    //     print_r($arBazarItems);
-                    //     echo "</pre>";
-                    //     die();
-                    // }
-                }
+                //     // if (Yii::$app->user->id == 158) {
+                //     //     echo "<pre>";
+                //     //     print_r($arBazarItems);
+                //     //     echo "</pre>";
+                //     //     die();
+                //     // }
+                // }
 
-                if (!empty($arBazarItems)) {
-                    $bazarModel = new Orders();
-                    $bazarModel->date = date("Y-m-d");
-                    $bazarModel->storeId = Yii::$app->user->identity->store_id;
-                    $bazarModel->supplierId = Yii::$app->user->identity->supplier_id;
-                    $bazarModel->is_market = 1;
-                    $bazarModel->userId = Yii::$app->user->id;
-                    $bazarModel->addDate = date("Y-m-d H:i:s");
-                    $bazarModel->state = 0;
-                    if ($bazarModel->save()) {
-                        foreach ($arBazarItems as $key => $value) {
-                            if (empty($value))
-                                continue;
-                            $oi = new OrderItems();
-                            $oi->orderId = $bazarModel->id;
-                            $oi->productId = $key;
-                            $oi->quantity = $value;
-                            $oi->storeId = $stockId;
-                            $oi->supplierId = $supplierId;
-                            $oi->storeQuantity = 0;
-                            $oi->supplierQuantity = $value;
-                            $oi->available = $available[$key] ?? 0;
-                            $oi->userId = Yii::$app->user->id;
-                            $oi->save();
-                        }
-                    }
-                }
+                // if (!empty($arBazarItems)) {
+                //     $bazarModel = new Orders();
+                //     $bazarModel->date = date("Y-m-d");
+                //     $bazarModel->storeId = Yii::$app->user->identity->store_id;
+                //     $bazarModel->supplierId = Yii::$app->user->identity->supplier_id;
+                //     $bazarModel->is_market = 1;
+                //     $bazarModel->userId = Yii::$app->user->id;
+                //     $bazarModel->addDate = date("Y-m-d H:i:s");
+                //     $bazarModel->state = 0;
+                //     if ($bazarModel->save()) {
+                //         foreach ($arBazarItems as $key => $value) {
+                //             if (empty($value))
+                //                 continue;
+                //             $oi = new OrderItems();
+                //             $oi->orderId = $bazarModel->id;
+                //             $oi->productId = $key;
+                //             $oi->quantity = $value;
+                //             $oi->storeId = $stockId;
+                //             $oi->supplierId = $supplierId;
+                //             $oi->storeQuantity = 0;
+                //             $oi->supplierQuantity = $value;
+                //             $oi->available = $available[$key] ?? 0;
+                //             $oi->userId = Yii::$app->user->id;
+                //             $oi->save();
+                //         }
+                //     }
+                // }
 
                 $d = date("d.m.Y", strtotime($model->date));
                 $text = "Поступил новый заказ: <b>#{$model->id}</b>\nЗаказчик: {$model->user->username}\nДата поставки: {$d}";
