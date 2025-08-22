@@ -40,6 +40,7 @@ use app\models\OilInventory;
                         'type' => 'number',
                         'step' => '0.001',
                         'min' => '0',
+                        'max' => '100',
                         'placeholder' => '0.000'
                     ]) ?>
 
@@ -128,14 +129,51 @@ use app\models\OilInventory;
 </style>
 
 <script>
-// Добавляем информацию о конвертации
+// Добавляем информацию о конвертации и автозамену запятой на точку
 document.addEventListener('DOMContentLoaded', function() {
+    // Информация о конвертации для поля возврата
     const kgField = document.querySelector('[name="OilInventory[return_amount_kg]"]').closest('.form-group');
     if (kgField) {
         const conversionInfo = document.createElement('div');
         conversionInfo.className = 'conversion-info';
-        conversionInfo.innerHTML = '<i class="fa fa-info-circle"></i> Коэффициент конвертации: 1 кг ≈ 1.1 л (автоматически конвертируется в расчётах)';
+        conversionInfo.innerHTML = '<i class="fa fa-info-circle"></i> Коэффициент конвертации: 1 кг ≈ 1.1 л (автоматически конвертируется в расчётах). Максимум: 100 кг';
         kgField.appendChild(conversionInfo);
     }
+    
+    // Автозамена запятой на точку для всех числовых полей
+    const numericFields = document.querySelectorAll('input[type="number"]');
+    numericFields.forEach(function(field) {
+        // При вводе заменяем запятую на точку
+        field.addEventListener('input', function(e) {
+            let value = e.target.value;
+            // Заменяем запятую на точку
+            value = value.replace(',', '.');
+            e.target.value = value;
+        });
+        
+        // При вставке текста также заменяем запятую на точку
+        field.addEventListener('paste', function(e) {
+            e.preventDefault();
+            let paste = (e.clipboardData || window.clipboardData).getData('text');
+            paste = paste.replace(',', '.');
+            e.target.value = paste;
+        });
+        
+        // Дополнительная проверка при потере фокуса
+        field.addEventListener('blur', function(e) {
+            let value = e.target.value;
+            value = value.replace(',', '.');
+            e.target.value = value;
+            
+            // Проверка ограничения для поля возврата
+            if (e.target.name === 'OilInventory[return_amount_kg]') {
+                const numValue = parseFloat(value);
+                if (numValue > 100) {
+                    e.target.value = '100';
+                    alert('Максимальное значение возврата: 100 кг');
+                }
+            }
+        });
+    });
 });
 </script> 
