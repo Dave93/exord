@@ -30,18 +30,20 @@ use app\models\OilInventory;
                     <?= Html::activeHiddenInput($model, 'opening_balance') ?>
 
                     <?= $form->field($model, 'income')->textInput([
-                        'type' => 'number',
-                        'step' => '0.001',
-                        'min' => '0',
-                        'placeholder' => '0.000'
+                        'type' => 'text',
+                        'inputmode' => 'decimal',
+                        'pattern' => '[0-9]+([\.\,][0-9]+)?',
+                        'placeholder' => '0.000',
+                        'class' => 'form-control numeric-field'
                     ]) ?>
 
                     <?= $form->field($model, 'return_amount_kg')->textInput([
-                        'type' => 'number',
-                        'step' => '0.001',
-                        'min' => '0',
-                        'max' => '100',
-                        'placeholder' => '0.000'
+                        'type' => 'text',
+                        'inputmode' => 'decimal',
+                        'pattern' => '[0-9]+([\.\,][0-9]+)?',
+                        'placeholder' => '0.000',
+                        'class' => 'form-control numeric-field',
+                        'data-max' => '100'
                     ]) ?>
 
                     <?= Html::activeHiddenInput($model, 'return_amount') ?>
@@ -67,17 +69,19 @@ use app\models\OilInventory;
                 <div class="box-body">
                     
                     <?= $form->field($model, 'apparatus')->textInput([
-                        'type' => 'number',
-                        'step' => '0.001',
-                        'min' => '0',
-                        'placeholder' => '0.000'
+                        'type' => 'text',
+                        'inputmode' => 'decimal',
+                        'pattern' => '[0-9]+([\.\,][0-9]+)?',
+                        'placeholder' => '0.000',
+                        'class' => 'form-control numeric-field'
                     ]) ?>
 
                     <?= $form->field($model, 'new_oil')->textInput([
-                        'type' => 'number',
-                        'step' => '0.001',
-                        'min' => '0',
-                        'placeholder' => '0.000'
+                        'type' => 'text',
+                        'inputmode' => 'decimal',
+                        'pattern' => '[0-9]+([\.\,][0-9]+)?',
+                        'placeholder' => '0.000',
+                        'class' => 'form-control numeric-field'
                     ]) ?>
 
                     <?= Html::activeHiddenInput($model, 'evaporation') ?>
@@ -141,38 +145,62 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     // Автозамена запятой на точку для всех числовых полей
-    const numericFields = document.querySelectorAll('input[type="number"]');
+    const numericFields = document.querySelectorAll('.numeric-field');
     numericFields.forEach(function(field) {
-        // При вводе заменяем запятую на точку
-        field.addEventListener('input', function(e) {
-            let value = e.target.value;
-            // Заменяем запятую на точку
-            value = value.replace(',', '.');
-            e.target.value = value;
-        });
-        
-        // При вставке текста также заменяем запятую на точку
-        field.addEventListener('paste', function(e) {
+        // Разрешаем ввод цифр, точки и запятой
+        field.addEventListener('keypress', function(e) {
+            const char = String.fromCharCode(e.which);
+            const currentValue = e.target.value;
+            
+            // Разрешаем цифры
+            if (/[0-9]/.test(char)) {
+                return true;
+            }
+            
+            // Разрешаем одну точку или запятую
+            if ((char === '.' || char === ',') && !currentValue.includes('.') && !currentValue.includes(',')) {
+                return true;
+            }
+            
+            // Разрешаем управляющие клавиши
+            if (e.which < 32) {
+                return true;
+            }
+            
             e.preventDefault();
-            let paste = (e.clipboardData || window.clipboardData).getData('text');
-            paste = paste.replace(',', '.');
-            e.target.value = paste;
         });
         
-        // Дополнительная проверка при потере фокуса
+        // При потере фокуса преобразуем запятую в точку и валидируем
         field.addEventListener('blur', function(e) {
             let value = e.target.value;
-            value = value.replace(',', '.');
-            e.target.value = value;
             
-            // Проверка ограничения для поля возврата
-            if (e.target.name === 'OilInventory[return_amount_kg]') {
+            // Заменяем запятую на точку для корректного сохранения в БД
+            value = value.replace(',', '.');
+            
+            // Проверяем, что это валидное число
+            if (value && !isNaN(value)) {
                 const numValue = parseFloat(value);
-                if (numValue > 100) {
-                    e.target.value = '100';
-                    alert('Максимальное значение возврата: 100 кг');
+                
+                // Проверка максимального значения для поля возврата
+                if (e.target.name === 'OilInventory[return_amount_kg]') {
+                    const maxValue = parseFloat(e.target.getAttribute('data-max') || 100);
+                    if (numValue > maxValue) {
+                        value = maxValue.toString();
+                        alert('Максимальное значение возврата: ' + maxValue + ' кг');
+                    }
                 }
+                
+                // Форматируем до 3 знаков после запятой
+                e.target.value = numValue.toFixed(3);
+            } else if (value) {
+                // Если не число, очищаем поле
+                e.target.value = '';
             }
+        });
+        
+        // При отправке формы также преобразуем запятую в точку
+        field.form && field.form.addEventListener('submit', function() {
+            field.value = field.value.replace(',', '.');
         });
     });
 });
