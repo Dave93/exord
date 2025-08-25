@@ -199,10 +199,23 @@ class OilInventoryController extends Controller
             return $this->redirect(['view', 'id' => $model->id]);
         }
 
-        if ($model->load(Yii::$app->request->post()) && $model->save()) {
-            Yii::$app->session->setFlash('success', 'Запись успешно обновлена.');
-            return $this->redirect(['view', 'id' => $model->id]);
+        if (Yii::$app->request->isPost) {
+            
+            $model->load(Yii::$app->request->post());
+
+            if ($model->status == OilInventory::STATUS_NEW) {
+                $model->status = OilInventory::STATUS_FILLED;
+                $model->closing_balance = $model->new_oil + $model->apparatus;
+                $model->updated_at = date("Y-m-d H:i:s");
+            }
+
+            if ($model->save()) {
+                Yii::$app->session->setFlash('success', 'Запись успешно обновлена.');
+                return $this->redirect(['view', 'id' => $model->id]);
+            }
         }
+
+
 
         return $this->render('update', [
             'model' => $model,

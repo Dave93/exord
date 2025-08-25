@@ -48,14 +48,6 @@ use app\models\OilInventory;
 
                     <?= Html::activeHiddenInput($model, 'return_amount') ?>
 
-                    <?php if ($model->isNewRecord): ?>
-                        <?= Html::activeHiddenInput($model, 'status') ?>
-                    <?php else: ?>
-                        <?= $form->field($model, 'status')->dropDownList(
-                            OilInventory::getStatusList(),
-                            ['class' => 'form-control']
-                        ) ?>
-                    <?php endif; ?>
                     
                 </div>
             </div>
