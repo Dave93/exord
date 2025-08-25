@@ -5,7 +5,7 @@ use yii\helpers\Html;
 $this->title = 'Инвентаризация масла #' . $model->id;
 ?>
 <div style="text-align: center;font-size: 14px;width: 100%;">
-    <strong ><?=$model->created_at?></strong>
+    <strong style="font-size: 14px;"><?=$model->created_at?></strong>
 </div>
 <div class="receipt-header">
     <strong><?= Html::encode($model->store->name ?? 'Магазин') ?></strong>
