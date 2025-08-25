@@ -21,6 +21,7 @@ use app\models\OilInventory;
 /* @var $recentRecords app\models\OilInventory[] */
 /* @var $wastageAnalysis array */
 /* @var $efficiencyMetrics array */
+/* @var $unfilledRecords app\models\OilInventory[] */
 
 $this->title = 'Аналитика учета масла';
 $this->params['breadcrumbs'][] = ['label' => 'Учет масла', 'url' => ['/oil-inventory/index']];
@@ -215,6 +216,182 @@ $monthNames = [
         <?php endif; ?>
     </div>
     <?php endif; ?>
+
+    <!-- Предупреждение о незаполненных записях -->
+    <?php if (!empty($unfilledRecords)): ?>
+    <div class="alert alert-warning" style="margin-bottom: 20px;">
+        <button type="button" class="close" data-dismiss="alert" aria-hidden="true">&times;</button>
+        <h4><i class="icon fa fa-warning"></i> Внимание! Обнаружены незаполненные записи</h4>
+        <p style="margin-bottom: 15px;">
+            Следующие записи имеют незаполненное поле "Аппарат" (значение = 0). Пожалуйста, проверьте и заполните эти записи:
+        </p>
+        <div class="table-responsive">
+            <table class="table table-condensed table-striped" style="background-color: rgba(255,255,255,0.9);">
+                <thead>
+                    <tr>
+                        <th>Дата</th>
+                        <th>Магазин</th>
+                        <th>Остаток на начало (л)</th>
+                        <th>Приход (л)</th>
+                        <th>Новое масло (л)</th>
+                        <th>Статус</th>
+                        <th>Действия</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php 
+                    $maxRecordsToShow = 10;
+                    $recordCount = 0;
+                    foreach ($unfilledRecords as $record): 
+                        if ($recordCount >= $maxRecordsToShow) break;
+                        $recordCount++;
+                    ?>
+                        <tr>
+                            <td style="white-space: nowrap;">
+                                <strong><?= Yii::$app->formatter->asDate($record->created_at, 'php:d.m.Y') ?></strong>
+                                <br>
+                                <small class="text-muted"><?= Yii::$app->formatter->asTime($record->created_at, 'php:H:i') ?></small>
+                            </td>
+                            <td style="white-space: nowrap;">
+                                <?= Html::encode($record->store->name ?? 'Не указан') ?>
+                            </td>
+                            <td class="text-right">
+                                <?= number_format($record->opening_balance, 3) ?>
+                            </td>
+                            <td class="text-right">
+                                <?= number_format($record->income, 3) ?>
+                            </td>
+                            <td class="text-right">
+                                <?= number_format($record->new_oil, 3) ?>
+                            </td>
+                            <td style="white-space: nowrap;">
+                                <?php
+                                $statusColors = [
+                                    OilInventory::STATUS_NEW => 'label-info',
+                                    OilInventory::STATUS_FILLED => 'label-warning',
+                                    OilInventory::STATUS_REJECTED => 'label-danger',
+                                    OilInventory::STATUS_ACCEPTED => 'label-success',
+                                ];
+                                $colorClass = $statusColors[$record->status] ?? 'label-default';
+                                ?>
+                                <span class="label <?= $colorClass ?>">
+                                    <?= $record->getStatusLabel() ?>
+                                </span>
+                            </td>
+                            <td style="white-space: nowrap;">
+                                <?= Html::a('<i class="fa fa-eye"></i> Просмотр', ['/oil-inventory/view', 'id' => $record->id], [
+                                    'class' => 'btn btn-xs btn-info',
+                                    'title' => 'Просмотр'
+                                ]) ?>
+                                <?php if ($record->status !== OilInventory::STATUS_ACCEPTED): ?>
+                                    <?= Html::a('<i class="fa fa-edit"></i> Редактировать', ['/oil-inventory/update', 'id' => $record->id], [
+                                        'class' => 'btn btn-xs btn-warning',
+                                        'title' => 'Редактировать'
+                                    ]) ?>
+                                <?php endif; ?>
+                            </td>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+            <?php if (count($unfilledRecords) > $maxRecordsToShow): ?>
+                <div class="text-center" style="margin-top: 10px;">
+                    <em class="text-muted">Показаны первые <?= $maxRecordsToShow ?> записей из <?= count($unfilledRecords) ?> незаполненных.</em>
+                </div>
+            <?php endif; ?>
+        </div>
+    </div>
+    <?php endif; ?>
+
+    <div class="row">
+                <!-- Последние записи -->
+                <div class="col-md-12">
+            <div class="box box-info">
+                <div class="box-header with-border">
+                    <h3 class="box-title">
+                        <i class="fa fa-clock-o"></i> Последние записи
+                    </h3>
+                </div>
+                <div class="box-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped table-condensed">
+                            <thead>
+                                <tr>
+                                    <th>Дата</th>
+                                    <th>Магазин</th>
+                                    <th class="text-right">Остаток на начало (л)</th>
+                                    <th class="text-right">Приход (л)</th>
+                                    <th class="text-right">Возврат (кг)</th>
+                                    <th class="text-right">Аппарат (л)</th>
+                                    <th class="text-right">Новое масло (л)</th>
+                                    <th class="text-right">Испарение (л)</th>
+                                    <th class="text-right">Остаток на конец (л)</th>
+                                    <th>Статус</th>
+                                    <th>Действия</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php foreach ($recentRecords as $record): ?>
+                                    <tr>
+                                        <td style="white-space: nowrap;">
+                                            <?= Yii::$app->formatter->asDate($record->created_at, 'php:d.m.Y') ?>
+                                        </td>
+                                        <td style="white-space: nowrap;">
+                                            <?= Html::encode($record->store->name ?? 'Не указан') ?>
+                                        </td>
+                                        <td class="text-right">
+                                            <?= number_format($record->opening_balance, 3) ?>
+                                        </td>
+                                        <td class="text-right">
+                                            <?= number_format($record->income, 3) ?>
+                                        </td>
+                                        <td class="text-right">
+                                            <strong><?= number_format($record->return_amount_kg, 3) ?> кг</strong><br>
+                                            <small class="text-muted">(<?= number_format($record->return_amount, 3) ?> л)</small>
+                                        </td>
+                                        <td class="text-right">
+                                            <?= number_format($record->apparatus, 3) ?>
+                                        </td>
+                                        <td class="text-right">
+                                            <?= number_format($record->new_oil, 3) ?>
+                                        </td>
+                                        <td class="text-right">
+                                            <span class="<?= $record->evaporation > 0 ? 'text-danger' : 'text-success' ?>">
+                                                <?= number_format($record->evaporation, 3) ?>
+                                            </span>
+                                        </td>
+                                        <td class="text-right">
+                                            <strong><?= number_format($record->closing_balance, 3) ?></strong>
+                                        </td>
+                                        <td style="white-space: nowrap;">
+                                            <?php
+                                            $statusColors = [
+                                                OilInventory::STATUS_NEW => 'label-info',
+                                                OilInventory::STATUS_FILLED => 'label-warning',
+                                                OilInventory::STATUS_REJECTED => 'label-danger',
+                                                OilInventory::STATUS_ACCEPTED => 'label-success',
+                                            ];
+                                            $colorClass = $statusColors[$record->status] ?? 'label-default';
+                                            ?>
+                                            <span class="label <?= $colorClass ?>">
+                                                <?= $record->getStatusLabel() ?>
+                                            </span>
+                                        </td>
+                                        <td style="white-space: nowrap;">
+                                            <?= Html::a('<i class="fa fa-eye"></i>', ['/oil-inventory/view', 'id' => $record->id], [
+                                                'class' => 'btn btn-xs btn-info',
+                                                'title' => 'Просмотр'
+                                            ]) ?>
+                                        </td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
     
     <div class="row">
         <div class="col-lg-3 col-xs-6">
@@ -398,93 +575,7 @@ $monthNames = [
             </div>
         </div>
 
-        <!-- Последние записи -->
-        <div class="col-md-12">
-            <div class="box box-info">
-                <div class="box-header with-border">
-                    <h3 class="box-title">
-                        <i class="fa fa-clock-o"></i> Последние записи
-                    </h3>
-                </div>
-                <div class="box-body">
-                    <div class="table-responsive">
-                        <table class="table table-striped table-condensed">
-                            <thead>
-                                <tr>
-                                    <th>Дата</th>
-                                    <th>Магазин</th>
-                                    <th class="text-right">Остаток на начало (л)</th>
-                                    <th class="text-right">Приход (л)</th>
-                                    <th class="text-right">Возврат (кг)</th>
-                                    <th class="text-right">Аппарат (л)</th>
-                                    <th class="text-right">Новое масло (л)</th>
-                                    <th class="text-right">Испарение (л)</th>
-                                    <th class="text-right">Остаток на конец (л)</th>
-                                    <th>Статус</th>
-                                    <th>Действия</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php foreach ($recentRecords as $record): ?>
-                                    <tr>
-                                        <td style="white-space: nowrap;">
-                                            <?= Yii::$app->formatter->asDate($record->created_at, 'php:d.m.Y') ?>
-                                        </td>
-                                        <td style="white-space: nowrap;">
-                                            <?= Html::encode($record->store->name ?? 'Не указан') ?>
-                                        </td>
-                                        <td class="text-right">
-                                            <?= number_format($record->opening_balance, 3) ?>
-                                        </td>
-                                        <td class="text-right">
-                                            <?= number_format($record->income, 3) ?>
-                                        </td>
-                                        <td class="text-right">
-                                            <strong><?= number_format($record->return_amount_kg, 3) ?> кг</strong><br>
-                                            <small class="text-muted">(<?= number_format($record->return_amount, 3) ?> л)</small>
-                                        </td>
-                                        <td class="text-right">
-                                            <?= number_format($record->apparatus, 3) ?>
-                                        </td>
-                                        <td class="text-right">
-                                            <?= number_format($record->new_oil, 3) ?>
-                                        </td>
-                                        <td class="text-right">
-                                            <span class="<?= $record->evaporation > 0 ? 'text-danger' : 'text-success' ?>">
-                                                <?= number_format($record->evaporation, 3) ?>
-                                            </span>
-                                        </td>
-                                        <td class="text-right">
-                                            <strong><?= number_format($record->closing_balance, 3) ?></strong>
-                                        </td>
-                                        <td style="white-space: nowrap;">
-                                            <?php
-                                            $statusColors = [
-                                                OilInventory::STATUS_NEW => 'label-info',
-                                                OilInventory::STATUS_FILLED => 'label-warning',
-                                                OilInventory::STATUS_REJECTED => 'label-danger',
-                                                OilInventory::STATUS_ACCEPTED => 'label-success',
-                                            ];
-                                            $colorClass = $statusColors[$record->status] ?? 'label-default';
-                                            ?>
-                                            <span class="label <?= $colorClass ?>">
-                                                <?= $record->getStatusLabel() ?>
-                                            </span>
-                                        </td>
-                                        <td style="white-space: nowrap;">
-                                            <?= Html::a('<i class="fa fa-eye"></i>', ['/oil-inventory/view', 'id' => $record->id], [
-                                                'class' => 'btn btn-xs btn-info',
-                                                'title' => 'Просмотр'
-                                            ]) ?>
-                                        </td>
-                                    </tr>
-                                <?php endforeach; ?>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        </div>
+
     </div>
 
     <!-- Месячная статистика -->

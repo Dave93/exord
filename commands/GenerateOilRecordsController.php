@@ -26,8 +26,10 @@ class GenerateOilRecordsController extends Controller
     }
 
     public function actionCheck() {
-        $users = User::find()->where(['not', ['oil_tg_id' => null]])
-        ->andWhere(['!=', 'oil_tg_id', ''])->all();
+        $users = User::find()
+            ->where(['not', ['oil_tg_id' => null]])
+            ->andWhere(['!=', 'oil_tg_id', ''])
+            ->all();
         $arStoreIds = [];
         $arTgIdByStoreId = [];
         foreach ($users as $user) {
@@ -80,6 +82,9 @@ class GenerateOilRecordsController extends Controller
 
                 // Отправляем в ТГ сообщение о том, что нужно заполнить данные о масле с инлайн клавиатурой "Заполнить" на страницу
                 $message = '<b>Нужно заполнить данные о масле в EXORD</b>';
+                $this->sendMessageWithKeyboard($oil_tg_id, $message, $this->getKeyboard($oilRecords->id));
+            } else if ($oilRecords->apparatus == 0) {
+                $message = '<b>Дополните данные о масле в EXORD</b>';
                 $this->sendMessageWithKeyboard($oil_tg_id, $message, $this->getKeyboard($oilRecords->id));
             }
         }

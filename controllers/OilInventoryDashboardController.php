@@ -106,6 +106,7 @@ class OilInventoryDashboardController extends Controller
                 'return_percentage' => 0,
                 'income_efficiency' => 0
             ],
+            'unfilledRecords' => $totalRecords > 0 ? $this->getUnfilledRecords($storeFilter, $dateFrom, $dateTo) : [],
         ];
 
         return $this->render('index', $data);
@@ -403,5 +404,30 @@ class OilInventoryDashboardController extends Controller
             'return_percentage' => 0,
             'income_efficiency' => 0
         ];
+    }
+
+    /**
+     * Получить незаполненные записи (где apparatus = 0)
+     */
+    private function getUnfilledRecords($storeFilter = null, $dateFrom = null, $dateTo = null)
+    {
+        $query = OilInventory::find()
+            ->where(['apparatus' => 0])
+            ->orderBy(['created_at' => SORT_DESC])
+            ->limit(20);
+            
+        if ($storeFilter) {
+            $query->andWhere(['store_id' => $storeFilter]);
+        }
+        
+        if ($dateFrom) {
+            $query->andWhere(['>=', 'DATE(created_at)', $dateFrom]);
+        }
+        
+        if ($dateTo) {
+            $query->andWhere(['<=', 'DATE(created_at)', $dateTo]);
+        }
+        
+        return $query->all();
     }
 } 
