@@ -4,9 +4,8 @@ use yii\helpers\Html;
 /* @var $model app\models\OilInventory */
 $this->title = 'Инвентаризация масла #' . $model->id;
 ?>
-<div>
-<strong><?=$model->created_at?></strong>
-    <strong><?=date(strtotime($model->created_at), "Y-m-d H:i:s")?></strong>
+<div style="text-align: center;font-size: 14px;width: 100%;">
+    <strong ><?=$model->created_at?></strong>
 </div>
 <div class="receipt-header">
     <strong><?= Html::encode($model->store->name ?? 'Магазин') ?></strong>
