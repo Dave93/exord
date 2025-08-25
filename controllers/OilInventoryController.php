@@ -162,6 +162,7 @@ class OilInventoryController extends Controller
         }
 
         if ($model->load(Yii::$app->request->post())) {
+            $model->created_at = date("Y-m-d H:i:s");
             $model->status = OilInventory::STATUS_FILLED;
             $model->closing_balance = $model->new_oil + $model->apparatus;
             if ($model->save()) {
