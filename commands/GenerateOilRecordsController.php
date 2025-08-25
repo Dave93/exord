@@ -26,7 +26,8 @@ class GenerateOilRecordsController extends Controller
     }
 
     public function actionCheck() {
-        $users = User::find()->whereNotNull('oil_tg_id')->all();
+        $users = User::find()->where(['not', ['oil_tg_id' => null]])
+        ->andWhere(['!=', 'oil_tg_id', ''])->all();
         $arStoreIds = [];
         $arTgIdByStoreId = [];
         foreach ($users as $user) {
