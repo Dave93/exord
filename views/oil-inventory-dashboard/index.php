@@ -219,23 +219,23 @@ $monthNames = [
 
     <!-- Предупреждение о незаполненных записях -->
     <?php if (!empty($unfilledRecords)): ?>
-    <div class="alert alert-warning" style="margin-bottom: 20px;">
-        <button type="button" class="close" data-dismiss="alert" aria-hidden="true">&times;</button>
-        <h4><i class="icon fa fa-warning"></i> Внимание! Обнаружены незаполненные записи</h4>
-        <p style="margin-bottom: 15px;">
+    <div class="alert alert-warning" style="margin-bottom: 20px; background-color: #fcf8e3; border-color: #faebcc; color: #8a6d3b;">
+        <button type="button" class="close" data-dismiss="alert" aria-hidden="true" style="color: #8a6d3b; opacity: 0.5;">&times;</button>
+        <h4 style="color: #8a6d3b;"><i class="icon fa fa-warning"></i> Внимание! Обнаружены незаполненные записи</h4>
+        <p style="margin-bottom: 15px; color: #8a6d3b;">
             Следующие записи имеют незаполненное поле "Аппарат" (значение = 0). Пожалуйста, проверьте и заполните эти записи:
         </p>
         <div class="table-responsive">
-            <table class="table table-condensed table-striped" style="background-color: rgba(255,255,255,0.9);">
-                <thead>
+            <table class="table table-condensed table-striped" style="background-color: #ffffff; border: 1px solid #faebcc;">
+                <thead style="background-color: #faf2cc;">
                     <tr>
-                        <th>Дата</th>
-                        <th>Магазин</th>
-                        <th>Остаток на начало (л)</th>
-                        <th>Приход (л)</th>
-                        <th>Новое масло (л)</th>
-                        <th>Статус</th>
-                        <th>Действия</th>
+                        <th style="color: #8a6d3b; border-bottom: 2px solid #faebcc;">Дата</th>
+                        <th style="color: #8a6d3b; border-bottom: 2px solid #faebcc;">Магазин</th>
+                        <th style="color: #8a6d3b; border-bottom: 2px solid #faebcc;">Остаток на начало (л)</th>
+                        <th style="color: #8a6d3b; border-bottom: 2px solid #faebcc;">Приход (л)</th>
+                        <th style="color: #8a6d3b; border-bottom: 2px solid #faebcc;">Новое масло (л)</th>
+                        <th style="color: #8a6d3b; border-bottom: 2px solid #faebcc;">Статус</th>
+                        <th style="color: #8a6d3b; border-bottom: 2px solid #faebcc;">Действия</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -246,22 +246,22 @@ $monthNames = [
                         if ($recordCount >= $maxRecordsToShow) break;
                         $recordCount++;
                     ?>
-                        <tr>
-                            <td style="white-space: nowrap;">
+                        <tr style="background-color: #fff;">
+                            <td style="white-space: nowrap; color: #333;">
                                 <strong><?= Yii::$app->formatter->asDate($record->created_at, 'php:d.m.Y') ?></strong>
                                 <br>
-                                <small class="text-muted"><?= Yii::$app->formatter->asTime($record->created_at, 'php:H:i') ?></small>
+                                <small style="color: #666;"><?= Yii::$app->formatter->asTime($record->created_at, 'php:H:i') ?></small>
                             </td>
-                            <td style="white-space: nowrap;">
+                            <td style="white-space: nowrap; color: #333;">
                                 <?= Html::encode($record->store->name ?? 'Не указан') ?>
                             </td>
-                            <td class="text-right">
+                            <td class="text-right" style="color: #333;">
                                 <?= number_format($record->opening_balance, 3) ?>
                             </td>
-                            <td class="text-right">
+                            <td class="text-right" style="color: #333;">
                                 <?= number_format($record->income, 3) ?>
                             </td>
-                            <td class="text-right">
+                            <td class="text-right" style="color: #333;">
                                 <?= number_format($record->new_oil, 3) ?>
                             </td>
                             <td style="white-space: nowrap;">
@@ -296,7 +296,7 @@ $monthNames = [
             </table>
             <?php if (count($unfilledRecords) > $maxRecordsToShow): ?>
                 <div class="text-center" style="margin-top: 10px;">
-                    <em class="text-muted">Показаны первые <?= $maxRecordsToShow ?> записей из <?= count($unfilledRecords) ?> незаполненных.</em>
+                    <em style="color: #8a6d3b;">Показаны первые <?= $maxRecordsToShow ?> записей из <?= count($unfilledRecords) ?> незаполненных.</em>
                 </div>
             <?php endif; ?>
         </div>
