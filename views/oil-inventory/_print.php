@@ -5,6 +5,7 @@ use yii\helpers\Html;
 $this->title = 'Инвентаризация масла #' . $model->id;
 ?>
 <div>
+<strong><?=$model->created_at?></strong>
     <strong><?=date(strtotime($model->created_at), "Y-m-d H:i:s")?></strong>
 </div>
 <div class="receipt-header">
