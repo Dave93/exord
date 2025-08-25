@@ -50,6 +50,8 @@ else
 
             <?= $form->field($model, 'email')->textInput(['maxlength' => true]) ?>
 
+            <?= $form->field($model, 'oil_tg_id')->textInput(['maxlength' => true]) ?>
+
             <?= $form->field($model, 'description')->textarea(['rows' => 6]) ?>
         </div>
 

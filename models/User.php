@@ -31,6 +31,7 @@ use yii\web\IdentityInterface;
  * @property int $showPrice
  * @property int $terminalId
  * @property int $product_group_id
+ * @property string $oil_tg_id
  *
  * @property Stores $store
  * @property Suppliers $supplier
@@ -96,7 +97,8 @@ class User extends ActiveRecord implements IdentityInterface
             [['category'], 'safe'],
             [['authKey', 'accessToken'], 'string', 'max' => 255],
             [['username'], 'unique'],
-            [['terminalId'], 'string']
+            [['terminalId'], 'string'],
+            [['oil_tg_id'], 'string']
         ];
     }
 
@@ -127,7 +129,8 @@ class User extends ActiveRecord implements IdentityInterface
             'category' => 'Категории',
             'showPrice' => 'Показать сумму',
             'terminalId' => 'Ид филиала',
-            'product_group_id' => 'Этаж товаров'
+            'product_group_id' => 'Этаж товаров',
+            'oil_tg_id' => 'Ид в ТГ'
         ];
     }
 
