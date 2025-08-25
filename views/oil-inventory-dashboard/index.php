@@ -283,12 +283,6 @@ $monthNames = [
                                     'class' => 'btn btn-xs btn-info',
                                     'title' => 'Просмотр'
                                 ]) ?>
-                                <?php if ($record->status !== OilInventory::STATUS_ACCEPTED): ?>
-                                    <?= Html::a('<i class="fa fa-edit"></i> Редактировать', ['/oil-inventory/update', 'id' => $record->id], [
-                                        'class' => 'btn btn-xs btn-warning',
-                                        'title' => 'Редактировать'
-                                    ]) ?>
-                                <?php endif; ?>
                             </td>
                         </tr>
                     <?php endforeach; ?>
