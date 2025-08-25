@@ -79,7 +79,7 @@ class GenerateOilRecordsController extends Controller
                 $oilRecords->save();
 
                 // Отправляем в ТГ сообщение о том, что нужно заполнить данные о масле с инлайн клавиатурой "Заполнить" на страницу
-                $message = 'Нужно заполнить данные о масле';
+                $message = '<b>Нужно заполнить данные о масле в EXORD</b>';
                 $this->sendMessageWithKeyboard($oil_tg_id, $message, $this->getKeyboard($oilRecords->id));
             }
         }
@@ -90,6 +90,7 @@ class GenerateOilRecordsController extends Controller
         $data = [
             'chat_id' => $tg_id,
             'text' => $message,
+            'parse_mode' => 'HTML',
         ];
         $ch = curl_init();
         curl_setopt($ch, CURLOPT_URL, $url);
@@ -105,6 +106,7 @@ class GenerateOilRecordsController extends Controller
         $data = [
             'chat_id' => $tg_id,
             'text' => $message,
+            'parse_mode' => 'HTML',
         ];
         $data['reply_markup'] = json_encode([
             'inline_keyboard' => $keyboard,
