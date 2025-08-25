@@ -72,6 +72,9 @@ $this->params['breadcrumbs'][] = $this->title;
                         <th>Филиал</th>
                         <th>Сумма возврата масла (кг)</th>
                         <th>Сумма возврата масла (л)</th>
+                        <?php if (isset($isSingleDay) && $isSingleDay): ?>
+                            <th>Дата и время добавления</th>
+                        <?php endif; ?>
                     </tr>
                 </thead>
                 <tbody>
@@ -85,6 +88,22 @@ $this->params['breadcrumbs'][] = $this->title;
                                 <td class="text-right">
                                     <?= Yii::$app->formatter->asDecimal($row['total_return_liters'], 2) ?> л
                                 </td>
+                                <?php if (isset($isSingleDay) && $isSingleDay): ?>
+                                    <td>
+                                        <?php if (!empty($row['records'])): ?>
+                                            <ul class="list-unstyled" style="margin: 0;">
+                                                <?php foreach ($row['records'] as $record): ?>
+                                                    <li>
+                                                        <?= Yii::$app->formatter->asDatetime($record['created_at'], 'php:d.m.Y H:i:s') ?>
+                                                        <small class="text-muted">
+                                                            (<?= Yii::$app->formatter->asDecimal($record['return_amount_kg'], 2) ?> кг)
+                                                        </small>
+                                                    </li>
+                                                <?php endforeach; ?>
+                                            </ul>
+                                        <?php endif; ?>
+                                    </td>
+                                <?php endif; ?>
                             </tr>
                         <?php endforeach; ?>
                         <tr class="info">
@@ -95,10 +114,13 @@ $this->params['breadcrumbs'][] = $this->title;
                             <td class="text-right">
                                 <strong><?= Yii::$app->formatter->asDecimal($totalReturnLiters, 2) ?> л</strong>
                             </td>
+                            <?php if (isset($isSingleDay) && $isSingleDay): ?>
+                                <td></td>
+                            <?php endif; ?>
                         </tr>
                     <?php else: ?>
                         <tr>
-                            <td colspan="3" class="text-center">Нет данных за выбранный период</td>
+                            <td colspan="<?= (isset($isSingleDay) && $isSingleDay) ? '4' : '3' ?>" class="text-center">Нет данных за выбранный период</td>
                         </tr>
                     <?php endif; ?>
                 </tbody>
