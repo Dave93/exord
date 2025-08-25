@@ -66,7 +66,7 @@ class GenerateOilRecordsController extends Controller
                 }
                 $oilRecords = new OilInventory();
                 $oilRecords->store_id = $store_id;
-                $oilRecords->created_at = $date('Y-m-d H:i:s');
+                $oilRecords->created_at = date('Y-m-d H:i:s');
                 $oilRecords->opening_balance = $prevClosingBalance;
                 $oilRecords->income = 0;
                 $oilRecords->return_amount = 0;
