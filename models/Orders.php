@@ -101,6 +101,14 @@ class Orders extends \yii\db\ActiveRecord
     /**
      * @return \yii\db\ActiveQuery
      */
+    public function getDeletedBy()
+    {
+        return $this->hasOne(User::className(), ['id' => 'deleted_by']);
+    }
+
+    /**
+     * @return \yii\db\ActiveQuery
+     */
     public function getItems()
     {
         return $this->hasMany(OrderItems::className(), ['orderId' => 'id']);

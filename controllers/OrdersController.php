@@ -160,7 +160,7 @@ class OrdersController extends Controller
         $model->deleted_at = null;
         $model->deleted_by = null;
         $model->save();
-        return $this->redirect([$back]);
+        return $this->redirect(['index']);
     }
 
     public function actionView($id)

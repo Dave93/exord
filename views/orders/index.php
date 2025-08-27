@@ -185,6 +185,30 @@ $isOrderMan = Dashboard::isOrderMan();
                     ]
                 ],
                 [
+                    'label' => 'Дата удаления',
+                    'value' => function ($model) {
+                        if ($model->deleted_at != null) {
+                            return date("d.m.Y H:i", strtotime($model->deleted_at));
+                        }
+                        return null;
+                    },
+                    'contentOptions' => [
+                        'width' => 120,
+                        'class' => 'text-center text-nowrap'
+                    ],
+                    'visible' => Yii::$app->user->identity->role == User::ROLE_ADMIN
+                ],
+                [
+                    'label' => 'Кто удалил',
+                    'value' => function ($model) {
+                        if ($model->deleted_by != null && $model->deletedBy) {
+                            return $model->deletedBy->fullname;
+                        }
+                        return null;
+                    },
+                    'visible' => Yii::$app->user->identity->role == User::ROLE_ADMIN
+                ],
+                [
                     'attribute' => 'state',
                     'filter' => Orders::$states,
                     'value' => function ($model) {
