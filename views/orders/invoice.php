@@ -29,9 +29,6 @@ uasort($groupedProducts, function ($a, $b) {
 });
 ?>
 <div style="font-size: 20px; font-weight: bold">РАСХОДНАЯ НАКЛАДНАЯ</div>
-<div style="font-weight: bold;display: inline-block; margin: 20px 0;">
-    Ушбу накладнойни КОНТРОЛЬ группага ташаш эсингиздан чикмасин!
-</div>
         <div>Номер документа: <?= $model->id ?></div>
         <div>Дата документа: <?= (!empty($model->sent_date) ? date('d.m.Y', strtotime($model->sent_date)) : date('d.m.Y')) ?></div>
         <div>Оператор склада: <?= Yii::$app->user->identity->fullname ?> (<?= Yii::$app->user->identity->username ?>)</div>
