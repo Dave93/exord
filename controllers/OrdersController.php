@@ -173,7 +173,7 @@ class OrdersController extends Controller
             $model->state = 0;
             $model->save();
         }
-        return $this->redirect([$back]);
+        return $this->redirect(['/orders/index']);
     }
 
     public function actionView($id)
