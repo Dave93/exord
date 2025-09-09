@@ -221,7 +221,7 @@ $isOrderMan = Dashboard::isOrderMan();
                 ],
                 [
                     'class' => 'yii\grid\ActionColumn',
-                    'template' => '{view} {try_again} {return}',
+                    'template' => '{view} {try_again} {return} {return_to_new}',
                     'contentOptions' => [
                         'width' => 60,
                         'class' => 'text-center'
@@ -242,6 +242,13 @@ $isOrderMan = Dashboard::isOrderMan();
                                 $customurl=Yii::$app->getUrlManager()->createUrl(['orders/return-back','id'=>$model['id'], 'back' => urlencode(Yii::$app->request->url)]);
                                 return \yii\helpers\Html::a( '<span class="glyphicon glyphicon-share-alt"></span>', $customurl,
                                     ['title' => Yii::t('yii', 'Подтвердить'), 'data-pjax' => '0']);
+                            }
+                        },
+                        'return_to_new' => function ($url, $model) {
+                            if (Yii::$app->user->identity->role == User::ROLE_ADMIN && $model->state == 1) {
+                                $customurl=Yii::$app->getUrlManager()->createUrl(['orders/return-to-new','id'=>$model['id'], 'back' => urlencode(Yii::$app->request->url)]);
+                                return \yii\helpers\Html::a( '<span class="glyphicon glyphicon-backward"></span>', $customurl,
+                                    ['title' => Yii::t('yii', 'Вернуть в Новый'), 'data-pjax' => '0']);
                             }
                         }
                     ]

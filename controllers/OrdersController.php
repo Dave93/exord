@@ -49,7 +49,7 @@ class OrdersController extends Controller
                 'only' => ['*'],
                 'rules' => [
                     [
-                        'actions' => ['index', 'return', 'list', 'view', 'delete', 'close', 'try-again', 'return-back'],
+                        'actions' => ['index', 'return', 'list', 'view', 'delete', 'close', 'try-again', 'return-back', 'return-to-new'],
                         'allow' => true,
                         'roles' => [
                             User::ROLE_ADMIN,
@@ -161,6 +161,19 @@ class OrdersController extends Controller
         $model->deleted_by = null;
         $model->save();
         return $this->redirect(['index']);
+    }
+
+    public function actionReturnToNew($id, $back = '/orders/index')
+    {
+        $model = Orders::findOne($id);
+        if ($model == null) {
+            throw new NotFoundHttpException('The requested page does not exist.');
+        }
+        if ($model->state == 1) {
+            $model->state = 0;
+            $model->save();
+        }
+        return $this->redirect([$back]);
     }
 
     public function actionView($id)
@@ -720,13 +733,16 @@ class OrdersController extends Controller
             $model = Orders::findOne(['id' => $orderId]);
             $model->comment = $comment;
             if ($isSend == 'Y') {
-                $iiko = new Iiko();
-                $iiko->auth();
+                // Проверяем, не был ли документ уже отправлен в iiko
+                if (empty($model->outgoingDocumentId)) {
+                    $iiko = new Iiko();
+                    $iiko->auth();
 
-                $model->sent_date = date("Y-m-d H:i:s");
+                    $model->sent_date = date("Y-m-d H:i:s");
 //echo '<pre>'; print_r($model); echo '</pre>';
-                $outDoc = $iiko->supplierOutStockDoc($model);
+                    $outDoc = $iiko->supplierOutStockDoc($model);
 //                echo '<pre>'; print_r($outDoc); echo '</pre>';die();
+                }
                 $model->state = 1;
             }
             $model->is_locked = 1;
