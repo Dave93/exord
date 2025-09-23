@@ -256,7 +256,7 @@ class OilInventoryDashboardController extends Controller
         $dateFrom = null,
         $dateTo = null
     ) {
-        $query = new Query()
+        $query = (new Query())
             ->select([
                 "YEAR(created_at) as year",
                 "MONTH(created_at) as month",
@@ -293,7 +293,7 @@ class OilInventoryDashboardController extends Controller
         $dateFrom = null,
         $dateTo = null
     ) {
-        $query = new Query()
+        $query = (new Query())
             ->select([
                 "AVG(apparatus) as avg_apparatus",
                 "AVG(new_oil) as avg_new_oil",
@@ -335,7 +335,7 @@ class OilInventoryDashboardController extends Controller
         $dateFrom = null,
         $dateTo = null
     ) {
-        $query = new Query()
+        $query = (new Query())
             ->select([
                 "DATE(created_at) as date",
                 "closing_balance",
@@ -377,7 +377,7 @@ class OilInventoryDashboardController extends Controller
         $dateFrom = null,
         $dateTo = null
     ) {
-        $query = new Query()
+        $query = (new Query())
             ->select([
                 "DATE(created_at) as date",
                 "(apparatus + new_oil + evaporation + return_amount) as total_consumption",
@@ -443,7 +443,7 @@ class OilInventoryDashboardController extends Controller
         $dateFrom = null,
         $dateTo = null
     ) {
-        $query = new Query()
+        $query = (new Query())
             ->select([
                 "AVG(evaporation) as avg_evaporation",
                 "MAX(evaporation) as max_evaporation",
@@ -477,7 +477,7 @@ class OilInventoryDashboardController extends Controller
         $dateFrom = null,
         $dateTo = null
     ) {
-        $query = new Query()
+        $query = (new Query())
             ->select([
                 "AVG(CASE WHEN (apparatus + new_oil + evaporation + return_amount) > 0 THEN evaporation / (apparatus + new_oil + evaporation + return_amount) * 100 ELSE 0 END) as evaporation_percentage",
                 "AVG(CASE WHEN (apparatus + new_oil + evaporation + return_amount) > 0 THEN apparatus / (apparatus + new_oil + evaporation + return_amount) * 100 ELSE 0 END) as apparatus_percentage",
