@@ -161,7 +161,7 @@ $monthNames = [
                         "data" => ArrayHelper::map($storesList, "id", "name"),
                         "options" => [
                             "placeholder" => "Все магазины",
-                            "style" => "width: 250px;",
+                            "style" => "width: 320px;",
                         ],
                         "pluginOptions" => [
                             "allowClear" => true,
