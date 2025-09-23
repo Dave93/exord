@@ -227,7 +227,7 @@ class OilInventoryDashboardController extends Controller
     private function getStatusStats(
         $storeFilter = null,
         $dateFrom = null,
-        $dateTo = null,
+        $dateTo = null
     ) {
         $query = OilInventory::find()
             ->select(["status", "COUNT(*) as count"])
