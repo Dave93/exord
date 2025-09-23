@@ -166,6 +166,8 @@ $monthNames = [
                         "pluginOptions" => [
                             "allowClear" => true,
                             "minimumInputLength" => 0,
+                            "dropdownAutoWidth" => true,
+                            "width" => "100%",
                             "language" => [
                                 "errorLoading" => new \yii\web\JsExpression(
                                     "function () { return 'Загрузка...'; }",
