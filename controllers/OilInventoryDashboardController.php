@@ -174,7 +174,7 @@ class OilInventoryDashboardController extends Controller
         // Сначала получаем уникальные store_id пользователей с заполненным oil_tg_id
         $storeIds = (new Query())
             ->select(["store_id"])
-            ->from("users")
+            ->from("user")
             ->where(["not", ["oil_tg_id" => null]])
             ->andWhere(["not", ["oil_tg_id" => ""]])
             ->andWhere(["not", ["store_id" => null]])
