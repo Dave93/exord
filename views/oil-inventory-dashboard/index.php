@@ -5,6 +5,7 @@ use yii\helpers\Url;
 use yii\helpers\ArrayHelper;
 use yii\widgets\ActiveForm;
 use app\models\OilInventory;
+use kartik\select2\Select2;
 
 /* @var $this yii\web\View */
 /* @var $isManager bool */
@@ -23,9 +24,12 @@ use app\models\OilInventory;
 /* @var $efficiencyMetrics array */
 /* @var $unfilledRecords app\models\OilInventory[] */
 
-$this->title = 'Аналитика учета масла';
-$this->params['breadcrumbs'][] = ['label' => 'Учет масла', 'url' => ['/oil-inventory/index']];
-$this->params['breadcrumbs'][] = $this->title;
+$this->title = "Аналитика учета масла";
+$this->params["breadcrumbs"][] = [
+    "label" => "Учет масла",
+    "url" => ["/oil-inventory/index"],
+];
+$this->params["breadcrumbs"][] = $this->title;
 
 // Добавляем минимальные стили
 $this->registerCss('
@@ -70,32 +74,42 @@ $statusData = [];
 $statusColors = [];
 
 foreach ($statusStats as $stat) {
-    $statusLabels[] = OilInventory::getStatusList()[$stat['status']] ?? $stat['status'];
-    $statusData[] = (int)$stat['count'];
-    
-    switch ($stat['status']) {
+    $statusLabels[] =
+        OilInventory::getStatusList()[$stat["status"]] ?? $stat["status"];
+    $statusData[] = (int) $stat["count"];
+
+    switch ($stat["status"]) {
         case OilInventory::STATUS_NEW:
-            $statusColors[] = '#3c8dbc';
+            $statusColors[] = "#3c8dbc";
             break;
         case OilInventory::STATUS_FILLED:
-            $statusColors[] = '#f39c12';
+            $statusColors[] = "#f39c12";
             break;
         case OilInventory::STATUS_ACCEPTED:
-            $statusColors[] = '#00a65a';
+            $statusColors[] = "#00a65a";
             break;
         case OilInventory::STATUS_REJECTED:
-            $statusColors[] = '#dd4b39';
+            $statusColors[] = "#dd4b39";
             break;
         default:
-            $statusColors[] = '#999999';
+            $statusColors[] = "#999999";
     }
 }
 
 $monthNames = [
-    1 => 'Янв', 2 => 'Фев', 3 => 'Мар', 4 => 'Апр', 5 => 'Май', 6 => 'Июн',
-    7 => 'Июл', 8 => 'Авг', 9 => 'Сен', 10 => 'Окт', 11 => 'Ноя', 12 => 'Дек'
+    1 => "Янв",
+    2 => "Фев",
+    3 => "Мар",
+    4 => "Апр",
+    5 => "Май",
+    6 => "Июн",
+    7 => "Июл",
+    8 => "Авг",
+    9 => "Сен",
+    10 => "Окт",
+    11 => "Ноя",
+    12 => "Дек",
 ];
-
 ?>
 
 <div class="oil-inventory-dashboard">
@@ -109,46 +123,156 @@ $monthNames = [
         <div class="col-md-12">
             <div class="well well-sm">
                 <?php $form = ActiveForm::begin([
-                    'method' => 'get',
-                    'options' => ['class' => 'form-inline'],
+                    "method" => "get",
+                    "options" => ["class" => "form-inline"],
                 ]); ?>
-                
+
                 <div class="form-group" style="margin-right: 15px;">
-                    <?= Html::label('С:', 'date_from', ['class' => 'control-label', 'style' => 'margin-right: 5px;']) ?>
-                    <?= Html::input('date', 'date_from', $dateFrom, [
-                        'class' => 'form-control',
-                        'style' => 'width: 140px;'
+                    <?= Html::label("С:", "date_from", [
+                        "class" => "control-label",
+                        "style" => "margin-right: 5px;",
+                    ]) ?>
+                    <?= Html::input("date", "date_from", $dateFrom, [
+                        "class" => "form-control",
+                        "style" => "width: 140px;",
                     ]) ?>
                 </div>
-                
+
                 <div class="form-group" style="margin-right: 15px;">
-                    <?= Html::label('По:', 'date_to', ['class' => 'control-label', 'style' => 'margin-right: 5px;']) ?>
-                    <?= Html::input('date', 'date_to', $dateTo, [
-                        'class' => 'form-control',
-                        'style' => 'width: 140px;'
+                    <?= Html::label("По:", "date_to", [
+                        "class" => "control-label",
+                        "style" => "margin-right: 5px;",
+                    ]) ?>
+                    <?= Html::input("date", "date_to", $dateTo, [
+                        "class" => "form-control",
+                        "style" => "width: 140px;",
                     ]) ?>
                 </div>
-                
+
                 <?php if ($isManager): ?>
                 <div class="form-group" style="margin-right: 15px;">
-                    <?= Html::label('Магазин:', 'store_id', ['class' => 'control-label', 'style' => 'margin-right: 5px;']) ?>
-                    <?= Html::dropDownList('store_id', $storeFilter, 
-                        ArrayHelper::map($storesList, 'id', 'name'), [
-                            'class' => 'form-control',
-                            'prompt' => 'Все магазины',
-                            'style' => 'width: 180px;'
-                        ]) ?>
+                    <?= Html::label("Магазин:", "store_id", [
+                        "class" => "control-label",
+                        "style" => "margin-right: 5px;",
+                    ]) ?>
+                    <?= Select2::widget([
+                        "name" => "store_id",
+                        "value" => $storeFilter,
+                        "data" => ArrayHelper::map($storesList, "id", "name"),
+                        "options" => [
+                            "placeholder" => "Все магазины",
+                            "style" => "width: 250px;",
+                        ],
+                        "pluginOptions" => [
+                            "allowClear" => true,
+                            "minimumInputLength" => 0,
+                            "language" => [
+                                "errorLoading" => new \yii\web\JsExpression(
+                                    "function () { return 'Загрузка...'; }",
+                                ),
+                                "inputTooShort" => new \yii\web\JsExpression(
+                                    "function () { return 'Введите хотя бы 1 символ'; }",
+                                ),
+                                "noResults" => new \yii\web\JsExpression(
+                                    "function () { return 'Ничего не найдено'; }",
+                                ),
+                                "searching" => new \yii\web\JsExpression(
+                                    "function () { return 'Поиск...'; }",
+                                ),
+                            ],
+                            "matcher" => new \yii\web\JsExpression('
+                                function(params, data) {
+                                    // Если нет поискового запроса, показываем все
+                                    if (!params.term || params.term.trim() === "") {
+                                        return data;
+                                    }
+
+                                    // Если нет текста у элемента, пропускаем
+                                    if (!data.text) {
+                                        return null;
+                                    }
+
+                                    var term = params.term.trim().toLowerCase();
+                                    var text = data.text.toLowerCase();
+
+                                    // Функция для транслитерации
+                                    function transliterate(str) {
+                                        var ru = "абвгдеёжзийклмнопрстуфхцчшщъыьэюя";
+                                        var en = ["a","b","v","g","d","e","yo","zh","z","i","y","k","l","m","n","o","p","r","s","t","u","f","h","ts","ch","sh","sch","","y","","e","yu","ya"];
+                                        var result = str;
+
+                                        // Русский в латиницу
+                                        for (var i = 0; i < ru.length; i++) {
+                                            result = result.split(ru[i]).join(en[i] || "");
+                                        }
+
+                                        return result;
+                                    }
+
+                                    // Функция для обратной транслитерации (латиница в кириллицу)
+                                    function reverseTransliterate(str) {
+                                        var replacements = {
+                                            "a": "а", "b": "б", "v": "в", "g": "г", "d": "д",
+                                            "e": "е", "z": "з", "i": "и", "y": "й", "k": "к",
+                                            "l": "л", "m": "м", "n": "н", "o": "о", "p": "п",
+                                            "r": "р", "s": "с", "t": "т", "u": "у", "f": "ф",
+                                            "h": "х", "c": "ц", "x": "кс"
+                                        };
+
+                                        var result = str;
+                                        for (var key in replacements) {
+                                            result = result.split(key).join(replacements[key]);
+                                        }
+
+                                        return result;
+                                    }
+
+                                    // Проверяем прямое совпадение
+                                    if (text.indexOf(term) > -1) {
+                                        return data;
+                                    }
+
+                                    // Проверяем транслитерацию (русский текст, латинский поиск)
+                                    var transliteratedText = transliterate(text);
+                                    if (transliteratedText.indexOf(term) > -1) {
+                                        return data;
+                                    }
+
+                                    // Проверяем обратную транслитерацию (латинский текст, русский поиск)
+                                    var reversedTerm = reverseTransliterate(term);
+                                    if (text.indexOf(reversedTerm) > -1) {
+                                        return data;
+                                    }
+
+                                    // Проверяем транслитерацию поискового запроса
+                                    var transliteratedTerm = transliterate(term);
+                                    if (text.indexOf(transliteratedTerm) > -1) {
+                                        return data;
+                                    }
+
+                                    return null;
+                                }
+                            '),
+                        ],
+                    ]) ?>
                 </div>
                 <?php endif; ?>
-                
-                <?= Html::submitButton('<i class="fa fa-search"></i> Применить', [
-                    'class' => 'btn btn-primary'
-                ]) ?>
-                <?= Html::a('<i class="fa fa-refresh"></i> Сбросить', ['/oil-inventory-dashboard/index'], [
-                    'class' => 'btn btn-default',
-                    'style' => 'margin-left: 5px;'
-                ]) ?>
-                
+
+                <?= Html::submitButton(
+                    '<i class="fa fa-search"></i> Применить',
+                    [
+                        "class" => "btn btn-primary",
+                    ],
+                ) ?>
+                <?= Html::a(
+                    '<i class="fa fa-refresh"></i> Сбросить',
+                    ["/oil-inventory-dashboard/index"],
+                    [
+                        "class" => "btn btn-default",
+                        "style" => "margin-left: 5px;",
+                    ],
+                ) ?>
+
                 <?php ActiveForm::end(); ?>
             </div>
         </div>
@@ -169,20 +293,35 @@ $monthNames = [
                     </p>
                     <div class="btn-group">
                         <?php if (!$storeFilter && !$dateFrom && !$dateTo): ?>
-                            <?= Html::a('<i class="fa fa-plus"></i> Создать запись', ['/oil-inventory/create'], [
-                                'class' => 'btn btn-sm',
-                                'style' => 'background-color: white; color: #333; border: 1px solid #ddd;'
-                            ]) ?>
+                            <?= Html::a(
+                                '<i class="fa fa-plus"></i> Создать запись',
+                                ["/oil-inventory/create"],
+                                [
+                                    "class" => "btn btn-sm",
+                                    "style" =>
+                                        "background-color: white; color: #333; border: 1px solid #ddd;",
+                                ],
+                            ) ?>
                         <?php endif; ?>
-                        <?= Html::a('<i class="fa fa-list"></i> К списку', ['/oil-inventory/index'], [
-                            'class' => 'btn btn-sm',
-                            'style' => 'background-color: white; color: #333; border: 1px solid #ddd;'
-                        ]) ?>
+                        <?= Html::a(
+                            '<i class="fa fa-list"></i> К списку',
+                            ["/oil-inventory/index"],
+                            [
+                                "class" => "btn btn-sm",
+                                "style" =>
+                                    "background-color: white; color: #333; border: 1px solid #ddd;",
+                            ],
+                        ) ?>
                         <?php if ($storeFilter || $dateFrom || $dateTo): ?>
-                            <?= Html::a('<i class="fa fa-refresh"></i> Сбросить', ['/oil-inventory-dashboard/index'], [
-                                'class' => 'btn btn-sm',
-                                'style' => 'background-color: white; color: #333; border: 1px solid #ddd;'
-                            ]) ?>
+                            <?= Html::a(
+                                '<i class="fa fa-refresh"></i> Сбросить',
+                                ["/oil-inventory-dashboard/index"],
+                                [
+                                    "class" => "btn btn-sm",
+                                    "style" =>
+                                        "background-color: white; color: #333; border: 1px solid #ddd;",
+                                ],
+                            ) ?>
                         <?php endif; ?>
                     </div>
                 </div>
@@ -195,24 +334,32 @@ $monthNames = [
     <div class="alert alert-info" style="margin-bottom: 20px;">
         <strong><i class="fa fa-filter"></i> Применены фильтры:</strong>
         <?php if ($storeFilter): ?>
-            <?php 
+            <?php
             $storeName = $storeFilter;
             if ($isManager && $storesList) {
                 foreach ($storesList as $store) {
-                    if ($store['id'] == $storeFilter) {
-                        $storeName = $store['name'];
+                    if ($store["id"] == $storeFilter) {
+                        $storeName = $store["name"];
                         break;
                     }
                 }
             }
             ?>
-            <span class="label label-default"><?= Html::encode($storeName) ?></span>
+            <span class="label label-default"><?= Html::encode(
+                $storeName,
+            ) ?></span>
         <?php endif; ?>
         <?php if ($dateFrom): ?>
-            <span class="label label-default">с <?= date('d.m.Y', strtotime($dateFrom)) ?></span>
+            <span class="label label-default">с <?= date(
+                "d.m.Y",
+                strtotime($dateFrom),
+            ) ?></span>
         <?php endif; ?>
         <?php if ($dateTo): ?>
-            <span class="label label-default">по <?= date('d.m.Y', strtotime($dateTo)) ?></span>
+            <span class="label label-default">по <?= date(
+                "d.m.Y",
+                strtotime($dateTo),
+            ) ?></span>
         <?php endif; ?>
     </div>
     <?php endif; ?>
@@ -239,24 +386,38 @@ $monthNames = [
                     </tr>
                 </thead>
                 <tbody>
-                    <?php 
+                    <?php
                     $maxRecordsToShow = 10;
                     $recordCount = 0;
-                    foreach ($unfilledRecords as $record): 
-                        if ($recordCount >= $maxRecordsToShow) break;
+                    foreach ($unfilledRecords as $record):
+
+                        if ($recordCount >= $maxRecordsToShow) {
+                            break;
+                        }
                         $recordCount++;
-                    ?>
+                        ?>
                         <tr style="background-color: #fff;">
                             <td style="white-space: nowrap; color: #333;">
-                                <strong><?= Yii::$app->formatter->asDate($record->created_at, 'php:d.m.Y') ?></strong>
+                                <strong><?= Yii::$app->formatter->asDate(
+                                    $record->created_at,
+                                    "php:d.m.Y",
+                                ) ?></strong>
                                 <br>
-                                <small style="color: #666;"><?= Yii::$app->formatter->asTime($record->created_at, 'php:H:i') ?></small>
+                                <small style="color: #666;"><?= Yii::$app->formatter->asTime(
+                                    $record->created_at,
+                                    "php:H:i",
+                                ) ?></small>
                             </td>
                             <td style="white-space: nowrap; color: #333;">
-                                <?= Html::encode($record->store->name ?? 'Не указан') ?>
+                                <?= Html::encode(
+                                    $record->store->name ?? "Не указан",
+                                ) ?>
                             </td>
                             <td class="text-right" style="color: #333;">
-                                <?= number_format($record->opening_balance, 3) ?>
+                                <?= number_format(
+                                    $record->opening_balance,
+                                    3,
+                                ) ?>
                             </td>
                             <td class="text-right" style="color: #333;">
                                 <?= number_format($record->income, 3) ?>
@@ -267,30 +428,46 @@ $monthNames = [
                             <td style="white-space: nowrap;">
                                 <?php
                                 $statusColors = [
-                                    OilInventory::STATUS_NEW => 'label-info',
-                                    OilInventory::STATUS_FILLED => 'label-warning',
-                                    OilInventory::STATUS_REJECTED => 'label-danger',
-                                    OilInventory::STATUS_ACCEPTED => 'label-success',
+                                    OilInventory::STATUS_NEW => "label-info",
+                                    OilInventory::STATUS_FILLED =>
+                                        "label-warning",
+                                    OilInventory::STATUS_REJECTED =>
+                                        "label-danger",
+                                    OilInventory::STATUS_ACCEPTED =>
+                                        "label-success",
                                 ];
-                                $colorClass = $statusColors[$record->status] ?? 'label-default';
+                                $colorClass =
+                                    $statusColors[$record->status] ??
+                                    "label-default";
                                 ?>
                                 <span class="label <?= $colorClass ?>">
                                     <?= $record->getStatusLabel() ?>
                                 </span>
                             </td>
                             <td style="white-space: nowrap;">
-                                <?= Html::a('<i class="fa fa-eye"></i> Просмотр', ['/oil-inventory/view', 'id' => $record->id], [
-                                    'class' => 'btn btn-xs btn-info',
-                                    'title' => 'Просмотр'
-                                ]) ?>
+                                <?= Html::a(
+                                    '<i class="fa fa-eye"></i> Просмотр',
+                                    [
+                                        "/oil-inventory/view",
+                                        "id" => $record->id,
+                                    ],
+                                    [
+                                        "class" => "btn btn-xs btn-info",
+                                        "title" => "Просмотр",
+                                    ],
+                                ) ?>
                             </td>
                         </tr>
-                    <?php endforeach; ?>
+                    <?php
+                    endforeach;
+                    ?>
                 </tbody>
             </table>
             <?php if (count($unfilledRecords) > $maxRecordsToShow): ?>
                 <div class="text-center" style="margin-top: 10px;">
-                    <em style="color: #8a6d3b;">Показаны первые <?= $maxRecordsToShow ?> записей из <?= count($unfilledRecords) ?> незаполненных.</em>
+                    <em style="color: #8a6d3b;">Показаны первые <?= $maxRecordsToShow ?> записей из <?= count(
+     $unfilledRecords,
+ ) ?> незаполненных.</em>
                 </div>
             <?php endif; ?>
         </div>
@@ -328,54 +505,102 @@ $monthNames = [
                                 <?php foreach ($recentRecords as $record): ?>
                                     <tr>
                                         <td style="white-space: nowrap;">
-                                            <?= Yii::$app->formatter->asDate($record->created_at, 'php:d.m.Y') ?>
+                                            <?= Yii::$app->formatter->asDate(
+                                                $record->created_at,
+                                                "php:d.m.Y",
+                                            ) ?>
                                         </td>
                                         <td style="white-space: nowrap;">
-                                            <?= Html::encode($record->store->name ?? 'Не указан') ?>
+                                            <?= Html::encode(
+                                                $record->store->name ??
+                                                    "Не указан",
+                                            ) ?>
                                         </td>
                                         <td class="text-right">
-                                            <?= number_format($record->opening_balance, 3) ?>
+                                            <?= number_format(
+                                                $record->opening_balance,
+                                                3,
+                                            ) ?>
                                         </td>
                                         <td class="text-right">
-                                            <?= number_format($record->income, 3) ?>
+                                            <?= number_format(
+                                                $record->income,
+                                                3,
+                                            ) ?>
                                         </td>
                                         <td class="text-right">
-                                            <strong><?= number_format($record->return_amount_kg, 3) ?> кг</strong><br>
-                                            <small class="text-muted">(<?= number_format($record->return_amount, 3) ?> л)</small>
+                                            <strong><?= number_format(
+                                                $record->return_amount_kg,
+                                                3,
+                                            ) ?> кг</strong><br>
+                                            <small class="text-muted">(<?= number_format(
+                                                $record->return_amount,
+                                                3,
+                                            ) ?> л)</small>
                                         </td>
                                         <td class="text-right">
-                                            <?= number_format($record->apparatus, 3) ?>
+                                            <?= number_format(
+                                                $record->apparatus,
+                                                3,
+                                            ) ?>
                                         </td>
                                         <td class="text-right">
-                                            <?= number_format($record->new_oil, 3) ?>
+                                            <?= number_format(
+                                                $record->new_oil,
+                                                3,
+                                            ) ?>
                                         </td>
                                         <td class="text-right">
-                                            <span class="<?= $record->evaporation > 0 ? 'text-danger' : 'text-success' ?>">
-                                                <?= number_format($record->evaporation, 3) ?>
+                                            <span class="<?= $record->evaporation >
+                                            0
+                                                ? "text-danger"
+                                                : "text-success" ?>">
+                                                <?= number_format(
+                                                    $record->evaporation,
+                                                    3,
+                                                ) ?>
                                             </span>
                                         </td>
                                         <td class="text-right">
-                                            <strong><?= number_format($record->closing_balance, 3) ?></strong>
+                                            <strong><?= number_format(
+                                                $record->closing_balance,
+                                                3,
+                                            ) ?></strong>
                                         </td>
                                         <td style="white-space: nowrap;">
                                             <?php
                                             $statusColors = [
-                                                OilInventory::STATUS_NEW => 'label-info',
-                                                OilInventory::STATUS_FILLED => 'label-warning',
-                                                OilInventory::STATUS_REJECTED => 'label-danger',
-                                                OilInventory::STATUS_ACCEPTED => 'label-success',
+                                                OilInventory::STATUS_NEW =>
+                                                    "label-info",
+                                                OilInventory::STATUS_FILLED =>
+                                                    "label-warning",
+                                                OilInventory::STATUS_REJECTED =>
+                                                    "label-danger",
+                                                OilInventory::STATUS_ACCEPTED =>
+                                                    "label-success",
                                             ];
-                                            $colorClass = $statusColors[$record->status] ?? 'label-default';
+                                            $colorClass =
+                                                $statusColors[
+                                                    $record->status
+                                                ] ?? "label-default";
                                             ?>
                                             <span class="label <?= $colorClass ?>">
                                                 <?= $record->getStatusLabel() ?>
                                             </span>
                                         </td>
                                         <td style="white-space: nowrap;">
-                                            <?= Html::a('<i class="fa fa-eye"></i>', ['/oil-inventory/view', 'id' => $record->id], [
-                                                'class' => 'btn btn-xs btn-info',
-                                                'title' => 'Просмотр'
-                                            ]) ?>
+                                            <?= Html::a(
+                                                '<i class="fa fa-eye"></i>',
+                                                [
+                                                    "/oil-inventory/view",
+                                                    "id" => $record->id,
+                                                ],
+                                                [
+                                                    "class" =>
+                                                        "btn btn-xs btn-info",
+                                                    "title" => "Просмотр",
+                                                ],
+                                            ) ?>
                                         </td>
                                     </tr>
                                 <?php endforeach; ?>
@@ -386,7 +611,7 @@ $monthNames = [
             </div>
         </div>
     </div>
-    
+
     <div class="row">
         <div class="col-lg-3 col-xs-6">
             <div class="small-box bg-aqua">
@@ -394,7 +619,9 @@ $monthNames = [
                     <h3><?= $totalRecords ?></h3>
                     <p>Всего записей</p>
                 </div>
-                <a href="<?= Url::to(['/oil-inventory/index']) ?>" class="small-box-footer">
+                <a href="<?= Url::to([
+                    "/oil-inventory/index",
+                ]) ?>" class="small-box-footer">
                     Подробнее <i class="fa fa-arrow-circle-right"></i>
                 </a>
             </div>
@@ -403,7 +630,10 @@ $monthNames = [
         <div class="col-lg-3 col-xs-6">
             <div class="small-box bg-green">
                 <div class="inner">
-                    <h3><?= number_format($averageConsumption['avg_total_consumption'], 2) ?></h3>
+                    <h3><?= number_format(
+                        $averageConsumption["avg_total_consumption"],
+                        2,
+                    ) ?></h3>
                     <p>Средний расход/день (л)</p>
                 </div>
                 <a href="#consumption-analysis" class="small-box-footer">
@@ -415,7 +645,10 @@ $monthNames = [
         <div class="col-lg-3 col-xs-6">
             <div class="small-box bg-yellow">
                 <div class="inner">
-                    <h3><?= number_format($wastageAnalysis['avg_evaporation'] ?? 0, 2) ?></h3>
+                    <h3><?= number_format(
+                        $wastageAnalysis["avg_evaporation"] ?? 0,
+                        2,
+                    ) ?></h3>
                     <p>Среднее испарение/день (л)</p>
                 </div>
                 <a href="#wastage-analysis" class="small-box-footer">
@@ -427,7 +660,10 @@ $monthNames = [
         <div class="col-lg-3 col-xs-6">
             <div class="small-box bg-red">
                 <div class="inner">
-                    <h3><?= number_format($efficiencyMetrics['evaporation_percentage'] ?? 0, 1) ?>%</h3>
+                    <h3><?= number_format(
+                        $efficiencyMetrics["evaporation_percentage"] ?? 0,
+                        1,
+                    ) ?>%</h3>
                     <p>Доля испарения</p>
                 </div>
                 <a href="#efficiency-metrics" class="small-box-footer">
@@ -442,7 +678,10 @@ $monthNames = [
         <div class="col-lg-3 col-xs-6">
             <div class="small-box" style="background-color: #3c8dbc; color: #fff;">
                 <div class="inner">
-                    <h3><?= number_format($averageConsumption['avg_apparatus'], 2) ?></h3>
+                    <h3><?= number_format(
+                        $averageConsumption["avg_apparatus"],
+                        2,
+                    ) ?></h3>
                     <p>Средний расход аппарата (л)</p>
                 </div>
                 <a href="#consumption-analysis" class="small-box-footer">
@@ -454,7 +693,10 @@ $monthNames = [
         <div class="col-lg-3 col-xs-6">
             <div class="small-box" style="background-color: #00a65a; color: #fff;">
                 <div class="inner">
-                    <h3><?= number_format($averageConsumption['avg_new_oil'], 2) ?></h3>
+                    <h3><?= number_format(
+                        $averageConsumption["avg_new_oil"],
+                        2,
+                    ) ?></h3>
                     <p>Среднее новое масло (л)</p>
                 </div>
                 <a href="#consumption-analysis" class="small-box-footer">
@@ -466,7 +708,10 @@ $monthNames = [
         <div class="col-lg-3 col-xs-6">
             <div class="small-box" style="background-color: #dd4b39; color: #fff;">
                 <div class="inner">
-                    <h3><?= number_format($averageConsumption['avg_return'], 2) ?></h3>
+                    <h3><?= number_format(
+                        $averageConsumption["avg_return"],
+                        2,
+                    ) ?></h3>
                     <p>Средний возврат/день (л)</p>
                 </div>
                 <a href="#efficiency-metrics" class="small-box-footer">
@@ -478,7 +723,10 @@ $monthNames = [
         <div class="col-lg-3 col-xs-6">
             <div class="small-box" style="background-color: #605ca8; color: #fff;">
                 <div class="inner">
-                    <h3><?= number_format($efficiencyMetrics['return_percentage'] ?? 0, 1) ?>%</h3>
+                    <h3><?= number_format(
+                        $efficiencyMetrics["return_percentage"] ?? 0,
+                        1,
+                    ) ?>%</h3>
                     <p>Доля возврата</p>
                 </div>
                 <a href="#efficiency-metrics" class="small-box-footer">
@@ -511,11 +759,14 @@ $monthNames = [
                     <h3 class="box-title">
                         Тренд остатков
                         <?php if ($dateFrom && $dateTo): ?>
-                            (<?= date('d.m.Y', strtotime($dateFrom)) ?> - <?= date('d.m.Y', strtotime($dateTo)) ?>)
+                            (<?= date(
+                                "d.m.Y",
+                                strtotime($dateFrom),
+                            ) ?> - <?= date("d.m.Y", strtotime($dateTo)) ?>)
                         <?php elseif ($dateFrom): ?>
-                            (с <?= date('d.m.Y', strtotime($dateFrom)) ?>)
+                            (с <?= date("d.m.Y", strtotime($dateFrom)) ?>)
                         <?php elseif ($dateTo): ?>
-                            (до <?= date('d.m.Y', strtotime($dateTo)) ?>)
+                            (до <?= date("d.m.Y", strtotime($dateTo)) ?>)
                         <?php else: ?>
                             (7 дней)
                         <?php endif; ?>
@@ -553,14 +804,32 @@ $monthNames = [
                         <tbody>
                             <?php foreach ($topConsumptionDays as $day): ?>
                                 <tr>
-                                    <td><?= date('d.m.Y', strtotime($day['date'])) ?></td>
+                                    <td><?= date(
+                                        "d.m.Y",
+                                        strtotime($day["date"]),
+                                    ) ?></td>
                                     <td class="text-right">
-                                        <strong><?= number_format($day['total_consumption'], 3) ?></strong>
+                                        <strong><?= number_format(
+                                            $day["total_consumption"],
+                                            3,
+                                        ) ?></strong>
                                     </td>
-                                    <td class="text-right"><?= number_format($day['apparatus'], 3) ?></td>
-                                    <td class="text-right"><?= number_format($day['new_oil'], 3) ?></td>
-                                    <td class="text-right"><?= number_format($day['evaporation'], 3) ?></td>
-                                    <td class="text-right"><?= number_format($day['return_amount'], 3) ?></td>
+                                    <td class="text-right"><?= number_format(
+                                        $day["apparatus"],
+                                        3,
+                                    ) ?></td>
+                                    <td class="text-right"><?= number_format(
+                                        $day["new_oil"],
+                                        3,
+                                    ) ?></td>
+                                    <td class="text-right"><?= number_format(
+                                        $day["evaporation"],
+                                        3,
+                                    ) ?></td>
+                                    <td class="text-right"><?= number_format(
+                                        $day["return_amount"],
+                                        3,
+                                    ) ?></td>
                                 </tr>
                             <?php endforeach; ?>
                         </tbody>
@@ -597,21 +866,47 @@ $monthNames = [
                             <?php foreach ($monthlyStats as $month): ?>
                                 <tr>
                                     <td>
-                                        <?= $monthNames[$month['month']] ?> <?= $month['year'] ?>
+                                        <?= $monthNames[
+                                            $month["month"]
+                                        ] ?> <?= $month["year"] ?>
                                     </td>
-                                    <td class="text-right"><?= $month['records_count'] ?></td>
-                                    <td class="text-right"><?= number_format($month['avg_closing'], 3) ?></td>
-                                    <td class="text-right"><?= number_format($month['total_income'], 3) ?></td>
-                                    <td class="text-right"><?= number_format($month['total_consumption'], 3) ?></td>
+                                    <td class="text-right"><?= $month[
+                                        "records_count"
+                                    ] ?></td>
+                                    <td class="text-right"><?= number_format(
+                                        $month["avg_closing"],
+                                        3,
+                                    ) ?></td>
+                                    <td class="text-right"><?= number_format(
+                                        $month["total_income"],
+                                        3,
+                                    ) ?></td>
+                                    <td class="text-right"><?= number_format(
+                                        $month["total_consumption"],
+                                        3,
+                                    ) ?></td>
                                     <td class="text-right">
-                                        <?php 
-                                        $efficiency = $month['total_consumption'] > 0 ? 
-                                            ($month['total_income'] / $month['total_consumption'] * 100) : 0;
-                                        $efficiencyClass = $efficiency >= 100 ? 'text-success' : 
-                                            ($efficiency >= 80 ? 'text-warning' : 'text-danger');
+                                        <?php
+                                        $efficiency =
+                                            $month["total_consumption"] > 0
+                                                ? ($month["total_income"] /
+                                                        $month[
+                                                            "total_consumption"
+                                                        ]) *
+                                                    100
+                                                : 0;
+                                        $efficiencyClass =
+                                            $efficiency >= 100
+                                                ? "text-success"
+                                                : ($efficiency >= 80
+                                                    ? "text-warning"
+                                                    : "text-danger");
                                         ?>
                                         <span class="<?= $efficiencyClass ?>">
-                                            <?= number_format($efficiency, 1) ?>%
+                                            <?= number_format(
+                                                $efficiency,
+                                                1,
+                                            ) ?>%
                                         </span>
                                     </td>
                                 </tr>
@@ -636,19 +931,31 @@ $monthNames = [
                     <table class="table table-condensed">
                         <tr>
                             <td><strong>Среднее испарение:</strong></td>
-                            <td class="text-right"><?= number_format($wastageAnalysis['avg_evaporation'] ?? 0, 3) ?></td>
+                            <td class="text-right"><?= number_format(
+                                $wastageAnalysis["avg_evaporation"] ?? 0,
+                                3,
+                            ) ?></td>
                         </tr>
                         <tr>
                             <td><strong>Максимальное испарение:</strong></td>
-                            <td class="text-right"><?= number_format($wastageAnalysis['max_evaporation'] ?? 0, 3) ?></td>
+                            <td class="text-right"><?= number_format(
+                                $wastageAnalysis["max_evaporation"] ?? 0,
+                                3,
+                            ) ?></td>
                         </tr>
                         <tr>
                             <td><strong>Минимальное испарение:</strong></td>
-                            <td class="text-right"><?= number_format($wastageAnalysis['min_evaporation'] ?? 0, 3) ?></td>
+                            <td class="text-right"><?= number_format(
+                                $wastageAnalysis["min_evaporation"] ?? 0,
+                                3,
+                            ) ?></td>
                         </tr>
                         <tr>
                             <td><strong>Общее испарение:</strong></td>
-                            <td class="text-right"><?= number_format($wastageAnalysis['total_evaporation'] ?? 0, 3) ?></td>
+                            <td class="text-right"><?= number_format(
+                                $wastageAnalysis["total_evaporation"] ?? 0,
+                                3,
+                            ) ?></td>
                         </tr>
                     </table>
                 </div>
@@ -668,7 +975,12 @@ $monthNames = [
                             <td><strong>Доля испарения:</strong></td>
                             <td class="text-right">
                                 <span class="label label-warning">
-                                    <?= number_format($efficiencyMetrics['evaporation_percentage'] ?? 0, 1) ?>%
+                                    <?= number_format(
+                                        $efficiencyMetrics[
+                                            "evaporation_percentage"
+                                        ] ?? 0,
+                                        1,
+                                    ) ?>%
                                 </span>
                             </td>
                         </tr>
@@ -676,7 +988,12 @@ $monthNames = [
                             <td><strong>Доля аппарата:</strong></td>
                             <td class="text-right">
                                 <span class="label label-primary">
-                                    <?= number_format($efficiencyMetrics['apparatus_percentage'] ?? 0, 1) ?>%
+                                    <?= number_format(
+                                        $efficiencyMetrics[
+                                            "apparatus_percentage"
+                                        ] ?? 0,
+                                        1,
+                                    ) ?>%
                                 </span>
                             </td>
                         </tr>
@@ -684,7 +1001,12 @@ $monthNames = [
                             <td><strong>Доля нового масла:</strong></td>
                             <td class="text-right">
                                 <span class="label label-info">
-                                    <?= number_format($efficiencyMetrics['new_oil_percentage'] ?? 0, 1) ?>%
+                                    <?= number_format(
+                                        $efficiencyMetrics[
+                                            "new_oil_percentage"
+                                        ] ?? 0,
+                                        1,
+                                    ) ?>%
                                 </span>
                             </td>
                         </tr>
@@ -692,7 +1014,12 @@ $monthNames = [
                             <td><strong>Доля возврата:</strong></td>
                             <td class="text-right">
                                 <span class="label label-danger">
-                                    <?= number_format($efficiencyMetrics['return_percentage'] ?? 0, 1) ?>%
+                                    <?= number_format(
+                                        $efficiencyMetrics[
+                                            "return_percentage"
+                                        ] ?? 0,
+                                        1,
+                                    ) ?>%
                                 </span>
                             </td>
                         </tr>
@@ -700,7 +1027,12 @@ $monthNames = [
                             <td><strong>Эффективность прихода:</strong></td>
                             <td class="text-right">
                                 <span class="label label-success">
-                                    <?= number_format($efficiencyMetrics['income_efficiency'] ?? 0, 1) ?>%
+                                    <?= number_format(
+                                        $efficiencyMetrics[
+                                            "income_efficiency"
+                                        ] ?? 0,
+                                        1,
+                                    ) ?>%
                                 </span>
                             </td>
                         </tr>
@@ -753,10 +1085,12 @@ const weeklyCtx = document.getElementById('weeklyTrendChart').getContext('2d');
 new Chart(weeklyCtx, {
     type: 'line',
     data: {
-        labels: <?= json_encode(array_column($weeklyTrend, 'date')) ?>,
+        labels: <?= json_encode(array_column($weeklyTrend, "date")) ?>,
         datasets: [{
             label: 'Остаток на конец дня',
-            data: <?= json_encode(array_column($weeklyTrend, 'closing_balance')) ?>,
+            data: <?= json_encode(
+                array_column($weeklyTrend, "closing_balance"),
+            ) ?>,
             borderColor: '#00a65a',
             backgroundColor: 'rgba(0, 166, 90, 0.1)',
             tension: 0.4
@@ -782,10 +1116,10 @@ new Chart(consumptionCtx, {
         datasets: [{
             label: 'Средний расход',
             data: [
-                <?= $averageConsumption['avg_apparatus'] ?>,
-                <?= $averageConsumption['avg_new_oil'] ?>,
-                <?= $averageConsumption['avg_evaporation'] ?>,
-                <?= $averageConsumption['avg_return'] ?>
+                <?= $averageConsumption["avg_apparatus"] ?>,
+                <?= $averageConsumption["avg_new_oil"] ?>,
+                <?= $averageConsumption["avg_evaporation"] ?>,
+                <?= $averageConsumption["avg_return"] ?>
             ],
             backgroundColor: ['#3c8dbc', '#00a65a', '#f39c12', '#dd4b39']
         }]
@@ -860,4 +1194,4 @@ new Chart(consumptionCtx, {
 }
 </style>
 
-<?php endif; ?> 
+<?php endif; ?>
