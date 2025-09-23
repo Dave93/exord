@@ -172,7 +172,7 @@ class OilInventoryDashboardController extends Controller
     private function getStoresList()
     {
         // Сначала получаем уникальные store_id пользователей с заполненным oil_tg_id
-        $storeIds = new Query()
+        $storeIds = (new Query())
             ->select(["store_id"])
             ->from("users")
             ->where(["not", ["oil_tg_id" => null]])
@@ -188,7 +188,7 @@ class OilInventoryDashboardController extends Controller
         }
 
         // Теперь получаем информацию о магазинах
-        return new Query()
+        return (new Query())
             ->select(["id", "name"])
             ->from("stores")
             ->where(["in", "id", $storeIds])
