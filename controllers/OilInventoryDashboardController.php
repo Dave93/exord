@@ -254,7 +254,7 @@ class OilInventoryDashboardController extends Controller
     private function getMonthlyStats(
         $storeFilter = null,
         $dateFrom = null,
-        $dateTo = null,
+        $dateTo = null
     ) {
         $query = new Query()
             ->select([
@@ -291,7 +291,7 @@ class OilInventoryDashboardController extends Controller
     private function getAverageConsumption(
         $storeFilter = null,
         $dateFrom = null,
-        $dateTo = null,
+        $dateTo = null
     ) {
         $query = new Query()
             ->select([
@@ -333,7 +333,7 @@ class OilInventoryDashboardController extends Controller
     private function getWeeklyTrend(
         $storeFilter = null,
         $dateFrom = null,
-        $dateTo = null,
+        $dateTo = null
     ) {
         $query = new Query()
             ->select([
@@ -375,7 +375,7 @@ class OilInventoryDashboardController extends Controller
     private function getTopConsumptionDays(
         $storeFilter = null,
         $dateFrom = null,
-        $dateTo = null,
+        $dateTo = null
     ) {
         $query = new Query()
             ->select([
@@ -414,7 +414,7 @@ class OilInventoryDashboardController extends Controller
     private function getRecentRecords(
         $storeFilter = null,
         $dateFrom = null,
-        $dateTo = null,
+        $dateTo = null
     ) {
         $query = OilInventory::find()
             ->orderBy(["created_at" => SORT_DESC])
@@ -441,7 +441,7 @@ class OilInventoryDashboardController extends Controller
     private function getWastageAnalysis(
         $storeFilter = null,
         $dateFrom = null,
-        $dateTo = null,
+        $dateTo = null
     ) {
         $query = new Query()
             ->select([
@@ -475,7 +475,7 @@ class OilInventoryDashboardController extends Controller
     private function getEfficiencyMetrics(
         $storeFilter = null,
         $dateFrom = null,
-        $dateTo = null,
+        $dateTo = null
     ) {
         $query = new Query()
             ->select([
@@ -517,7 +517,7 @@ class OilInventoryDashboardController extends Controller
     private function getUnfilledRecords(
         $storeFilter = null,
         $dateFrom = null,
-        $dateTo = null,
+        $dateTo = null
     ) {
         $query = OilInventory::find()
             ->where(["apparatus" => 0])
