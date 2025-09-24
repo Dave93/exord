@@ -39,7 +39,6 @@ class GenerateOilRecordsController extends Controller
         }
         $arStoreIds = array_unique($arStoreIds);
         $arStores = Stores::find()->where(['id' => $arStoreIds])->all();
-        echo '<pre>'; print_r($arStores); echo '</pre>'; exit;
         foreach ($arStores as $store) {
             $oil_tg_id = $arTgIdByStoreId[$store->id];
             $store_id = $store->id;
