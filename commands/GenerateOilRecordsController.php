@@ -18,7 +18,7 @@ class GenerateOilRecordsController extends Controller
 {
     public $orderId;
 
-    private $tgBotToken = '2015516888:AAH5DnRItE5VVGJ5LVjFU_dBFNb4Dk9Zcg8';
+    private $tgBotToken = '2015516888:AAHcuE2OK2mVMKgnMCaI5M-jHfKybc_GY-Y';
 
     public function options($actionID)
     {
