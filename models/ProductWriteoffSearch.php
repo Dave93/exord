@@ -10,8 +10,8 @@ use yii\data\ActiveDataProvider;
  */
 class ProductWriteoffSearch extends ProductWriteoff
 {
-    public $product_name;
     public $store_name;
+    public $created_by_name;
 
     /**
      * {@inheritdoc}
@@ -19,9 +19,8 @@ class ProductWriteoffSearch extends ProductWriteoff
     public function rules()
     {
         return [
-            [['id', 'store_id', 'product_id', 'approved_by'], 'integer'],
-            [['count', 'approved_count'], 'number'],
-            [['created_at', 'approved_at', 'status', 'product_name', 'store_name'], 'safe'],
+            [['id', 'store_id', 'created_by', 'approved_by'], 'integer'],
+            [['created_at', 'approved_at', 'status', 'comment', 'store_name', 'created_by_name'], 'safe'],
         ];
     }
 
@@ -44,7 +43,7 @@ class ProductWriteoffSearch extends ProductWriteoff
     public function search($params)
     {
         $query = ProductWriteoff::find()
-            ->joinWith(['product', 'store']);
+            ->joinWith(['store', 'createdBy']);
 
         // add conditions that should always apply here
 
@@ -59,14 +58,14 @@ class ProductWriteoffSearch extends ProductWriteoff
         ]);
 
         // Добавляем сортировку по связанным таблицам
-        $dataProvider->sort->attributes['product_name'] = [
-            'asc' => ['products.name' => SORT_ASC],
-            'desc' => ['products.name' => SORT_DESC],
-        ];
-
         $dataProvider->sort->attributes['store_name'] = [
             'asc' => ['stores.name' => SORT_ASC],
             'desc' => ['stores.name' => SORT_DESC],
+        ];
+
+        $dataProvider->sort->attributes['created_by_name'] = [
+            'asc' => ['users.fullname' => SORT_ASC],
+            'desc' => ['users.fullname' => SORT_DESC],
         ];
 
         $this->load($params);
@@ -81,17 +80,16 @@ class ProductWriteoffSearch extends ProductWriteoff
         $query->andFilterWhere([
             'product_writeoffs.id' => $this->id,
             'product_writeoffs.store_id' => $this->store_id,
-            'product_writeoffs.product_id' => $this->product_id,
-            'product_writeoffs.count' => $this->count,
-            'product_writeoffs.approved_count' => $this->approved_count,
+            'product_writeoffs.created_by' => $this->created_by,
             'product_writeoffs.approved_by' => $this->approved_by,
             'product_writeoffs.status' => $this->status,
         ]);
 
         $query->andFilterWhere(['like', 'product_writeoffs.created_at', $this->created_at])
             ->andFilterWhere(['like', 'product_writeoffs.approved_at', $this->approved_at])
-            ->andFilterWhere(['like', 'products.name', $this->product_name])
-            ->andFilterWhere(['like', 'stores.name', $this->store_name]);
+            ->andFilterWhere(['like', 'product_writeoffs.comment', $this->comment])
+            ->andFilterWhere(['like', 'stores.name', $this->store_name])
+            ->andFilterWhere(['like', 'users.fullname', $this->created_by_name]);
 
         return $dataProvider;
     }
