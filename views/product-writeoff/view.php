@@ -38,17 +38,9 @@ $isAdmin = in_array(Yii::$app->user->identity->role, [User::ROLE_ADMIN, User::RO
                     'value' => $model->store ? $model->store->name : '-',
                 ],
                 [
-                    'attribute' => 'product_id',
-                    'label' => 'Продукт',
-                    'value' => $model->product ? $model->product->name : '-',
-                ],
-                [
-                    'attribute' => 'count',
-                    'label' => 'Количество',
-                    'value' => function ($model) {
-                        $unit = $model->product ? $model->product->mainUnit : '';
-                        return number_format($model->count, 2) . ' ' . $unit;
-                    },
+                    'attribute' => 'created_by',
+                    'label' => 'Создал',
+                    'value' => $model->createdBy ? $model->createdBy->fullname : '-',
                 ],
                 [
                     'attribute' => 'created_at',
@@ -61,16 +53,9 @@ $isAdmin = in_array(Yii::$app->user->identity->role, [User::ROLE_ADMIN, User::RO
                     'value' => $model->getStatusLabel(),
                 ],
                 [
-                    'attribute' => 'approved_count',
-                    'label' => 'Утвержденное количество',
-                    'value' => function ($model) {
-                        if ($model->approved_count !== null) {
-                            $unit = $model->product ? $model->product->mainUnit : '';
-                            return number_format($model->approved_count, 2) . ' ' . $unit;
-                        }
-                        return '-';
-                    },
-                    'visible' => $model->status === ProductWriteoff::STATUS_APPROVED,
+                    'attribute' => 'comment',
+                    'label' => 'Комментарий',
+                    'value' => $model->comment ?: '-',
                 ],
                 [
                     'attribute' => 'approved_by',
@@ -87,6 +72,34 @@ $isAdmin = in_array(Yii::$app->user->identity->role, [User::ROLE_ADMIN, User::RO
             ],
         ]) ?>
 
+        <h4>Позиции списания:</h4>
+        <table class="table table-bordered table-hover">
+            <thead>
+                <tr>
+                    <th width="50">№</th>
+                    <th>Продукт</th>
+                    <th class="text-center" width="100">Ед. изм.</th>
+                    <th class="text-right" width="150">Количество</th>
+                    <?php if ($model->status === ProductWriteoff::STATUS_APPROVED): ?>
+                        <th class="text-right" width="150">Утверждено</th>
+                    <?php endif; ?>
+                </tr>
+            </thead>
+            <tbody>
+                <?php $i = 1; foreach ($model->items as $item): ?>
+                    <tr>
+                        <td class="text-center"><?= $i++ ?></td>
+                        <td><?= Html::encode($item->product ? $item->product->name : '-') ?></td>
+                        <td class="text-center"><?= Html::encode($item->product ? $item->product->mainUnit : '') ?></td>
+                        <td class="text-right"><?= number_format($item->count, 2) ?></td>
+                        <?php if ($model->status === ProductWriteoff::STATUS_APPROVED): ?>
+                            <td class="text-right"><?= number_format($item->approved_count, 2) ?></td>
+                        <?php endif; ?>
+                    </tr>
+                <?php endforeach; ?>
+            </tbody>
+        </table>
+
         <?php if ($isAdmin && $model->status === ProductWriteoff::STATUS_NEW): ?>
             <hr>
             <h4>Утверждение списания</h4>
@@ -94,15 +107,35 @@ $isAdmin = in_array(Yii::$app->user->identity->role, [User::ROLE_ADMIN, User::RO
                 'action' => ['approve', 'id' => $model->id],
                 'method' => 'post',
             ]); ?>
-            <div class="row">
-                <div class="col-md-6">
-                    <div class="form-group">
-                        <label>Утвержденное количество (оставьте пустым, чтобы использовать исходное количество)</label>
-                        <input type="number" class="form-control" name="approved_count" step="any" min="0"
-                               placeholder="<?= number_format($model->count, 2) ?>">
-                    </div>
-                </div>
-            </div>
+
+            <table class="table table-bordered">
+                <thead>
+                    <tr>
+                        <th>Продукт</th>
+                        <th class="text-center">Ед. изм.</th>
+                        <th class="text-right">Заявлено</th>
+                        <th width="200">Утверждено</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($model->items as $item): ?>
+                        <tr>
+                            <td><?= Html::encode($item->product ? $item->product->name : '-') ?></td>
+                            <td class="text-center"><?= Html::encode($item->product ? $item->product->mainUnit : '') ?></td>
+                            <td class="text-right"><?= number_format($item->count, 2) ?></td>
+                            <td>
+                                <input type="number" class="form-control"
+                                       name="approved_counts[<?= $item->id ?>]"
+                                       step="any"
+                                       min="0"
+                                       placeholder="<?= number_format($item->count, 2) ?>">
+                                <small class="help-block">Оставьте пустым для утверждения заявленного</small>
+                            </td>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+
             <div class="row">
                 <div class="col-md-12">
                     <?= Html::submitButton('Утвердить списание', [

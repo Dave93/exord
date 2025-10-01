@@ -209,6 +209,15 @@ $this->registerJs($js);
         <div class="row">
             <div class="col-md-8 col-md-offset-2">
                 <div class="form-group">
+                    <label>Комментарий (необязательно)</label>
+                    <textarea class="form-control" name="comment" rows="3" placeholder="Добавьте комментарий к списанию..."></textarea>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-8 col-md-offset-2">
+                <div class="form-group">
                     <label>Поиск продукта</label>
                     <div class="product-search-container">
                         <input

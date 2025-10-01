@@ -66,18 +66,23 @@ $isAdmin = in_array(Yii::$app->user->identity->role, [User::ROLE_ADMIN, User::RO
                     'visible' => $isAdmin,
                 ],
                 [
-                    'attribute' => 'product_name',
-                    'label' => 'Продукт',
+                    'label' => 'Кол. позиций',
                     'value' => function ($model) {
-                        return $model->product ? $model->product->name : '-';
+                        return $model->getItemsCount();
                     },
+                    'headerOptions' => [
+                        'class' => 'text-center'
+                    ],
+                    'contentOptions' => [
+                        'width' => 100,
+                        'class' => 'text-center'
+                    ]
                 ],
                 [
-                    'attribute' => 'count',
-                    'label' => 'Количество',
+                    'attribute' => 'created_by',
+                    'label' => 'Создал',
                     'value' => function ($model) {
-                        $unit = $model->product ? $model->product->mainUnit : '';
-                        return number_format($model->count, 2) . ' ' . $unit;
+                        return $model->createdBy ? $model->createdBy->fullname : '-';
                     },
                     'contentOptions' => [
                         'width' => 120,

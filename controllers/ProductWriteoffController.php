@@ -4,6 +4,7 @@ namespace app\controllers;
 
 use app\components\AccessRule;
 use app\models\ProductWriteoff;
+use app\models\ProductWriteoffItem;
 use app\models\ProductWriteoffSearch;
 use app\models\Products;
 use app\models\User;
@@ -105,28 +106,35 @@ class ProductWriteoffController extends Controller
     {
         $model = new ProductWriteoff();
         $model->store_id = Yii::$app->user->identity->store_id;
+        $model->created_by = Yii::$app->user->id;
 
         if (Yii::$app->request->isPost) {
             $post = Yii::$app->request->post();
 
             if (isset($post['items']) && is_array($post['items'])) {
-                $hasItems = false;
                 $transaction = Yii::$app->db->beginTransaction();
 
                 try {
+                    $model->comment = $post['comment'] ?? null;
+                    $model->status = ProductWriteoff::STATUS_NEW;
+
+                    if (!$model->save()) {
+                        throw new \Exception('Ошибка сохранения списания');
+                    }
+
+                    $hasItems = false;
                     foreach ($post['items'] as $productId => $count) {
                         if (empty($count) || $count <= 0) {
                             continue;
                         }
 
-                        $writeoff = new ProductWriteoff();
-                        $writeoff->store_id = $model->store_id;
-                        $writeoff->product_id = $productId;
-                        $writeoff->count = $count;
-                        $writeoff->status = ProductWriteoff::STATUS_NEW;
+                        $item = new ProductWriteoffItem();
+                        $item->writeoff_id = $model->id;
+                        $item->product_id = $productId;
+                        $item->count = $count;
 
-                        if (!$writeoff->save()) {
-                            throw new \Exception('Ошибка сохранения списания');
+                        if (!$item->save()) {
+                            throw new \Exception('Ошибка сохранения позиции списания');
                         }
 
                         $hasItems = true;
@@ -134,15 +142,15 @@ class ProductWriteoffController extends Controller
 
                     if ($hasItems) {
                         $transaction->commit();
-                        Yii::$app->session->setFlash('success', 'Списания успешно созданы');
-                        return $this->redirect(['index']);
+                        Yii::$app->session->setFlash('success', 'Списание успешно создано');
+                        return $this->redirect(['view', 'id' => $model->id]);
                     } else {
                         $transaction->rollBack();
                         Yii::$app->session->setFlash('error', 'Не указано ни одного продукта для списания');
                     }
                 } catch (\Exception $e) {
                     $transaction->rollBack();
-                    Yii::$app->session->setFlash('error', 'Ошибка при создании списаний: ' . $e->getMessage());
+                    Yii::$app->session->setFlash('error', 'Ошибка при создании списания: ' . $e->getMessage());
                 }
             }
         }
@@ -171,13 +179,62 @@ class ProductWriteoffController extends Controller
             return $this->redirect(['view', 'id' => $model->id]);
         }
 
-        if ($model->load(Yii::$app->request->post()) && $model->save()) {
-            Yii::$app->session->setFlash('success', 'Списание обновлено');
-            return $this->redirect(['view', 'id' => $model->id]);
+        if (Yii::$app->request->isPost) {
+            $post = Yii::$app->request->post();
+
+            if (isset($post['items']) && is_array($post['items'])) {
+                $transaction = Yii::$app->db->beginTransaction();
+
+                try {
+                    $model->comment = $post['comment'] ?? null;
+
+                    if (!$model->save()) {
+                        throw new \Exception('Ошибка обновления списания');
+                    }
+
+                    // Удаляем старые позиции
+                    ProductWriteoffItem::deleteAll(['writeoff_id' => $model->id]);
+
+                    // Добавляем новые позиции
+                    $hasItems = false;
+                    foreach ($post['items'] as $productId => $count) {
+                        if (empty($count) || $count <= 0) {
+                            continue;
+                        }
+
+                        $item = new ProductWriteoffItem();
+                        $item->writeoff_id = $model->id;
+                        $item->product_id = $productId;
+                        $item->count = $count;
+
+                        if (!$item->save()) {
+                            throw new \Exception('Ошибка сохранения позиции списания');
+                        }
+
+                        $hasItems = true;
+                    }
+
+                    if ($hasItems) {
+                        $transaction->commit();
+                        Yii::$app->session->setFlash('success', 'Списание обновлено');
+                        return $this->redirect(['view', 'id' => $model->id]);
+                    } else {
+                        $transaction->rollBack();
+                        Yii::$app->session->setFlash('error', 'Не указано ни одного продукта для списания');
+                    }
+                } catch (\Exception $e) {
+                    $transaction->rollBack();
+                    Yii::$app->session->setFlash('error', 'Ошибка при обновлении списания: ' . $e->getMessage());
+                }
+            }
         }
+
+        // Получаем список продуктов по категориям
+        $folders = Products::getProductParents(Yii::$app->user->id);
 
         return $this->render('update', [
             'model' => $model,
+            'folders' => $folders,
         ]);
     }
 
@@ -191,9 +248,9 @@ class ProductWriteoffController extends Controller
     {
         $model = $this->findModel($id);
 
-        $approvedCount = Yii::$app->request->post('approved_count');
+        $approvedCounts = Yii::$app->request->post('approved_counts');
 
-        if ($model->approve($approvedCount)) {
+        if ($model->approve($approvedCounts)) {
             Yii::$app->session->setFlash('success', 'Списание утверждено');
         } else {
             Yii::$app->session->setFlash('error', 'Ошибка при утверждении списания');

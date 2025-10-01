@@ -9,17 +9,17 @@ use Yii;
  *
  * @property int $id
  * @property int $store_id ID магазина
- * @property int $product_id ID продукта
- * @property float $count Количество списания
+ * @property int $created_by ID пользователя, создавшего списание
  * @property string $created_at Дата создания
- * @property float|null $approved_count Утвержденное количество
  * @property string $status Статус (new, approved)
  * @property int|null $approved_by ID пользователя, утвердившего списание
  * @property string|null $approved_at Дата утверждения
+ * @property string|null $comment Комментарий
  *
  * @property Stores $store
- * @property Products $product
+ * @property User $createdBy
  * @property User $approvedBy
+ * @property ProductWriteoffItem[] $items
  */
 class ProductWriteoff extends \yii\db\ActiveRecord
 {
@@ -40,15 +40,15 @@ class ProductWriteoff extends \yii\db\ActiveRecord
     public function rules()
     {
         return [
-            [['store_id', 'product_id', 'count'], 'required'],
-            [['store_id', 'product_id', 'approved_by'], 'integer'],
-            [['count', 'approved_count'], 'number', 'min' => 0],
+            [['store_id', 'created_by'], 'required'],
+            [['store_id', 'created_by', 'approved_by'], 'integer'],
             [['created_at', 'approved_at'], 'safe'],
+            [['comment'], 'string'],
             [['status'], 'string', 'max' => 20],
             [['status'], 'in', 'range' => [self::STATUS_NEW, self::STATUS_APPROVED]],
             [['status'], 'default', 'value' => self::STATUS_NEW],
             [['store_id'], 'exist', 'skipOnError' => true, 'targetClass' => Stores::class, 'targetAttribute' => ['store_id' => 'id']],
-            [['product_id'], 'exist', 'skipOnError' => true, 'targetClass' => Products::class, 'targetAttribute' => ['product_id' => 'id']],
+            [['created_by'], 'exist', 'skipOnError' => true, 'targetClass' => User::class, 'targetAttribute' => ['created_by' => 'id']],
             [['approved_by'], 'exist', 'skipOnError' => true, 'targetClass' => User::class, 'targetAttribute' => ['approved_by' => 'id']],
         ];
     }
@@ -61,13 +61,12 @@ class ProductWriteoff extends \yii\db\ActiveRecord
         return [
             'id' => 'ID',
             'store_id' => 'Магазин',
-            'product_id' => 'Продукт',
-            'count' => 'Количество',
+            'created_by' => 'Создал',
             'created_at' => 'Дата создания',
-            'approved_count' => 'Утвержденное количество',
             'status' => 'Статус',
             'approved_by' => 'Утвердил',
             'approved_at' => 'Дата утверждения',
+            'comment' => 'Комментарий',
         ];
     }
 
@@ -82,13 +81,13 @@ class ProductWriteoff extends \yii\db\ActiveRecord
     }
 
     /**
-     * Gets query for [[Product]].
+     * Gets query for [[CreatedBy]].
      *
      * @return \yii\db\ActiveQuery
      */
-    public function getProduct()
+    public function getCreatedBy()
     {
-        return $this->hasOne(Products::class, ['id' => 'product_id']);
+        return $this->hasOne(User::class, ['id' => 'created_by']);
     }
 
     /**
@@ -99,6 +98,16 @@ class ProductWriteoff extends \yii\db\ActiveRecord
     public function getApprovedBy()
     {
         return $this->hasOne(User::class, ['id' => 'approved_by']);
+    }
+
+    /**
+     * Gets query for [[Items]].
+     *
+     * @return \yii\db\ActiveQuery
+     */
+    public function getItems()
+    {
+        return $this->hasMany(ProductWriteoffItem::class, ['writeoff_id' => 'id']);
     }
 
     /**
@@ -117,21 +126,73 @@ class ProductWriteoff extends \yii\db\ActiveRecord
 
     /**
      * Утвердить списание
-     * @param float|null $approvedCount Утвержденное количество (если null, используется count)
+     * @param array|null $approvedCounts Массив утвержденных количеств по позициям ['item_id' => 'approved_count']
      * @return bool
      */
-    public function approve($approvedCount = null)
+    public function approve($approvedCounts = null)
     {
         if ($this->status === self::STATUS_APPROVED) {
             return false;
         }
 
-        $this->status = self::STATUS_APPROVED;
-        $this->approved_count = $approvedCount !== null ? $approvedCount : $this->count;
-        $this->approved_by = Yii::$app->user->id;
-        $this->approved_at = date('Y-m-d H:i:s');
+        $transaction = Yii::$app->db->beginTransaction();
+        try {
+            // Обновляем утвержденные количества в позициях
+            if ($approvedCounts && is_array($approvedCounts)) {
+                foreach ($this->items as $item) {
+                    if (isset($approvedCounts[$item->id])) {
+                        $item->approved_count = $approvedCounts[$item->id];
+                        $item->save(false);
+                    } else {
+                        $item->approved_count = $item->count;
+                        $item->save(false);
+                    }
+                }
+            } else {
+                // Утверждаем все с исходным количеством
+                foreach ($this->items as $item) {
+                    $item->approved_count = $item->count;
+                    $item->save(false);
+                }
+            }
 
-        return $this->save();
+            $this->status = self::STATUS_APPROVED;
+            $this->approved_by = Yii::$app->user->id;
+            $this->approved_at = date('Y-m-d H:i:s');
+
+            if ($this->save(false)) {
+                $transaction->commit();
+                return true;
+            }
+
+            $transaction->rollBack();
+            return false;
+        } catch (\Exception $e) {
+            $transaction->rollBack();
+            return false;
+        }
+    }
+
+    /**
+     * Получить общее количество позиций
+     * @return int
+     */
+    public function getItemsCount()
+    {
+        return count($this->items);
+    }
+
+    /**
+     * Получить общее количество для списания
+     * @return float
+     */
+    public function getTotalCount()
+    {
+        $total = 0;
+        foreach ($this->items as $item) {
+            $total += $item->count;
+        }
+        return $total;
     }
 
     /**
