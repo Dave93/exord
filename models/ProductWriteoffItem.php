@@ -9,7 +9,7 @@ use Yii;
  *
  * @property int $id
  * @property int $writeoff_id ID списания
- * @property int $product_id ID продукта
+ * @property string $product_id ID продукта (UUID)
  * @property float $count Количество списания
  * @property float|null $approved_count Утвержденное количество
  *
@@ -33,7 +33,8 @@ class ProductWriteoffItem extends \yii\db\ActiveRecord
     {
         return [
             [['writeoff_id', 'product_id', 'count'], 'required'],
-            [['writeoff_id', 'product_id'], 'integer'],
+            [['writeoff_id'], 'integer'],
+            [['product_id'], 'string', 'max' => 36],
             [['count', 'approved_count'], 'number', 'min' => 0.01],
             [['writeoff_id'], 'exist', 'skipOnError' => true, 'targetClass' => ProductWriteoff::class, 'targetAttribute' => ['writeoff_id' => 'id']],
             [['product_id'], 'exist', 'skipOnError' => true, 'targetClass' => Products::class, 'targetAttribute' => ['product_id' => 'id']],

@@ -28,7 +28,7 @@ class m250102_000000_create_writeoffs_table extends Migration
         $this->createTable('{{%product_writeoff_items}}', [
             'id' => $this->primaryKey(),
             'writeoff_id' => $this->integer()->notNull()->comment('ID списания'),
-            'product_id' => $this->integer()->notNull()->comment('ID продукта'),
+            'product_id' => $this->string(36)->notNull()->comment('ID продукта (UUID)'),
             'count' => $this->decimal(10, 2)->notNull()->comment('Количество списания'),
             'approved_count' => $this->decimal(10, 2)->comment('Утвержденное количество'),
         ]);
