@@ -18,6 +18,7 @@ use Yii;
  * @property double $evaporation Испарение
  * @property double $closing_balance Остаток на конец дня
  * @property string $status Статус (новый, заполнен, отклонён, принят)
+ * @property int $changes_count Количество изменений
  * @property string $created_at
  * @property string $updated_at
  */
@@ -48,6 +49,8 @@ class OilInventory extends \yii\db\ActiveRecord
             [['store_id'], 'required'],
             [['opening_balance', 'income', 'return_amount', 'return_amount_kg', 'apparatus', 'new_oil', 'evaporation', 'closing_balance'], 'number'],
             [['opening_balance', 'return_amount_kg'], 'default', 'value' => 0],
+            [['changes_count'], 'integer'],
+            [['changes_count'], 'default', 'value' => 0],
             [['created_at', 'updated_at'], 'safe'],
             [['store_id'], 'string', 'max' => 36],
             [['status'], 'string', 'max' => 20],
@@ -73,6 +76,7 @@ class OilInventory extends \yii\db\ActiveRecord
             'evaporation' => 'Испарение (л)',
             'closing_balance' => 'Остаток на конец дня (л)',
             'status' => 'Статус',
+            'changes_count' => 'Количество изменений',
             'created_at' => 'Дата создания',
             'updated_at' => 'Дата обновления',
         ];
@@ -224,4 +228,40 @@ class OilInventory extends \yii\db\ActiveRecord
     {
         return $this->hasOne(Stores::class, ['id' => 'store_id']);
     }
-} 
+
+    /**
+     * Связь с историей изменений
+     * @return \yii\db\ActiveQuery
+     */
+    public function getHistory()
+    {
+        return $this->hasMany(OilInventoryHistory::class, ['oil_inventory_id' => 'id'])
+            ->orderBy(['created_at' => SORT_DESC]);
+    }
+
+    /**
+     * Обновить счетчик изменений на основе записей в истории
+     * @return bool
+     */
+    public function updateChangesCount()
+    {
+        $count = OilInventoryHistory::find()
+            ->where(['oil_inventory_id' => $this->id])
+            ->andWhere(['action' => OilInventoryHistory::ACTION_UPDATE])
+            ->count();
+
+        $this->changes_count = $count;
+
+        return $this->updateAttributes(['changes_count' => $this->changes_count]);
+    }
+
+    /**
+     * Увеличить счетчик изменений на 1
+     * @return bool
+     */
+    public function incrementChangesCount()
+    {
+        $this->changes_count = (int)$this->changes_count + 1;
+        return $this->updateAttributes(['changes_count' => $this->changes_count]);
+    }
+}

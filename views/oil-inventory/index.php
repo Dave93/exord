@@ -94,7 +94,7 @@ $this->params['breadcrumbs'][] = $this->title;
 
             [
                 'class' => 'yii\grid\ActionColumn',
-                'template' => '{view} {update} {print} {delete}',
+                'template' => '{view} {update} {print}',
                 'buttons' => [
                     'update' => function ($url, $model, $key) {
                         // Скрываем кнопку редактирования для записей со статусом "Принят"
@@ -103,18 +103,6 @@ $this->params['breadcrumbs'][] = $this->title;
                         }
                         return Html::a('<span class="glyphicon glyphicon-pencil"></span>', $url, [
                             'title' => 'Редактировать',
-                            'data-pjax' => '0',
-                        ]);
-                    },
-                    'delete' => function ($url, $model, $key) {
-                        // Скрываем кнопку удаления для записей со статусом "Принят"
-                        if ($model->status === OilInventory::STATUS_ACCEPTED) {
-                            return '';
-                        }
-                        return Html::a('<span class="glyphicon glyphicon-trash"></span>', $url, [
-                            'title' => 'Удалить',
-                            'data-confirm' => 'Вы уверены, что хотите удалить эту запись?',
-                            'data-method' => 'post',
                             'data-pjax' => '0',
                         ]);
                     },

@@ -4,6 +4,7 @@ use yii\helpers\Html;
 
 /* @var $this yii\web\View */
 /* @var $model app\models\OilInventory */
+/* @var $isAccepted bool */
 
 $this->title = 'Редактировать запись: ' . $model->id;
 $this->params['breadcrumbs'][] = ['label' => 'Учет масла', 'url' => ['index']];
@@ -24,6 +25,7 @@ $this->params['breadcrumbs'][] = 'Редактировать';
                 <div class="box-body">
                     <?= $this->render('_form', [
                         'model' => $model,
+                        'isAccepted' => isset($isAccepted) ? $isAccepted : false,
                     ]) ?>
                 </div>
             </div>

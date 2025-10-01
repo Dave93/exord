@@ -7,9 +7,20 @@ use app\models\OilInventory;
 /* @var $this yii\web\View */
 /* @var $model app\models\OilInventory */
 /* @var $form yii\widgets\ActiveForm */
+/* @var $isAccepted bool */
+
+// Проверяем, имеет ли запись статус "Принят"
+$isAccepted = isset($isAccepted) ? $isAccepted : false;
 ?>
 
 <div class="oil-inventory-form">
+
+    <?php if ($isAccepted): ?>
+        <div class="alert alert-warning">
+            <i class="fa fa-exclamation-triangle"></i>
+            <strong>Внимание:</strong> Эта запись имеет статус "Принят". Изменение поля "Возврат (кг)" заблокировано.
+        </div>
+    <?php endif; ?>
 
     <?php $form = ActiveForm::begin([
         'options' => ['class' => 'form-horizontal'],
@@ -34,7 +45,7 @@ use app\models\OilInventory;
                         'inputmode' => 'decimal',
                         'pattern' => '[0-9]+([\.\,][0-9]+)?',
                         'placeholder' => '0.000',
-                        'class' => 'form-control numeric-field'
+                        'class' => 'form-control numeric-field',
                     ]) ?>
 
                     <?= $form->field($model, 'return_amount_kg')->textInput([
@@ -43,7 +54,9 @@ use app\models\OilInventory;
                         'pattern' => '[0-9]+([\.\,][0-9]+)?',
                         'placeholder' => '0.000',
                         'class' => 'form-control numeric-field',
-                        'data-max' => '100'
+                        'data-max' => '100',
+                        'readonly' => $isAccepted,
+                        'disabled' => $isAccepted,
                     ]) ?>
 
                     <?= Html::activeHiddenInput($model, 'return_amount') ?>
@@ -65,7 +78,7 @@ use app\models\OilInventory;
                         'inputmode' => 'decimal',
                         'pattern' => '[0-9]+([\.\,][0-9]+)?',
                         'placeholder' => '0.000',
-                        'class' => 'form-control numeric-field'
+                        'class' => 'form-control numeric-field',
                     ]) ?>
 
                     <?= $form->field($model, 'new_oil')->textInput([
@@ -73,7 +86,7 @@ use app\models\OilInventory;
                         'inputmode' => 'decimal',
                         'pattern' => '[0-9]+([\.\,][0-9]+)?',
                         'placeholder' => '0.000',
-                        'class' => 'form-control numeric-field'
+                        'class' => 'form-control numeric-field',
                     ]) ?>
 
                     <?= Html::activeHiddenInput($model, 'evaporation') ?>

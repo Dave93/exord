@@ -5,6 +5,7 @@ namespace app\controllers;
 use Yii;
 use app\models\OilInventory;
 use app\models\OilInventorySearch;
+use app\models\OilInventoryHistory;
 use app\models\User;
 use yii\web\Controller;
 use yii\web\NotFoundHttpException;
@@ -38,7 +39,7 @@ class OilInventoryController extends Controller
                         ]
                     ],
                     [
-                        'actions' => ['index', 'view', 'create', 'update', 'delete', 'print'],
+                        'actions' => ['index', 'view', 'create', 'update', 'delete', 'print', 'history'],
                         'allow' => true,
                         'roles' => [
                             User::ROLE_ADMIN,
@@ -166,6 +167,9 @@ class OilInventoryController extends Controller
             $model->status = OilInventory::STATUS_FILLED;
             $model->closing_balance = $model->new_oil + $model->apparatus;
             if ($model->save()) {
+                // Логируем создание записи
+                $this->logCreation($model);
+
                 Yii::$app->session->setFlash('success', 'Запись успешно создана.');
                 return $this->redirect(['view', 'id' => $model->id]);
             } else {
@@ -189,27 +193,44 @@ class OilInventoryController extends Controller
     public function actionUpdate($id)
     {
         $model = $this->findModel($id);
-        
+
         // Проверяем, что запись принадлежит магазину текущего пользователя
         $this->checkStoreAccess($model);
-        
-        // Проверяем, что запись не имеет статус "Принят"
-        if ($model->status === OilInventory::STATUS_ACCEPTED) {
-            Yii::$app->session->setFlash('error', 'Невозможно редактировать запись со статусом "Принят".');
-            return $this->redirect(['view', 'id' => $model->id]);
-        }
+
+        $isAccepted = $model->status === OilInventory::STATUS_ACCEPTED;
 
         if (Yii::$app->request->isPost) {
-            
+
+            // Сохраняем старые значения для логирования изменений
+            $oldAttributes = $model->attributes;
+
             $model->load(Yii::$app->request->post());
 
-            if ($model->status == OilInventory::STATUS_NEW) {
-                $model->status = OilInventory::STATUS_FILLED;
-                $model->closing_balance = $model->new_oil + $model->apparatus;
-                $model->updated_at = date("Y-m-d H:i:s");
+            // Если запись имеет статус "Принят", запрещаем изменение поля возврата
+            if ($isAccepted) {
+                // Восстанавливаем поле возврата из оригинальной записи
+                $originalModel = $this->findModel($id);
+                $model->return_amount_kg = $originalModel->return_amount_kg;
+                $model->return_amount = $originalModel->return_amount;
+            } else {
+                // Для других статусов обновляем статус и баланс
+                if ($model->status == OilInventory::STATUS_NEW) {
+                    $model->status = OilInventory::STATUS_FILLED;
+                    $model->closing_balance = $model->new_oil + $model->apparatus;
+                }
             }
 
+            $model->updated_at = date("Y-m-d H:i:s");
+
             if ($model->save()) {
+                // Логируем изменения
+                $changesLogged = $this->logChanges($model, $oldAttributes);
+
+                // Если были изменения, обновляем счетчик
+                if ($changesLogged > 0) {
+                    $model->updateChangesCount();
+                }
+
                 Yii::$app->session->setFlash('success', 'Запись успешно обновлена.');
                 return $this->redirect(['view', 'id' => $model->id]);
             }
@@ -219,6 +240,7 @@ class OilInventoryController extends Controller
 
         return $this->render('update', [
             'model' => $model,
+            'isAccepted' => $isAccepted,
         ]);
     }
 
@@ -232,16 +254,19 @@ class OilInventoryController extends Controller
     public function actionDelete($id)
     {
         $model = $this->findModel($id);
-        
+
         // Проверяем, что запись принадлежит магазину текущего пользователя
         $this->checkStoreAccess($model);
-        
+
         // Проверяем, что запись не имеет статус "Принят"
         if ($model->status === OilInventory::STATUS_ACCEPTED) {
             Yii::$app->session->setFlash('error', 'Невозможно удалить запись со статусом "Принят".');
             return $this->redirect(['index']);
         }
-        
+
+        // Логируем удаление
+        $this->logDeletion($model);
+
         $model->delete();
         Yii::$app->session->setFlash('success', 'Запись успешно удалена.');
 
@@ -417,10 +442,10 @@ class OilInventoryController extends Controller
     public function actionPrint($id)
     {
         $model = $this->findModel($id);
-        
+
         // Проверяем, что запись принадлежит магазину текущего пользователя
         $this->checkStoreAccess($model);
-        
+
         // Используем специальный layout для печати
         $this->layout = 'print';
 
@@ -428,4 +453,126 @@ class OilInventoryController extends Controller
             'model' => $model,
         ]);
     }
-} 
+
+    /**
+     * Логирует создание новой записи
+     * @param OilInventory $model
+     */
+    protected function logCreation($model)
+    {
+        $fields = [
+            'opening_balance', 'income', 'return_amount_kg', 'return_amount',
+            'apparatus', 'new_oil', 'evaporation', 'closing_balance', 'status'
+        ];
+
+        foreach ($fields as $field) {
+            if ($model->$field !== null && $model->$field != 0) {
+                OilInventoryHistory::log(
+                    $model->id,
+                    $field,
+                    null,
+                    $model->$field,
+                    OilInventoryHistory::ACTION_CREATE
+                );
+            }
+        }
+    }
+
+    /**
+     * Логирует изменения записи
+     * @param OilInventory $model
+     * @param array $oldAttributes
+     * @return int Количество залогированных изменений
+     */
+    protected function logChanges($model, $oldAttributes)
+    {
+        $fields = [
+            'opening_balance', 'income', 'return_amount_kg', 'return_amount',
+            'apparatus', 'new_oil', 'evaporation', 'closing_balance', 'status'
+        ];
+
+        $changesCount = 0;
+
+        foreach ($fields as $field) {
+            $oldValue = isset($oldAttributes[$field]) ? $oldAttributes[$field] : null;
+            $newValue = $model->$field;
+
+            // Логируем только если значение изменилось
+            if ($oldValue != $newValue) {
+                OilInventoryHistory::log(
+                    $model->id,
+                    $field,
+                    $oldValue,
+                    $newValue,
+                    OilInventoryHistory::ACTION_UPDATE
+                );
+                $changesCount++;
+            }
+        }
+
+        return $changesCount;
+    }
+
+    /**
+     * Логирует удаление записи
+     * @param OilInventory $model
+     */
+    protected function logDeletion($model)
+    {
+        $fields = [
+            'opening_balance', 'income', 'return_amount_kg', 'return_amount',
+            'apparatus', 'new_oil', 'evaporation', 'closing_balance', 'status'
+        ];
+
+        foreach ($fields as $field) {
+            if ($model->$field !== null) {
+                OilInventoryHistory::log(
+                    $model->id,
+                    $field,
+                    $model->$field,
+                    null,
+                    OilInventoryHistory::ACTION_DELETE
+                );
+            }
+        }
+    }
+
+    /**
+     * Возвращает историю изменений записи в формате JSON
+     * @param integer $id
+     * @return array
+     */
+    public function actionHistory($id)
+    {
+        Yii::$app->response->format = \yii\web\Response::FORMAT_JSON;
+
+        $model = $this->findModel($id);
+
+        // Проверяем, что запись принадлежит магазину текущего пользователя
+        $this->checkStoreAccess($model);
+
+        // Получаем историю изменений
+        $history = OilInventoryHistory::find()
+            ->where(['oil_inventory_id' => $id])
+            ->with(['user'])
+            ->orderBy(['created_at' => SORT_DESC])
+            ->all();
+
+        $result = [];
+        foreach ($history as $item) {
+            $result[] = [
+                'id' => $item->id,
+                'created_at' => Yii::$app->formatter->asDatetime($item->created_at, 'php:d.m.Y H:i:s'),
+                'user_name' => $item->user ? $item->user->username : 'Неизвестно',
+                'field_name' => $item->field_name,
+                'field_label' => OilInventoryHistory::getFieldLabel($item->field_name),
+                'old_value' => $item->old_value,
+                'new_value' => $item->new_value,
+                'action' => $item->action,
+                'action_label' => $item->getActionLabel(),
+            ];
+        }
+
+        return $result;
+    }
+}

@@ -500,6 +500,7 @@ $monthNames = [
                                     <th class="text-right">Испарение (л)</th>
                                     <th class="text-right">Остаток на конец (л)</th>
                                     <th>Статус</th>
+                                    <th class="text-center">Изменения</th>
                                     <th>Действия</th>
                                 </tr>
                             </thead>
@@ -589,6 +590,20 @@ $monthNames = [
                                             <span class="label <?= $colorClass ?>">
                                                 <?= $record->getStatusLabel() ?>
                                             </span>
+                                        </td>
+                                        <td class="text-center" style="white-space: nowrap;">
+                                            <?php if ($record->changes_count > 0): ?>
+                                                <a href="javascript:void(0);"
+                                                   class="show-history-btn"
+                                                   data-record-id="<?= $record->id ?>"
+                                                   title="Показать историю изменений">
+                                                    <span class="label label-warning">
+                                                        <?= $record->changes_count ?>
+                                                    </span>
+                                                </a>
+                                            <?php else: ?>
+                                                <span class="label label-default">0</span>
+                                            <?php endif; ?>
                                         </td>
                                         <td style="white-space: nowrap;">
                                             <?= Html::a(
@@ -1061,6 +1076,31 @@ $monthNames = [
     </div>
 </div>
 
+<!-- Модальное окно для истории изменений -->
+<div class="modal fade" id="historyModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+                <h4 class="modal-title">
+                    <i class="fa fa-history"></i> История изменений записи
+                </h4>
+            </div>
+            <div class="modal-body" id="historyModalBody">
+                <div class="text-center">
+                    <i class="fa fa-spinner fa-spin fa-3x"></i>
+                    <p>Загрузка истории...</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-default" data-dismiss="modal">Закрыть</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Chart.js -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
@@ -1136,6 +1176,99 @@ new Chart(consumptionCtx, {
         }
     }
 });
+
+// Обработчик клика по кнопке "История изменений"
+document.addEventListener('DOMContentLoaded', function() {
+    const historyButtons = document.querySelectorAll('.show-history-btn');
+
+    historyButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const recordId = this.getAttribute('data-record-id');
+            loadHistory(recordId);
+        });
+    });
+});
+
+function loadHistory(recordId) {
+    // Показываем модальное окно
+    $('#historyModal').modal('show');
+
+    // Сбрасываем содержимое на загрузку
+    document.getElementById('historyModalBody').innerHTML = `
+        <div class="text-center">
+            <i class="fa fa-spinner fa-spin fa-3x"></i>
+            <p>Загрузка истории...</p>
+        </div>
+    `;
+
+    // Загружаем данные истории через AJAX
+    fetch('<?= Url::to(['/oil-inventory/history']) ?>?id=' + recordId)
+        .then(response => response.json())
+        .then(data => {
+            displayHistory(data);
+        })
+        .catch(error => {
+            document.getElementById('historyModalBody').innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="fa fa-exclamation-triangle"></i>
+                    Ошибка загрузки истории: ${error.message}
+                </div>
+            `;
+        });
+}
+
+function displayHistory(history) {
+    if (!history || history.length === 0) {
+        document.getElementById('historyModalBody').innerHTML = `
+            <div class="alert alert-info">
+                <i class="fa fa-info-circle"></i>
+                История изменений отсутствует.
+            </div>
+        `;
+        return;
+    }
+
+    let html = `
+        <div class="table-responsive">
+            <table class="table table-striped table-bordered table-condensed">
+                <thead>
+                    <tr>
+                        <th width="15%">Дата и время</th>
+                        <th width="15%">Пользователь</th>
+                        <th width="20%">Поле</th>
+                        <th width="20%">Старое значение</th>
+                        <th width="20%">Новое значение</th>
+                        <th width="10%">Действие</th>
+                    </tr>
+                </thead>
+                <tbody>
+    `;
+
+    history.forEach(item => {
+        const actionBadge = item.action === 'create' ? 'label-success' :
+                           item.action === 'update' ? 'label-warning' :
+                           'label-danger';
+
+        html += `
+            <tr>
+                <td style="white-space: nowrap;">${item.created_at}</td>
+                <td>${item.user_name || 'N/A'}</td>
+                <td><strong>${item.field_label}</strong></td>
+                <td>${item.old_value || '<em class="text-muted">пусто</em>'}</td>
+                <td>${item.new_value || '<em class="text-muted">пусто</em>'}</td>
+                <td><span class="label ${actionBadge}">${item.action_label}</span></td>
+            </tr>
+        `;
+    });
+
+    html += `
+                </tbody>
+            </table>
+        </div>
+    `;
+
+    document.getElementById('historyModalBody').innerHTML = html;
+}
 </script>
 
 <style>

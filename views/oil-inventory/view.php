@@ -86,9 +86,9 @@ $this->params['breadcrumbs'][] = $this->title;
                                         OilInventory::STATUS_REJECTED => 'label-danger',
                                         OilInventory::STATUS_ACCEPTED => 'label-success',
                                     ];
-                                    
+
                                     $colorClass = isset($statusColors[$model->status]) ? $statusColors[$model->status] : 'label-default';
-                                    
+
                                     return Html::tag('span', $model->getStatusLabel(), [
                                         'class' => 'label ' . $colorClass
                                     ]);
