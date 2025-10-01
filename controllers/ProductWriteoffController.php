@@ -121,9 +121,15 @@ class ProductWriteoffController extends Controller
                     $model->comment = $post['comment'] ?? null;
                     $model->status = ProductWriteoff::STATUS_NEW;
 
+                    Yii::error('Trying to save model: ' . json_encode($model->attributes), 'writeoff');
+
                     if (!$model->save()) {
-                        throw new \Exception('Ошибка сохранения списания');
+                        $errors = json_encode($model->errors);
+                        Yii::error('Model validation errors: ' . $errors, 'writeoff');
+                        throw new \Exception('Ошибка сохранения списания: ' . $errors);
                     }
+
+                    Yii::error('Model saved successfully, ID: ' . $model->id, 'writeoff');
 
                     $hasItems = false;
                     foreach ($post['items'] as $productId => $count) {
@@ -136,10 +142,15 @@ class ProductWriteoffController extends Controller
                         $item->product_id = $productId;
                         $item->count = $count;
 
+                        Yii::error('Trying to save item: ' . json_encode($item->attributes), 'writeoff');
+
                         if (!$item->save()) {
-                            throw new \Exception('Ошибка сохранения позиции списания');
+                            $itemErrors = json_encode($item->errors);
+                            Yii::error('Item validation errors: ' . $itemErrors, 'writeoff');
+                            throw new \Exception('Ошибка сохранения позиции списания: ' . $itemErrors);
                         }
 
+                        Yii::error('Item saved successfully', 'writeoff');
                         $hasItems = true;
                     }
 
