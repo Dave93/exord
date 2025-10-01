@@ -17,8 +17,8 @@ use Yii;
  * @property int|null $approved_by ID пользователя, утвердившего списание
  * @property string|null $approved_at Дата утверждения
  *
- * @property Store $store
- * @property Product $product
+ * @property Stores $store
+ * @property Products $product
  * @property User $approvedBy
  */
 class ProductWriteoff extends \yii\db\ActiveRecord
@@ -47,8 +47,8 @@ class ProductWriteoff extends \yii\db\ActiveRecord
             [['status'], 'string', 'max' => 20],
             [['status'], 'in', 'range' => [self::STATUS_NEW, self::STATUS_APPROVED]],
             [['status'], 'default', 'value' => self::STATUS_NEW],
-            [['store_id'], 'exist', 'skipOnError' => true, 'targetClass' => Store::class, 'targetAttribute' => ['store_id' => 'id']],
-            [['product_id'], 'exist', 'skipOnError' => true, 'targetClass' => Product::class, 'targetAttribute' => ['product_id' => 'id']],
+            [['store_id'], 'exist', 'skipOnError' => true, 'targetClass' => Stores::class, 'targetAttribute' => ['store_id' => 'id']],
+            [['product_id'], 'exist', 'skipOnError' => true, 'targetClass' => Products::class, 'targetAttribute' => ['product_id' => 'id']],
             [['approved_by'], 'exist', 'skipOnError' => true, 'targetClass' => User::class, 'targetAttribute' => ['approved_by' => 'id']],
         ];
     }
@@ -78,7 +78,7 @@ class ProductWriteoff extends \yii\db\ActiveRecord
      */
     public function getStore()
     {
-        return $this->hasOne(Store::class, ['id' => 'store_id']);
+        return $this->hasOne(Stores::class, ['id' => 'store_id']);
     }
 
     /**
@@ -88,7 +88,7 @@ class ProductWriteoff extends \yii\db\ActiveRecord
      */
     public function getProduct()
     {
-        return $this->hasOne(Product::class, ['id' => 'product_id']);
+        return $this->hasOne(Products::class, ['id' => 'product_id']);
     }
 
     /**
