@@ -111,6 +111,9 @@ class ProductWriteoffController extends Controller
         if (Yii::$app->request->isPost) {
             $post = Yii::$app->request->post();
 
+            // Отладка: посмотрим что приходит
+            Yii::error('POST data: ' . print_r($post, true), 'writeoff');
+
             if (isset($post['items']) && is_array($post['items'])) {
                 $transaction = Yii::$app->db->beginTransaction();
 

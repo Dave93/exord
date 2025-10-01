@@ -141,7 +141,7 @@ function addProductRow(productId, productName, productUnit) {
     var html = '<tr id="row-' + productId + '">';
     html += '<td>' + productName + '</td>';
     html += '<td class="text-center">' + productUnit + '</td>';
-    html += '<td width="200"><input type="number" class="form-control quantity-input" name="items[' + productId + ']" value="" step="any" min="0.01" required autofocus /></td>';
+    html += '<td width="200"><input type="number" class="form-control quantity-input" name="items[' + productId + ']" value="" step="any" min="0.01" /></td>';
     html += '<td width="50" class="text-center"><span class="glyphicon glyphicon-trash remove-btn" data-id="' + productId + '"></span></td>';
     html += '</tr>';
 
@@ -167,7 +167,10 @@ $(document).on('click', '.remove-btn', function() {
 
 // Валидация формы
 $('#writeoff-form').on('submit', function(e) {
+    console.log('Form submit triggered');
+
     var hasProducts = $('#selected-products-body tr').length > 0;
+    console.log('Has products:', hasProducts);
 
     if (!hasProducts) {
         alert('Добавьте хотя бы один продукт для списания');
@@ -176,18 +179,28 @@ $('#writeoff-form').on('submit', function(e) {
     }
 
     var hasValidQuantity = false;
+    var formData = {};
     $('.quantity-input').each(function() {
-        if ($(this).val() && parseFloat($(this).val()) > 0) {
+        var val = $(this).val();
+        var name = $(this).attr('name');
+        console.log('Input:', name, '=', val);
+        formData[name] = val;
+
+        if (val && parseFloat(val) > 0) {
             hasValidQuantity = true;
-            return false;
         }
     });
+
+    console.log('Form data:', formData);
+    console.log('Has valid quantity:', hasValidQuantity);
 
     if (!hasValidQuantity) {
         alert('Укажите количество для списания');
         e.preventDefault();
         return false;
     }
+
+    console.log('Form will be submitted');
 });
 
 // Фокус на поле поиска при загрузке
