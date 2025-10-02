@@ -118,6 +118,68 @@ $css = <<<CSS
     background: #d9534f;
     color: white;
 }
+.photo-upload-area {
+    border: 2px dashed #ddd;
+    border-radius: 8px;
+    padding: 40px 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    background: #fafafa;
+}
+.photo-upload-area:hover {
+    border-color: #5cb85c;
+    background: #f0f9f0;
+}
+.photo-upload-area.dragover {
+    border-color: #5cb85c;
+    background: #e8f5e8;
+    transform: scale(1.02);
+}
+.photo-previews {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+    margin-top: 20px;
+}
+.photo-preview-item {
+    position: relative;
+    width: 150px;
+    height: 150px;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    transition: transform 0.2s;
+}
+.photo-preview-item:hover {
+    transform: scale(1.05);
+}
+.photo-preview-item img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+.photo-preview-remove {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    width: 28px;
+    height: 28px;
+    background: rgba(220, 53, 69, 0.9);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    line-height: 1;
+    transition: background 0.2s;
+}
+.photo-preview-remove:hover {
+    background: rgba(200, 35, 51, 1);
+}
 CSS;
 
 $this->registerCss($css);
@@ -241,6 +303,110 @@ $('#writeoff-form').on('submit', function(e) {
         return false;
     }
 });
+
+// === Загрузка фотографий ===
+var photoFiles = [];
+var photoInput = document.getElementById('photo-input');
+var uploadArea = document.getElementById('photo-upload-area');
+var previewsContainer = document.getElementById('photo-previews');
+
+// Клик по области загрузки
+uploadArea.addEventListener('click', function() {
+    photoInput.click();
+});
+
+// Обработка выбора файлов
+photoInput.addEventListener('change', function(e) {
+    handleFiles(e.target.files);
+});
+
+// Drag & Drop
+uploadArea.addEventListener('dragover', function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    uploadArea.classList.add('dragover');
+});
+
+uploadArea.addEventListener('dragleave', function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    uploadArea.classList.remove('dragover');
+});
+
+uploadArea.addEventListener('drop', function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    uploadArea.classList.remove('dragover');
+
+    var files = e.dataTransfer.files;
+    handleFiles(files);
+});
+
+// Обработка файлов
+function handleFiles(files) {
+    var dt = new DataTransfer();
+
+    // Добавляем старые файлы
+    for (var i = 0; i < photoFiles.length; i++) {
+        dt.items.add(photoFiles[i]);
+    }
+
+    // Добавляем новые файлы
+    for (var i = 0; i < files.length; i++) {
+        if (files[i].type.startsWith('image/')) {
+            dt.items.add(files[i]);
+            photoFiles.push(files[i]);
+        }
+    }
+
+    photoInput.files = dt.files;
+    updatePreviews();
+}
+
+// Обновление превью
+function updatePreviews() {
+    previewsContainer.innerHTML = '';
+
+    for (var i = 0; i < photoFiles.length; i++) {
+        (function(index, file) {
+            var reader = new FileReader();
+
+            reader.onload = function(e) {
+                var div = document.createElement('div');
+                div.className = 'photo-preview-item';
+                div.innerHTML = '<img src="' + e.target.result + '">' +
+                    '<button type="button" class="photo-preview-remove" data-index="' + index + '">&times;</button>';
+                previewsContainer.appendChild(div);
+            };
+
+            reader.readAsDataURL(file);
+        })(i, photoFiles[i]);
+    }
+}
+
+// Удаление фото
+previewsContainer.addEventListener('click', function(e) {
+    if (e.target.classList.contains('photo-preview-remove') ||
+        e.target.parentElement.classList.contains('photo-preview-remove')) {
+
+        var button = e.target.classList.contains('photo-preview-remove') ?
+            e.target : e.target.parentElement;
+        var index = parseInt(button.getAttribute('data-index'));
+
+        // Удаляем файл из массива
+        photoFiles.splice(index, 1);
+
+        // Обновляем input
+        var dt = new DataTransfer();
+        for (var i = 0; i < photoFiles.length; i++) {
+            dt.items.add(photoFiles[i]);
+        }
+        photoInput.files = dt.files;
+
+        // Обновляем превью
+        updatePreviews();
+    }
+});
 JS;
 
 $this->registerJs($js);
@@ -342,8 +508,15 @@ $this->registerJs($js);
             <div class="col-md-8 col-md-offset-2">
                 <div class="form-group">
                     <label>Добавить фотографии (необязательно)</label>
-                    <input type="file" name="photos[]" multiple accept="image/*" class="form-control">
-                    <p class="help-block">Прикрепите фотографии как доказательство списания (можно выбрать несколько файлов)</p>
+                    <div class="photo-upload-container">
+                        <input type="file" name="photos[]" id="photo-input" multiple accept="image/*" style="display: none;">
+                        <div class="photo-upload-area" id="photo-upload-area">
+                            <i class="glyphicon glyphicon-camera" style="font-size: 48px; color: #ccc;"></i>
+                            <p style="margin-top: 15px; color: #999;">Нажмите или перетащите фотографии сюда</p>
+                            <p style="color: #bbb; font-size: 12px;">Можно выбрать несколько файлов</p>
+                        </div>
+                        <div id="photo-previews" class="photo-previews"></div>
+                    </div>
                 </div>
             </div>
         </div>
