@@ -8,7 +8,7 @@ use Yii;
  * This is the model class for table "product_writeoffs".
  *
  * @property int $id
- * @property int $store_id ID магазина
+ * @property string $store_id ID магазина (UUID)
  * @property int $created_by ID пользователя, создавшего списание
  * @property string $created_at Дата создания
  * @property string $status Статус (new, approved)
@@ -41,7 +41,8 @@ class ProductWriteoff extends \yii\db\ActiveRecord
     {
         return [
             [['store_id', 'created_by'], 'required'],
-            [['store_id', 'created_by', 'approved_by'], 'integer'],
+            [['store_id'], 'string', 'max' => 36],
+            [['created_by', 'approved_by'], 'integer'],
             [['created_at', 'approved_at'], 'safe'],
             [['comment'], 'string'],
             [['status'], 'string', 'max' => 20],

@@ -19,8 +19,8 @@ class ProductWriteoffSearch extends ProductWriteoff
     public function rules()
     {
         return [
-            [['id', 'store_id', 'created_by', 'approved_by'], 'integer'],
-            [['created_at', 'approved_at', 'status', 'comment', 'store_name', 'created_by_name'], 'safe'],
+            [['id', 'created_by', 'approved_by'], 'integer'],
+            [['store_id', 'created_at', 'approved_at', 'status', 'comment', 'store_name', 'created_by_name'], 'safe'],
         ];
     }
 

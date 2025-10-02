@@ -15,7 +15,7 @@ class m250102_000000_create_writeoffs_table extends Migration
         // Создаем главную таблицу списаний
         $this->createTable('{{%product_writeoffs}}', [
             'id' => $this->primaryKey(),
-            'store_id' => $this->integer()->notNull()->comment('ID магазина'),
+            'store_id' => $this->string(36)->notNull()->comment('ID магазина (UUID)'),
             'created_by' => $this->integer()->notNull()->comment('ID пользователя, создавшего списание'),
             'created_at' => $this->timestamp()->defaultExpression('CURRENT_TIMESTAMP')->comment('Дата создания'),
             'status' => $this->string(20)->notNull()->defaultValue('new')->comment('Статус (new, approved)'),
