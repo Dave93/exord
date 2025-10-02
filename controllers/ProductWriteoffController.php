@@ -364,31 +364,66 @@ class ProductWriteoffController extends Controller
      */
     protected function savePhotos($model)
     {
+        Yii::error('=== START savePhotos ===', 'writeoff-photos');
+
         $photos = UploadedFile::getInstancesByName('photos');
 
+        Yii::error('Photos count: ' . (is_array($photos) ? count($photos) : 0), 'writeoff-photos');
+        Yii::error('Photos data: ' . print_r($photos, true), 'writeoff-photos');
+
         if (empty($photos)) {
+            Yii::error('No photos uploaded', 'writeoff-photos');
             return;
         }
 
         // Создаем директорию если её нет
         $uploadPath = Yii::getAlias('@webroot/uploads/writeoff-photos');
+        Yii::error('Upload path: ' . $uploadPath, 'writeoff-photos');
+
         if (!is_dir($uploadPath)) {
-            mkdir($uploadPath, 0755, true);
+            Yii::error('Directory does not exist, creating...', 'writeoff-photos');
+            $created = mkdir($uploadPath, 0755, true);
+            Yii::error('Directory created: ' . ($created ? 'YES' : 'NO'), 'writeoff-photos');
+        } else {
+            Yii::error('Directory already exists', 'writeoff-photos');
         }
 
-        foreach ($photos as $photo) {
+        foreach ($photos as $index => $photo) {
+            Yii::error("Processing photo #$index", 'writeoff-photos');
+            Yii::error("Photo details: " . print_r([
+                'name' => $photo->name,
+                'type' => $photo->type,
+                'size' => $photo->size,
+                'extension' => $photo->extension,
+                'hasError' => $photo->hasError,
+                'error' => $photo->error,
+            ], true), 'writeoff-photos');
+
             // Генерируем уникальное имя файла
             $filename = uniqid() . '_' . time() . '.' . $photo->extension;
             $filePath = $uploadPath . '/' . $filename;
 
+            Yii::error("Saving to: $filePath", 'writeoff-photos');
+
             // Сохраняем файл
             if ($photo->saveAs($filePath)) {
+                Yii::error("File saved successfully", 'writeoff-photos');
+
                 // Создаем запись в БД
                 $photoModel = new ProductWriteoffPhoto();
                 $photoModel->writeoff_id = $model->id;
                 $photoModel->filename = $filename;
-                $photoModel->save();
+
+                if ($photoModel->save()) {
+                    Yii::error("DB record saved successfully, ID: " . $photoModel->id, 'writeoff-photos');
+                } else {
+                    Yii::error("Failed to save DB record: " . json_encode($photoModel->errors), 'writeoff-photos');
+                }
+            } else {
+                Yii::error("Failed to save file", 'writeoff-photos');
             }
         }
+
+        Yii::error('=== END savePhotos ===', 'writeoff-photos');
     }
 }
