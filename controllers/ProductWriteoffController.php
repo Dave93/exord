@@ -5,6 +5,7 @@ namespace app\controllers;
 use app\components\AccessRule;
 use app\models\ProductWriteoff;
 use app\models\ProductWriteoffItem;
+use app\models\ProductWriteoffPhoto;
 use app\models\ProductWriteoffSearch;
 use app\models\Products;
 use app\models\User;
@@ -13,6 +14,7 @@ use yii\filters\AccessControl;
 use yii\filters\VerbFilter;
 use yii\web\Controller;
 use yii\web\NotFoundHttpException;
+use yii\web\UploadedFile;
 
 /**
  * ProductWriteoffController implements the CRUD actions for ProductWriteoff model.
@@ -33,7 +35,7 @@ class ProductWriteoffController extends Controller
                 'only' => ['*'],
                 'rules' => [
                     [
-                        'actions' => ['index', 'create', 'update', 'view'],
+                        'actions' => ['index', 'create', 'update', 'view', 'delete-photo'],
                         'allow' => true,
                         'roles' => [
                             User::ROLE_COOK,
@@ -155,6 +157,9 @@ class ProductWriteoffController extends Controller
                     }
 
                     if ($hasItems) {
+                        // Сохраняем фотографии
+                        $this->savePhotos($model);
+
                         $transaction->commit();
                         Yii::$app->session->setFlash('success', 'Списание успешно создано');
                         return $this->redirect(['view', 'id' => $model->id]);
@@ -229,6 +234,9 @@ class ProductWriteoffController extends Controller
                     }
 
                     if ($hasItems) {
+                        // Сохраняем фотографии
+                        $this->savePhotos($model);
+
                         $transaction->commit();
                         Yii::$app->session->setFlash('success', 'Списание обновлено');
                         return $this->redirect(['view', 'id' => $model->id]);
@@ -314,5 +322,73 @@ class ProductWriteoffController extends Controller
         }
 
         throw new NotFoundHttpException('Запрашиваемая страница не найдена.');
+    }
+
+    /**
+     * Удаление фото
+     * @param integer $id
+     * @return mixed
+     */
+    public function actionDeletePhoto($id)
+    {
+        $photo = ProductWriteoffPhoto::findOne($id);
+
+        if ($photo === null) {
+            throw new NotFoundHttpException('Фото не найдено.');
+        }
+
+        $writeoff = $photo->writeoff;
+
+        // Проверяем права доступа
+        if (!in_array(Yii::$app->user->identity->role, [User::ROLE_ADMIN, User::ROLE_OFFICE])) {
+            if ($writeoff->store_id != Yii::$app->user->identity->store_id) {
+                throw new NotFoundHttpException('Нет доступа к этому фото.');
+            }
+        }
+
+        // Проверяем, можно ли редактировать списание
+        if (!$writeoff->canEdit()) {
+            Yii::$app->session->setFlash('error', 'Нельзя удалять фото у утвержденного списания');
+            return $this->redirect(['view', 'id' => $writeoff->id]);
+        }
+
+        $photo->delete();
+        Yii::$app->session->setFlash('success', 'Фото удалено');
+
+        return $this->redirect(['view', 'id' => $writeoff->id]);
+    }
+
+    /**
+     * Сохранение фотографий
+     * @param ProductWriteoff $model
+     */
+    protected function savePhotos($model)
+    {
+        $photos = UploadedFile::getInstancesByName('photos');
+
+        if (empty($photos)) {
+            return;
+        }
+
+        // Создаем директорию если её нет
+        $uploadPath = Yii::getAlias('@webroot/uploads/writeoff-photos');
+        if (!is_dir($uploadPath)) {
+            mkdir($uploadPath, 0755, true);
+        }
+
+        foreach ($photos as $photo) {
+            // Генерируем уникальное имя файла
+            $filename = uniqid() . '_' . time() . '.' . $photo->extension;
+            $filePath = $uploadPath . '/' . $filename;
+
+            // Сохраняем файл
+            if ($photo->saveAs($filePath)) {
+                // Создаем запись в БД
+                $photoModel = new ProductWriteoffPhoto();
+                $photoModel->writeoff_id = $model->id;
+                $photoModel->filename = $filename;
+                $photoModel->save();
+            }
+        }
     }
 }

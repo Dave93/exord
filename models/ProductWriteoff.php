@@ -20,6 +20,7 @@ use Yii;
  * @property User $createdBy
  * @property User $approvedBy
  * @property ProductWriteoffItem[] $items
+ * @property ProductWriteoffPhoto[] $photos
  */
 class ProductWriteoff extends \yii\db\ActiveRecord
 {
@@ -109,6 +110,16 @@ class ProductWriteoff extends \yii\db\ActiveRecord
     public function getItems()
     {
         return $this->hasMany(ProductWriteoffItem::class, ['writeoff_id' => 'id']);
+    }
+
+    /**
+     * Gets query for [[Photos]].
+     *
+     * @return \yii\db\ActiveQuery
+     */
+    public function getPhotos()
+    {
+        return $this->hasMany(ProductWriteoffPhoto::class, ['writeoff_id' => 'id']);
     }
 
     /**

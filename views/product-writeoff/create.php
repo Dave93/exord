@@ -217,7 +217,10 @@ $this->registerJs($js);
         <h4 class="title"><?= Html::encode($this->title) ?></h4>
     </div>
     <div class="content">
-        <?php $form = ActiveForm::begin(['id' => 'writeoff-form']); ?>
+        <?php $form = ActiveForm::begin([
+            'id' => 'writeoff-form',
+            'options' => ['enctype' => 'multipart/form-data'],
+        ]); ?>
 
         <div class="row">
             <div class="col-md-8 col-md-offset-2">
@@ -267,6 +270,16 @@ $this->registerJs($js);
                         <tbody id="selected-products-body">
                         </tbody>
                     </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-8 col-md-offset-2">
+                <div class="form-group">
+                    <label>Фотографии (необязательно)</label>
+                    <input type="file" name="photos[]" multiple accept="image/*" class="form-control">
+                    <p class="help-block">Прикрепите фотографии как доказательство списания (можно выбрать несколько файлов)</p>
                 </div>
             </div>
         </div>

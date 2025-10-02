@@ -100,6 +100,22 @@ $isAdmin = in_array(Yii::$app->user->identity->role, [User::ROLE_ADMIN, User::RO
             </tbody>
         </table>
 
+        <?php if (!empty($model->photos)): ?>
+            <hr>
+            <h4>Прикрепленные фотографии:</h4>
+            <div style="margin-top: 15px;">
+                <?php foreach ($model->photos as $photo): ?>
+                    <div style="display: inline-block; margin-right: 10px; margin-bottom: 10px;">
+                        <a href="<?= $photo->getFileUrl() ?>" target="_blank">
+                            <img src="<?= $photo->getFileUrl() ?>"
+                                 alt="Фото"
+                                 style="max-width: 200px; max-height: 200px; border: 1px solid #ddd; border-radius: 4px;">
+                        </a>
+                    </div>
+                <?php endforeach; ?>
+            </div>
+        <?php endif; ?>
+
         <?php if ($isAdmin && $model->status === ProductWriteoff::STATUS_NEW): ?>
             <hr>
             <h4>Утверждение списания</h4>
