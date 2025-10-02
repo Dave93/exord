@@ -110,12 +110,18 @@ class ProductWriteoffController extends Controller
         $model->store_id = Yii::$app->user->identity->store_id;
         $model->created_by = Yii::$app->user->id;
 
+        // Логируем КАЖДЫЙ запрос к этому экшену
+        Yii::error('actionCreate called. Method: ' . Yii::$app->request->method . ', isPost: ' . (Yii::$app->request->isPost ? 'YES' : 'NO'), 'writeoff');
+        Yii::error('PHP upload settings: post_max_size=' . ini_get('post_max_size') . ', upload_max_filesize=' . ini_get('upload_max_filesize'), 'writeoff');
+
         if (Yii::$app->request->isPost) {
             $post = Yii::$app->request->post();
 
             // Отладка: посмотрим что приходит
             Yii::error('POST data: ' . print_r($post, true), 'writeoff');
             Yii::error('FILES data: ' . print_r($_FILES, true), 'writeoff');
+            Yii::error('Content-Type: ' . (isset($_SERVER['CONTENT_TYPE']) ? $_SERVER['CONTENT_TYPE'] : 'NOT SET'), 'writeoff');
+            Yii::error('Content-Length: ' . (isset($_SERVER['CONTENT_LENGTH']) ? $_SERVER['CONTENT_LENGTH'] : 'NOT SET'), 'writeoff');
 
             if (isset($post['items']) && is_array($post['items'])) {
                 $transaction = Yii::$app->db->beginTransaction();
