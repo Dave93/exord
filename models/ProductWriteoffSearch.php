@@ -12,6 +12,8 @@ class ProductWriteoffSearch extends ProductWriteoff
 {
     public $store_name;
     public $created_by_name;
+    public $date_from;
+    public $date_to;
 
     /**
      * {@inheritdoc}
@@ -20,7 +22,7 @@ class ProductWriteoffSearch extends ProductWriteoff
     {
         return [
             [['id', 'created_by', 'approved_by'], 'integer'],
-            [['store_id', 'created_at', 'approved_at', 'status', 'comment', 'store_name', 'created_by_name'], 'safe'],
+            [['store_id', 'created_at', 'approved_at', 'status', 'comment', 'store_name', 'created_by_name', 'date_from', 'date_to'], 'safe'],
         ];
     }
 
@@ -90,6 +92,14 @@ class ProductWriteoffSearch extends ProductWriteoff
             ->andFilterWhere(['like', 'product_writeoffs.comment', $this->comment])
             ->andFilterWhere(['like', 'stores.name', $this->store_name])
             ->andFilterWhere(['like', 'users.fullname', $this->created_by_name]);
+
+        // Фильтрация по диапазону дат
+        if ($this->date_from) {
+            $query->andFilterWhere(['>=', 'DATE(product_writeoffs.created_at)', $this->date_from]);
+        }
+        if ($this->date_to) {
+            $query->andFilterWhere(['<=', 'DATE(product_writeoffs.created_at)', $this->date_to]);
+        }
 
         return $dataProvider;
     }

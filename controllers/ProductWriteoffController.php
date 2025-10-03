@@ -46,7 +46,7 @@ class ProductWriteoffController extends Controller
                         ],
                     ],
                     [
-                        'actions' => ['approve', 'delete'],
+                        'actions' => ['admin-index', 'approve-form', 'approve', 'delete'],
                         'allow' => true,
                         'roles' => [
                             User::ROLE_ADMIN,
@@ -82,6 +82,22 @@ class ProductWriteoffController extends Controller
         $dataProvider->sort = ['defaultOrder' => ['id' => SORT_DESC]];
 
         return $this->render('index', [
+            'searchModel' => $searchModel,
+            'dataProvider' => $dataProvider,
+        ]);
+    }
+
+    /**
+     * Список списаний для администраторов с фильтрацией
+     * @return mixed
+     */
+    public function actionAdminIndex()
+    {
+        $searchModel = new ProductWriteoffSearch();
+        $dataProvider = $searchModel->search(Yii::$app->request->queryParams);
+        $dataProvider->sort = ['defaultOrder' => ['created_at' => SORT_DESC]];
+
+        return $this->render('admin-index', [
             'searchModel' => $searchModel,
             'dataProvider' => $dataProvider,
         ]);
@@ -268,6 +284,26 @@ class ProductWriteoffController extends Controller
     }
 
     /**
+     * Форма подтверждения списания
+     * @param integer $id
+     * @return mixed
+     * @throws NotFoundHttpException if the model cannot be found
+     */
+    public function actionApproveForm($id)
+    {
+        $model = $this->findModel($id);
+
+        if ($model->status === ProductWriteoff::STATUS_APPROVED) {
+            Yii::$app->session->setFlash('error', 'Списание уже утверждено');
+            return $this->redirect(['view', 'id' => $model->id]);
+        }
+
+        return $this->render('approve-form', [
+            'model' => $model,
+        ]);
+    }
+
+    /**
      * Утверждение списания
      * @param integer $id
      * @return mixed
@@ -285,7 +321,7 @@ class ProductWriteoffController extends Controller
             Yii::$app->session->setFlash('error', 'Ошибка при утверждении списания');
         }
 
-        return $this->redirect(['view', 'id' => $model->id]);
+        return $this->redirect(['admin-index']);
     }
 
     /**
