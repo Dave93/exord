@@ -98,10 +98,15 @@ $this->params['breadcrumbs'][] = $this->title;
                 'buttons' => [
                     'update' => function ($url, $model, $key) {
                         if (!$model->canEdit()) {
+                            $reason = Html::encode($model->getEditRestrictionReason());
                             return Html::tag('span', '<span class="glyphicon glyphicon-pencil"></span>', [
-                                'class' => 'text-muted',
-                                'title' => $model->getEditRestrictionReason(),
-                                'style' => 'cursor: not-allowed; opacity: 0.5;',
+                                'class' => 'text-muted edit-restricted',
+                                'data-toggle' => 'popover',
+                                'data-trigger' => 'click',
+                                'data-placement' => 'left',
+                                'data-content' => $reason,
+                                'tabindex' => '0',
+                                'style' => 'cursor: pointer; opacity: 0.5;',
                             ]);
                         }
                         return Html::a('<span class="glyphicon glyphicon-pencil"></span>', $url, [
@@ -125,4 +130,22 @@ $this->params['breadcrumbs'][] = $this->title;
 
 </div>
 
- 
+<?php
+$this->registerJs(<<<JS
+    $(document).on('pjax:end', function() {
+        initPopovers();
+    });
+
+    function initPopovers() {
+        $('.edit-restricted').popover({
+            container: 'body',
+            html: false
+        });
+    }
+
+    // Инициализация при загрузке страницы
+    initPopovers();
+JS
+);
+?>
+
