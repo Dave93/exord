@@ -298,7 +298,7 @@ class OilInventory extends \yii\db\ActiveRecord
         }
 
         // Проверяем количество изменений (не более 2 раз)
-        if ($this->changes_count >= 2) {
+        if ($this->changes_count >= 10) {
             return false;
         }
 
