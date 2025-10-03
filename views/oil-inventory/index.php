@@ -97,9 +97,12 @@ $this->params['breadcrumbs'][] = $this->title;
                 'template' => '{view} {update} {print}',
                 'buttons' => [
                     'update' => function ($url, $model, $key) {
-                        // Скрываем кнопку редактирования для записей со статусом "Принят"
-                        if ($model->status === OilInventory::STATUS_ACCEPTED) {
-                            return '';
+                        if (!$model->canEdit()) {
+                            return Html::tag('span', '<span class="glyphicon glyphicon-pencil"></span>', [
+                                'class' => 'text-muted',
+                                'title' => $model->getEditRestrictionReason(),
+                                'style' => 'cursor: not-allowed; opacity: 0.5;',
+                            ]);
                         }
                         return Html::a('<span class="glyphicon glyphicon-pencil"></span>', $url, [
                             'title' => 'Редактировать',
@@ -109,7 +112,7 @@ $this->params['breadcrumbs'][] = $this->title;
                     'print' => function ($url, $model, $key) {
                         return Html::a('<span class="glyphicon glyphicon-print"></span>', ['print', 'id' => $model->id], [
                             'title' => 'Печать',
-                            'target' => '_blank', // Открываем в новой вкладке
+                            'target' => '_blank',
                             'data-pjax' => '0',
                         ]);
                     },

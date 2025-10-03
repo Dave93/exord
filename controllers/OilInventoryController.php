@@ -164,6 +164,7 @@ class OilInventoryController extends Controller
 
         if ($model->load(Yii::$app->request->post())) {
             $model->created_at = date("Y-m-d H:i:s");
+            $model->created_by_user_id = Yii::$app->user->id;
             $model->status = OilInventory::STATUS_FILLED;
             $model->closing_balance = $model->new_oil + $model->apparatus;
             if ($model->save()) {
@@ -196,6 +197,13 @@ class OilInventoryController extends Controller
 
         // Проверяем, что запись принадлежит магазину текущего пользователя
         $this->checkStoreAccess($model);
+
+        // Проверяем права на редактирование
+        if (!$model->canEdit()) {
+            $reason = $model->getEditRestrictionReason();
+            Yii::$app->session->setFlash('error', $reason);
+            return $this->redirect(['view', 'id' => $model->id]);
+        }
 
         $isAccepted = $model->status === OilInventory::STATUS_ACCEPTED;
 

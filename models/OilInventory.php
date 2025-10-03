@@ -19,6 +19,7 @@ use Yii;
  * @property double $closing_balance Остаток на конец дня
  * @property string $status Статус (новый, заполнен, отклонён, принят)
  * @property int $changes_count Количество изменений
+ * @property int $created_by_user_id ID пользователя, создавшего запись
  * @property string $created_at
  * @property string $updated_at
  */
@@ -49,7 +50,7 @@ class OilInventory extends \yii\db\ActiveRecord
             [['store_id'], 'required'],
             [['opening_balance', 'income', 'return_amount', 'return_amount_kg', 'apparatus', 'new_oil', 'evaporation', 'closing_balance'], 'number'],
             [['opening_balance', 'return_amount_kg'], 'default', 'value' => 0],
-            [['changes_count'], 'integer'],
+            [['changes_count', 'created_by_user_id'], 'integer'],
             [['changes_count'], 'default', 'value' => 0],
             [['created_at', 'updated_at'], 'safe'],
             [['store_id'], 'string', 'max' => 36],
@@ -77,6 +78,7 @@ class OilInventory extends \yii\db\ActiveRecord
             'closing_balance' => 'Остаток на конец дня (л)',
             'status' => 'Статус',
             'changes_count' => 'Количество изменений',
+            'created_by_user_id' => 'Создатель',
             'created_at' => 'Дата создания',
             'updated_at' => 'Дата обновления',
         ];
@@ -263,5 +265,106 @@ class OilInventory extends \yii\db\ActiveRecord
     {
         $this->changes_count = (int)$this->changes_count + 1;
         return $this->updateAttributes(['changes_count' => $this->changes_count]);
+    }
+
+    /**
+     * Связь с пользователем-создателем записи
+     * @return \yii\db\ActiveQuery
+     */
+    public function getCreatedByUser()
+    {
+        return $this->hasOne(User::class, ['id' => 'created_by_user_id']);
+    }
+
+    /**
+     * Проверяет, может ли текущий пользователь редактировать запись
+     * Ограничения:
+     * - Не более 2 раз редактирования
+     * - Только в течение 2 дней с даты создания
+     * - Только создатель записи может редактировать
+     *
+     * @param int|null $userId ID пользователя (если не указан, берется текущий)
+     * @return bool
+     */
+    public function canEdit($userId = null)
+    {
+        if ($userId === null) {
+            $userId = Yii::$app->user->id;
+        }
+
+        // Проверяем, является ли пользователь создателем записи
+        if ($this->created_by_user_id != $userId) {
+            return false;
+        }
+
+        // Проверяем количество изменений (не более 2 раз)
+        if ($this->changes_count >= 2) {
+            return false;
+        }
+
+        // Проверяем срок давности (не более 2 дней с момента создания)
+        $createdDate = new \DateTime($this->created_at);
+        $now = new \DateTime();
+        $daysDiff = $createdDate->diff($now)->days;
+
+        if ($daysDiff > 2) {
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * Получает причину, по которой запись нельзя редактировать
+     * @param int|null $userId ID пользователя (если не указан, берется текущий)
+     * @return string|null Сообщение об ошибке или null, если можно редактировать
+     */
+    public function getEditRestrictionReason($userId = null)
+    {
+        if ($userId === null) {
+            $userId = Yii::$app->user->id;
+        }
+
+        // Проверяем, является ли пользователь создателем записи
+        if ($this->created_by_user_id != $userId) {
+            return 'Вы не можете редактировать эту запись, так как она была создана другим пользователем.';
+        }
+
+        // Проверяем количество изменений
+        if ($this->changes_count >= 2) {
+            return 'Вы достигли максимального количества редактирований (2 раза).';
+        }
+
+        // Проверяем срок давности
+        $createdDate = new \DateTime($this->created_at);
+        $now = new \DateTime();
+        $daysDiff = $createdDate->diff($now)->days;
+
+        if ($daysDiff > 2) {
+            return 'Срок редактирования истёк (можно редактировать только в течение 2 дней с момента создания).';
+        }
+
+        return null;
+    }
+
+    /**
+     * Получает информацию о доступных редактированиях
+     * @return array
+     */
+    public function getEditInfo()
+    {
+        $createdDate = new \DateTime($this->created_at);
+        $now = new \DateTime();
+        $daysDiff = $createdDate->diff($now)->days;
+        $daysLeft = max(0, 2 - $daysDiff);
+        $editsLeft = max(0, 2 - $this->changes_count);
+
+        return [
+            'edits_made' => $this->changes_count,
+            'edits_left' => $editsLeft,
+            'days_passed' => $daysDiff,
+            'days_left' => $daysLeft,
+            'can_edit' => $this->canEdit(),
+        ];
     }
 }

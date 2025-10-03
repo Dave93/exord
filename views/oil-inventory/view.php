@@ -22,9 +22,18 @@ $this->params['breadcrumbs'][] = $this->title;
                     </h3>
                     <div class="box-tools pull-right">
                         <?php if ($model->status !== OilInventory::STATUS_ACCEPTED): ?>
-                            <?= Html::a('<i class="fa fa-pencil"></i> Редактировать', ['update', 'id' => $model->id], [
-                                'class' => 'btn btn-primary btn-sm'
-                            ]) ?>
+                            <?php if ($model->canEdit()): ?>
+                                <?= Html::a('<i class="fa fa-pencil"></i> Редактировать', ['update', 'id' => $model->id], [
+                                    'class' => 'btn btn-primary btn-sm'
+                                ]) ?>
+                            <?php else: ?>
+                                <?= Html::button('<i class="fa fa-pencil"></i> Редактировать', [
+                                    'class' => 'btn btn-primary btn-sm disabled',
+                                    'title' => $model->getEditRestrictionReason(),
+                                    'disabled' => true,
+                                    'style' => 'cursor: not-allowed;'
+                                ]) ?>
+                            <?php endif; ?>
                             <?= Html::a('<i class="fa fa-trash"></i> Удалить', ['delete', 'id' => $model->id], [
                                 'class' => 'btn btn-danger btn-sm',
                                 'data' => [
@@ -41,6 +50,23 @@ $this->params['breadcrumbs'][] = $this->title;
                 </div>
 
                 <div class="box-body">
+                    <?php
+                    $editInfo = $model->getEditInfo();
+                    if (!$editInfo['can_edit']):
+                    ?>
+                        <div class="alert alert-warning">
+                            <i class="fa fa-warning"></i>
+                            <strong>Внимание!</strong> <?= Html::encode($model->getEditRestrictionReason()) ?>
+                        </div>
+                    <?php elseif ($model->created_by_user_id == Yii::$app->user->id): ?>
+                        <div class="alert alert-info">
+                            <i class="fa fa-info-circle"></i>
+                            <strong>Информация о редактировании:</strong><br>
+                            - Осталось редактирований: <strong><?= $editInfo['edits_left'] ?></strong> из 2<br>
+                            - Осталось дней для редактирования: <strong><?= $editInfo['days_left'] ?></strong> из 2
+                        </div>
+                    <?php endif; ?>
+
                     <?= DetailView::widget([
                         'model' => $model,
                         'options' => ['class' => 'table table-striped table-bordered detail-view'],
@@ -51,6 +77,13 @@ $this->params['breadcrumbs'][] = $this->title;
                                 'label' => 'Магазин',
                                 'value' => function ($model) {
                                     return $model->store ? $model->store->name : $model->store_id;
+                                },
+                            ],
+                            [
+                                'attribute' => 'created_by_user_id',
+                                'label' => 'Создатель',
+                                'value' => function ($model) {
+                                    return $model->createdByUser ? $model->createdByUser->username : 'Неизвестно';
                                 },
                             ],
                             [
@@ -93,6 +126,10 @@ $this->params['breadcrumbs'][] = $this->title;
                                         'class' => 'label ' . $colorClass
                                     ]);
                                 },
+                            ],
+                            [
+                                'attribute' => 'changes_count',
+                                'label' => 'Количество редактирований',
                             ],
                             [
                                 'attribute' => 'created_at',
