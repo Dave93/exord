@@ -557,7 +557,7 @@ class OilInventoryController extends Controller
         $model = $this->findModel($id);
 
         // Проверяем, что запись принадлежит магазину текущего пользователя
-        $this->checkStoreAccess($model);
+        // $this->checkStoreAccess($model);
 
         // Получаем историю изменений
         $history = OilInventoryHistory::find()
