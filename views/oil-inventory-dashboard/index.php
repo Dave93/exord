@@ -1202,8 +1202,14 @@ function loadHistory(recordId) {
     `;
 
     // Загружаем данные истории через AJAX
-    fetch('<?= Url::to(['/oil-inventory/history']) ?>?id=' + recordId)
-        .then(response => response.json())
+    const url = '<?= Url::to(['/oil-inventory/history', 'id' => '__ID__']) ?>'.replace('__ID__', recordId);
+    fetch(url)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Не удалось загрузить историю изменений');
+            }
+            return response.json();
+        })
         .then(data => {
             displayHistory(data);
         })
