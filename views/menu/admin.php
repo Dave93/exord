@@ -51,6 +51,7 @@ use yii\helpers\Html;
             <li><?= Html::a('Сводка возврата масла', ['/oil-returns-summary/index']) ?></li>
             <li><?= Html::a('Списания заказов', ['write-offs/index']) ?></li>
             <li><?= Html::a('Списания продуктов', ['product-writeoff/admin-index']) ?></li>
+            <li><?= Html::a('Внутренние перемещения', ['store-transfer/admin-index']) ?></li>
             <li><?= Html::a('Привязка товаров', ['products/links']) ?></li>
             <li><?= Html::a('Настройки', ['settings/index']) ?></li>
             <li><?= Html::a('Настройка наличия', ['availability/index']) ?></li>
