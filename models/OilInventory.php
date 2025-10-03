@@ -293,9 +293,9 @@ class OilInventory extends \yii\db\ActiveRecord
         }
 
         // Проверяем, является ли пользователь создателем записи
-        if ($this->created_by_user_id != $userId) {
-            return false;
-        }
+        // if ($this->created_by_user_id != $userId) {
+        //     return false;
+        // }
 
         // Проверяем количество изменений (не более 2 раз)
         if ($this->changes_count >= 10) {
@@ -326,9 +326,9 @@ class OilInventory extends \yii\db\ActiveRecord
         }
 
         // Проверяем, является ли пользователь создателем записи
-        if ($this->created_by_user_id != $userId) {
-            return 'Вы не можете редактировать эту запись, так как она была создана другим пользователем.';
-        }
+        // if ($this->created_by_user_id != $userId) {
+        //     return 'Вы не можете редактировать эту запись, так как она была создана другим пользователем.';
+        // }
 
         // Проверяем количество изменений
         if ($this->changes_count >= 2) {
