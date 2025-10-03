@@ -37,7 +37,7 @@ use yii\helpers\Html;
             <li><?= Html::a('Филиалы', ['departments/index']) ?></li>
             <li><?= Html::a('Поставщики', ['suppliers/index']) ?></li>
             <li><?= Html::a('Пользователи', ['user/index']) ?></li>
-            <?/*<li><?= Html::a('Внутренние перемещения', ['store-transfer/admin-index']) ?></li>*/?>
+            <?php/*<li><?= Html::a('Внутренние перемещения', ['store-transfer/admin-index']) ?></li>*/?>
             <li><?= Html::a('Настройки', ['settings/index']) ?></li>
             <li><?= Html::a('Настройка наличии', ['availability/index']) ?></li>
         </ul>
