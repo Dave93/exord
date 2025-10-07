@@ -53,6 +53,8 @@ class User extends ActiveRecord implements IdentityInterface
     const ROLE_ETAJ = 9;
 
     const ROLE_OFFICE = 8;
+    const ROLE_OFFICE_MANAGER = 10;
+
     public static $roles = [
         1 => 'Администратор',
         2 => 'Менеджер',
@@ -62,7 +64,8 @@ class User extends ActiveRecord implements IdentityInterface
         6 => 'Повар',
         7 => 'Кондитер',
         8 => 'Офис',
-        9 => 'Этаж склада'
+        9 => 'Этаж склада',
+        10 => 'Офис менеджер'
     ];
 
     public static $states = [

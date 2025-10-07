@@ -51,6 +51,7 @@ class ProductWriteoffController extends Controller
                         'roles' => [
                             User::ROLE_ADMIN,
                             User::ROLE_OFFICE,
+                            User::ROLE_OFFICE_MANAGER,
                         ],
                     ],
                 ],
@@ -73,8 +74,8 @@ class ProductWriteoffController extends Controller
     {
         $searchModel = new ProductWriteoffSearch();
 
-        // Если не админ/офис, показываем только списания своего магазина
-        if (!in_array(Yii::$app->user->identity->role, [User::ROLE_ADMIN, User::ROLE_OFFICE])) {
+        // Если не админ/офис/офис менеджер, показываем только списания своего магазина
+        if (!in_array(Yii::$app->user->identity->role, [User::ROLE_ADMIN, User::ROLE_OFFICE, User::ROLE_OFFICE_MANAGER])) {
             $searchModel->store_id = Yii::$app->user->identity->store_id;
         }
 
@@ -355,7 +356,7 @@ class ProductWriteoffController extends Controller
     {
         if (($model = ProductWriteoff::findOne($id)) !== null) {
             // Проверяем права доступа
-            if (!in_array(Yii::$app->user->identity->role, [User::ROLE_ADMIN, User::ROLE_OFFICE])) {
+            if (!in_array(Yii::$app->user->identity->role, [User::ROLE_ADMIN, User::ROLE_OFFICE, User::ROLE_OFFICE_MANAGER])) {
                 if ($model->store_id != Yii::$app->user->identity->store_id) {
                     throw new NotFoundHttpException('Нет доступа к этому списанию.');
                 }
@@ -383,7 +384,7 @@ class ProductWriteoffController extends Controller
         $writeoff = $photo->writeoff;
 
         // Проверяем права доступа
-        if (!in_array(Yii::$app->user->identity->role, [User::ROLE_ADMIN, User::ROLE_OFFICE])) {
+        if (!in_array(Yii::$app->user->identity->role, [User::ROLE_ADMIN, User::ROLE_OFFICE, User::ROLE_OFFICE_MANAGER])) {
             if ($writeoff->store_id != Yii::$app->user->identity->store_id) {
                 throw new NotFoundHttpException('Нет доступа к этому фото.');
             }
