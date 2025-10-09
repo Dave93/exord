@@ -210,10 +210,18 @@ class OilReturnsSummaryController extends Controller
                 ->leftJoin(['s' => Stores::tableName()], 'BINARY s.id = BINARY oi.store_id')
                 ->where(['between', 'DATE(oi.created_at)', $dateFrom, $dateTo])
                 ->andWhere(['oi.status' => OilInventory::STATUS_ACCEPTED])
+                ->andWhere(['>', 'oi.return_amount_kg', 0])
                 ->groupBy(['s.id', 's.name'])
                 ->orderBy(['s.name' => SORT_ASC]);
 
             $data = $query->all();
+
+            // Преобразуем строковые значения в числа для периода
+            foreach ($data as &$item) {
+                $item['total_return_kg'] = (float)$item['total_return_kg'];
+                $item['total_return_liters'] = (float)$item['total_return_liters'];
+            }
+            unset($item);
         }
 
         // Fill data
@@ -267,12 +275,19 @@ class OilReturnsSummaryController extends Controller
             ->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
 
         // Export
-        $filename = 'Возврат_масла_' . $dateFrom . '_' . $dateTo . '.xlsx';
+        $filename = 'Vozvrat_masla_' . $dateFrom . '_' . $dateTo . '.xlsx';
+
+        // Очищаем буфер вывода перед отправкой файла
+        if (ob_get_length() > 0) {
+            ob_end_clean();
+        }
 
         $writer = IOFactory::createWriter($spreadsheet, 'Xlsx');
-        header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet; charset=utf-8');
-        header('Content-Disposition: attachment; filename="' . $filename . '"');
-        header('Cache-Control: max-age=0');
+
+        Yii::$app->response->format = \yii\web\Response::FORMAT_RAW;
+        Yii::$app->response->headers->set('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        Yii::$app->response->headers->set('Content-Disposition', 'attachment; filename="' . $filename . '"');
+        Yii::$app->response->headers->set('Cache-Control', 'max-age=0');
 
         $writer->save('php://output');
         Yii::$app->end();
