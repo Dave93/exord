@@ -277,19 +277,20 @@ class OilReturnsSummaryController extends Controller
         // Export
         $filename = 'Vozvrat_masla_' . $dateFrom . '_' . $dateTo . '.xlsx';
 
-        // Очищаем буфер вывода перед отправкой файла
-        if (ob_get_length() > 0) {
-            ob_end_clean();
-        }
-
+        // Сохраняем во временный файл
+        $tempFile = tempnam(sys_get_temp_dir(), 'excel_');
         $writer = IOFactory::createWriter($spreadsheet, 'Xlsx');
+        $writer->save($tempFile);
 
-        Yii::$app->response->format = \yii\web\Response::FORMAT_RAW;
-        Yii::$app->response->headers->set('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-        Yii::$app->response->headers->set('Content-Disposition', 'attachment; filename="' . $filename . '"');
-        Yii::$app->response->headers->set('Cache-Control', 'max-age=0');
-
-        $writer->save('php://output');
-        Yii::$app->end();
+        // Отправляем файл пользователю
+        return Yii::$app->response->sendFile($tempFile, $filename, [
+            'mimeType' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'inline' => false
+        ])->on(\yii\web\Response::EVENT_AFTER_SEND, function($event) use ($tempFile) {
+            // Удаляем временный файл после отправки
+            if (file_exists($tempFile)) {
+                unlink($tempFile);
+            }
+        });
     }
 }
