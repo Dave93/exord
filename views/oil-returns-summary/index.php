@@ -53,6 +53,7 @@ $this->params['breadcrumbs'][] = $this->title;
             <div class="col-md-4">
                 <?= Html::submitButton('Применить фильтр', ['class' => 'btn btn-primary']) ?>
                 <?= Html::a('Сбросить', ['index'], ['class' => 'btn btn-default']) ?>
+                <?= Html::a('<i class="glyphicon glyphicon-export"></i> Экспорт в Excel', ['export-excel', 'date_from' => $dateFrom, 'date_to' => $dateTo], ['class' => 'btn btn-success']) ?>
             </div>
         </div>
         
