@@ -145,13 +145,13 @@ $isOrderMan = Dashboard::isOrderMan();
                     'visible' => !$isOrderMan
                 ],
                 [
-                    'attribute' => 'date',
+                    'attribute' => 'addDate',
                     'value' => function ($model) {
-                        return date("d.m.Y", strtotime($model->date));
+                        return date("d.m.Y H:i", strtotime($model->addDate));
                     },
                     'filter' => DatePicker::widget([
                         'model' => $searchModel,
-                        'attribute' => 'date',
+                        'attribute' => 'addDate',
                         'value' => $searchModel->date,
                         'type' => DatePicker::TYPE_INPUT,
                         'pluginOptions' => [
@@ -161,18 +161,18 @@ $isOrderMan = Dashboard::isOrderMan();
                     ]),
                     'contentOptions' => [
                         'width' => 120,
-                        'class' => 'text-center'
+                        'class' => 'text-center text-nowrap'
                     ]
                 ],
                 [
-                    'attribute' => 'addDate',
+                    'attribute' => 'sent_date',
                     'value' => function ($model) {
-                        return date("d.m.Y H:i", strtotime($model->addDate));
+                        return date("d.m.Y H:i", strtotime($model->sent_date));
                     },
                     'filter' => DatePicker::widget([
                         'model' => $searchModel,
-                        'attribute' => 'addDate',
-                        'value' => $searchModel->date,
+                        'attribute' => 'sent_date',
+                        'value' => $searchModel->sent_date,
                         'type' => DatePicker::TYPE_INPUT,
                         'pluginOptions' => [
                             'format' => 'yyyy-mm-dd',
