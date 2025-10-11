@@ -15,7 +15,7 @@ use yii\widgets\ActiveForm;
 $this->title = "Заказ: " . $model->store->name . ' на ' . date("d.m.Y", strtotime($model->date));
 $this->params['breadcrumbs'][] = $this->title;
 
-// Check if current time is within allowed order period (10:00 - 04:00)
+// Check if current time is within allowed order period (11:00 - 04:00)
 $currentHour = (int)date('H');
 $isOrderingAllowed = ($currentHour >= 11 || $currentHour < 4);
 

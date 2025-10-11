@@ -3,6 +3,7 @@
 use app\models\Dashboard;
 use app\models\Orders;
 use app\models\Products;
+use app\models\ProductTimeLimitation;
 use app\models\UserCategories;
 use yii\helpers\Html;
 use yii\widgets\ActiveForm;
@@ -33,6 +34,34 @@ if (!Yii::$app->user->identity->showPrice) {
     $priceClass = 'hidden';
 }
 
+// Current time for time limitation check
+$currentTime = date('H:i');
+
+// Get all product IDs to fetch limitations
+$allProductIds = [];
+$folders = Products::getProductParents($model->userId);
+foreach ($folders as $folder) {
+    $items = Products::getProducts($folder['id'], $model->id, $model->userId);
+    foreach ($items as $item) {
+        $allProductIds[] = $item['id'];
+    }
+}
+
+// Fetch all time limitations in a single query
+$timeLimitations = [];
+if (!empty($allProductIds)) {
+    $limitations = ProductTimeLimitation::find()
+        ->where(['productId' => $allProductIds])
+        ->all();
+
+    foreach ($limitations as $limitation) {
+        $timeLimitations[$limitation->productId] = [
+            'startTime' => $limitation->startTime,
+            'endTime' => $limitation->endTime
+        ];
+    }
+}
+
 $folders = Products::getProductParents($model->userId);
 foreach ($folders as $folder) {
     $itemList = "";
@@ -40,9 +69,44 @@ foreach ($folders as $folder) {
     foreach ($items as $item) {
         $price = $item['price'] * (100 + Yii::$app->user->identity->percentage) / 100;
         $priceString = Dashboard::price($price);
-        $inputField = ($item['prepared'] == 1)
-            ? '<input type="text" class="form-control quantity" name="Items[' . $item['id'] . ']" value="' . $item['quantity'] . '" disabled>'
-            : '<input type="text" class="form-control quantity" name="Items[' . $item['id'] . ']" value="' . $item['quantity'] . '">';
+
+        // Check if this product has time limitations
+        $inputField = "";
+
+        if (isset($timeLimitations[$item['id']])) {
+            $startTime = $timeLimitations[$item['id']]['startTime'];
+            $endTime = $timeLimitations[$item['id']]['endTime'];
+
+            // Check if current time is within allowed range
+            $isTimeAllowed = false;
+
+            // If end time is less than start time (spans midnight)
+            if ($endTime < $startTime) {
+                $isTimeAllowed = ($currentTime >= $startTime || $currentTime < $endTime);
+            } else {
+                $isTimeAllowed = ($currentTime >= $startTime && $currentTime < $endTime);
+            }
+
+            if ($isTimeAllowed) {
+                // Time is allowed, check if prepared
+                if ($item['prepared'] == 1) {
+                    $inputField = '<input type="text" class="form-control quantity" name="Items[' . $item['id'] . ']" value="' . $item['quantity'] . '" disabled>';
+                } else {
+                    $inputField = '<input type="text" class="form-control quantity" name="Items[' . $item['id'] . ']" value="' . $item['quantity'] . '">';
+                }
+            } else {
+                // Time is not allowed, show message
+                $inputField = '<div class="text-danger">Доступно с ' . $startTime . ' до ' . $endTime . '</div>';
+            }
+        } else {
+            // No time limitation, check if prepared
+            if ($item['prepared'] == 1) {
+                $inputField = '<input type="text" class="form-control quantity" name="Items[' . $item['id'] . ']" value="' . $item['quantity'] . '" disabled>';
+            } else {
+                $inputField = '<input type="text" class="form-control quantity" name="Items[' . $item['id'] . ']" value="' . $item['quantity'] . '">';
+            }
+        }
+
         $itemList .= <<<HTML
         <tr id="p-{$item['id']}">
             <td>{$item['name']}</td>
