@@ -200,42 +200,15 @@ class StoreTransferController extends Controller
             }
 
             if ($hasUpdates) {
-                // Проверяем, все ли позиции обработаны
-                $allProcessed = true;
-                foreach ($model->items as $item) {
-                    if ($item->item_status === StoreTransferItem::STATUS_PENDING) {
-                        $allProcessed = false;
-                        break;
-                    }
-                }
-
-                // Если все обработаны, меняем статус заявки
-                if ($allProcessed) {
-                    // Проверяем, есть ли хоть одна переданная позиция
-                    $hasTransferred = false;
-                    foreach ($model->items as $item) {
-                        if ($item->item_status === StoreTransferItem::STATUS_TRANSFERRED) {
-                            $hasTransferred = true;
-                            break;
-                        }
-                    }
-
-                    if ($hasTransferred) {
-                        $model->status = StoreTransfer::STATUS_COMPLETED;
-                    } else {
-                        $model->status = StoreTransfer::STATUS_CANCELLED;
-                    }
+                // Переводим заявку в статус "В работе", если она была новой
+                // Окончательное завершение будет только после утверждения админом
+                if ($model->status === StoreTransfer::STATUS_NEW) {
+                    $model->status = StoreTransfer::STATUS_IN_PROGRESS;
                     $model->save(false);
-                } else {
-                    // Если не все обработаны, ставим "В работе"
-                    if ($model->status === StoreTransfer::STATUS_NEW) {
-                        $model->status = StoreTransfer::STATUS_IN_PROGRESS;
-                        $model->save(false);
-                    }
                 }
 
                 $transaction->commit();
-                Yii::$app->session->setFlash('success', 'Передача подтверждена');
+                Yii::$app->session->setFlash('success', 'Передача подтверждена. Заявка ожидает утверждения администратором.');
             } else {
                 $transaction->rollBack();
                 Yii::$app->session->setFlash('warning', 'Нет изменений для сохранения');
@@ -306,53 +279,55 @@ class StoreTransferController extends Controller
                     $status = $itemStatuses[$item->id];
                     $approvedQty = isset($approvedQuantities[$item->id]) ? $approvedQuantities[$item->id] : null;
 
+                    // Пропускаем уже утвержденные позиции
+                    if ($item->item_status === StoreTransferItem::STATUS_APPROVED) {
+                        $hasApproved = true;
+                        continue;
+                    }
+
                     if ($status === 'approved' && $approvedQty !== null && $approvedQty > 0) {
                         // Утверждаем с указанным количеством
                         $item->approved_quantity = $approvedQty;
                         $item->item_status = StoreTransferItem::STATUS_APPROVED;
                         $hasApproved = true;
+                        $item->save(false);
                     } elseif ($status === 'rejected') {
                         // Отклоняем
                         $item->approved_quantity = 0;
                         $item->item_status = StoreTransferItem::STATUS_REJECTED;
-                    } elseif ($status === 'transferred') {
-                        // Уже передано, не трогаем
-                        continue;
+                        $item->save(false);
                     }
-
-                    $item->save(false);
+                    // Если статус 'pending', не меняем ничего
                 }
             }
 
             // Обновляем статус заявки
-            if ($hasApproved) {
-                // Проверяем, все ли позиции обработаны
-                $allProcessed = true;
-                foreach ($model->items as $item) {
-                    if ($item->item_status === StoreTransferItem::STATUS_PENDING) {
-                        $allProcessed = false;
-                        break;
-                    }
-                }
+            // Проверяем, все ли позиции обработаны (approved или rejected)
+            $allProcessed = true;
+            $hasApprovedItems = false;
 
-                if ($allProcessed) {
+            foreach ($model->items as $item) {
+                if ($item->item_status === StoreTransferItem::STATUS_PENDING ||
+                    $item->item_status === StoreTransferItem::STATUS_TRANSFERRED) {
+                    $allProcessed = false;
+                    break;
+                }
+                if ($item->item_status === StoreTransferItem::STATUS_APPROVED) {
+                    $hasApprovedItems = true;
+                }
+            }
+
+            if ($allProcessed) {
+                // Все позиции обработаны
+                if ($hasApprovedItems) {
                     $model->status = StoreTransfer::STATUS_COMPLETED;
                 } else {
-                    $model->status = StoreTransfer::STATUS_IN_PROGRESS;
-                }
-            } else {
-                // Если ничего не утверждено, отменяем заявку
-                $allRejected = true;
-                foreach ($model->items as $item) {
-                    if ($item->item_status !== StoreTransferItem::STATUS_REJECTED) {
-                        $allRejected = false;
-                        break;
-                    }
-                }
-
-                if ($allRejected) {
+                    // Все отклонены
                     $model->status = StoreTransfer::STATUS_CANCELLED;
                 }
+            } else {
+                // Не все обработаны, остаемся в работе
+                $model->status = StoreTransfer::STATUS_IN_PROGRESS;
             }
 
             $model->save(false);
