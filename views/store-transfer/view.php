@@ -99,19 +99,41 @@ $isAdmin = in_array(Yii::$app->user->identity->role, [User::ROLE_ADMIN, User::RO
                             <tbody>
                                 <?php foreach ($data['items'] as $item): ?>
                                     <tr>
-                                        <td><?= Html::encode($item->product->name) ?></td>
-                                        <td class="text-center"><?= Html::encode($item->product->mainUnit) ?></td>
-                                        <td class="text-center"><?= $item->requested_quantity ?></td>
+                                        <td>
+                                            <strong><?= Html::encode($item->product->name) ?></strong>
+                                            <?php if ($item->product->num): ?>
+                                                <br>
+                                                <small class="text-muted">Артикул: <?= Html::encode($item->product->num) ?></small>
+                                            <?php endif; ?>
+                                        </td>
+                                        <td class="text-center"><?= Html::encode($item->product->getUnit()) ?></td>
                                         <td class="text-center">
-                                            <?= $item->approved_quantity !== null ? $item->approved_quantity : '—' ?>
+                                            <span class="label label-info">
+                                                <?= Yii::$app->formatter->asDecimal($item->requested_quantity, 2) ?>
+                                            </span>
                                         </td>
                                         <td class="text-center">
-                                            <?= $item->transferred_quantity !== null ? $item->transferred_quantity : '—' ?>
+                                            <?php if ($item->approved_quantity !== null): ?>
+                                                <span class="label label-success">
+                                                    <?= Yii::$app->formatter->asDecimal($item->approved_quantity, 2) ?>
+                                                </span>
+                                            <?php else: ?>
+                                                <span class="text-muted">—</span>
+                                            <?php endif; ?>
+                                        </td>
+                                        <td class="text-center">
+                                            <?php if ($item->transferred_quantity !== null): ?>
+                                                <span class="label <?= $item->transferred_quantity > 0 ? 'label-primary' : 'label-danger' ?>">
+                                                    <?= Yii::$app->formatter->asDecimal($item->transferred_quantity, 2) ?>
+                                                </span>
+                                            <?php else: ?>
+                                                <span class="text-muted">—</span>
+                                            <?php endif; ?>
                                         </td>
                                         <td class="text-center">
                                             <?php
                                             $itemStatusClass = [
-                                                StoreTransferItem::STATUS_PENDING => 'label-default',
+                                                StoreTransferItem::STATUS_PENDING => 'label-warning',
                                                 StoreTransferItem::STATUS_APPROVED => 'label-success',
                                                 StoreTransferItem::STATUS_REJECTED => 'label-danger',
                                                 StoreTransferItem::STATUS_TRANSFERRED => 'label-info',
@@ -154,7 +176,15 @@ $isAdmin = in_array(Yii::$app->user->identity->role, [User::ROLE_ADMIN, User::RO
                     ]) ?>
                 <?php endif; ?>
 
-                <?= Html::a('Назад к списку', ['index'], ['class' => 'btn btn-default']) ?>
+                <?php if ($isAdmin && in_array($model->status, [StoreTransfer::STATUS_NEW, StoreTransfer::STATUS_IN_PROGRESS])): ?>
+                    <?= Html::a(
+                        '<span class="glyphicon glyphicon-check"></span> Утвердить заявку',
+                        ['admin-approve', 'id' => $model->id],
+                        ['class' => 'btn btn-success btn-fill']
+                    ) ?>
+                <?php endif; ?>
+
+                <?= Html::a('Назад к списку', $isAdmin ? ['admin-index'] : ['index'], ['class' => 'btn btn-default']) ?>
             </div>
         </div>
     </div>

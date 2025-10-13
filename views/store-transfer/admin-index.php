@@ -110,7 +110,7 @@ $this->params['breadcrumbs'][] = $this->title;
                 ],
                 [
                     'class' => 'yii\grid\ActionColumn',
-                    'template' => '{view}',
+                    'template' => '{view} {approve}',
                     'buttons' => [
                         'view' => function ($url, $model) {
                             return Html::a('<span class="glyphicon glyphicon-eye-open"></span>', $url, [
@@ -118,8 +118,17 @@ $this->params['breadcrumbs'][] = $this->title;
                                 'class' => 'btn btn-info btn-sm',
                             ]);
                         },
+                        'approve' => function ($url, $model) {
+                            if (in_array($model->status, [StoreTransfer::STATUS_NEW, StoreTransfer::STATUS_IN_PROGRESS])) {
+                                return Html::a('<span class="glyphicon glyphicon-check"></span>', ['admin-approve', 'id' => $model->id], [
+                                    'title' => 'Утвердить',
+                                    'class' => 'btn btn-success btn-sm',
+                                ]);
+                            }
+                            return '';
+                        },
                     ],
-                    'headerOptions' => ['style' => 'width: 80px;'],
+                    'headerOptions' => ['style' => 'width: 100px;'],
                     'contentOptions' => ['class' => 'text-center'],
                 ],
             ],

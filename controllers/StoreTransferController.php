@@ -46,7 +46,7 @@ class StoreTransferController extends Controller
                         ],
                     ],
                     [
-                        'actions' => ['admin-index', 'set-in-progress', 'approve-items', 'mark-transferred', 'delete'],
+                        'actions' => ['admin-index', 'set-in-progress', 'approve-items', 'mark-transferred', 'delete', 'admin-approve', 'final-approve'],
                         'allow' => true,
                         'roles' => [
                             User::ROLE_ADMIN,
@@ -64,6 +64,7 @@ class StoreTransferController extends Controller
                     'approve-items' => ['POST'],
                     'mark-transferred' => ['POST'],
                     'confirm-transfer' => ['POST'],
+                    'final-approve' => ['POST'],
                 ],
             ],
         ];
@@ -245,6 +246,125 @@ class StoreTransferController extends Controller
         }
 
         return $this->redirect(['incoming']);
+    }
+
+    /**
+     * Админский интерфейс для утверждения окончательных количеств
+     * @param integer $id
+     * @return mixed
+     * @throws NotFoundHttpException if the model cannot be found
+     */
+    public function actionAdminApprove($id)
+    {
+        $model = StoreTransfer::findOne($id);
+
+        if (!$model) {
+            throw new NotFoundHttpException('Заявка не найдена.');
+        }
+
+        // Группируем позиции по филиалам-источникам
+        $itemsByStore = [];
+        foreach ($model->items as $item) {
+            if (!isset($itemsByStore[$item->source_store_id])) {
+                $itemsByStore[$item->source_store_id] = [
+                    'store' => $item->sourceStore,
+                    'items' => [],
+                ];
+            }
+            $itemsByStore[$item->source_store_id]['items'][] = $item;
+        }
+
+        return $this->render('admin-approve', [
+            'model' => $model,
+            'itemsByStore' => $itemsByStore,
+        ]);
+    }
+
+    /**
+     * Окончательное утверждение и завершение заявки админом
+     * @param integer $id
+     * @return mixed
+     * @throws NotFoundHttpException if the model cannot be found
+     */
+    public function actionFinalApprove($id)
+    {
+        $model = StoreTransfer::findOne($id);
+
+        if (!$model) {
+            throw new NotFoundHttpException('Заявка не найдена.');
+        }
+
+        $approvedQuantities = Yii::$app->request->post('approved_quantities', []);
+        $itemStatuses = Yii::$app->request->post('item_statuses', []);
+
+        $transaction = Yii::$app->db->beginTransaction();
+        try {
+            $hasApproved = false;
+
+            foreach ($model->items as $item) {
+                if (isset($itemStatuses[$item->id])) {
+                    $status = $itemStatuses[$item->id];
+                    $approvedQty = isset($approvedQuantities[$item->id]) ? $approvedQuantities[$item->id] : null;
+
+                    if ($status === 'approved' && $approvedQty !== null && $approvedQty > 0) {
+                        // Утверждаем с указанным количеством
+                        $item->approved_quantity = $approvedQty;
+                        $item->item_status = StoreTransferItem::STATUS_APPROVED;
+                        $hasApproved = true;
+                    } elseif ($status === 'rejected') {
+                        // Отклоняем
+                        $item->approved_quantity = 0;
+                        $item->item_status = StoreTransferItem::STATUS_REJECTED;
+                    } elseif ($status === 'transferred') {
+                        // Уже передано, не трогаем
+                        continue;
+                    }
+
+                    $item->save(false);
+                }
+            }
+
+            // Обновляем статус заявки
+            if ($hasApproved) {
+                // Проверяем, все ли позиции обработаны
+                $allProcessed = true;
+                foreach ($model->items as $item) {
+                    if ($item->item_status === StoreTransferItem::STATUS_PENDING) {
+                        $allProcessed = false;
+                        break;
+                    }
+                }
+
+                if ($allProcessed) {
+                    $model->status = StoreTransfer::STATUS_COMPLETED;
+                } else {
+                    $model->status = StoreTransfer::STATUS_IN_PROGRESS;
+                }
+            } else {
+                // Если ничего не утверждено, отменяем заявку
+                $allRejected = true;
+                foreach ($model->items as $item) {
+                    if ($item->item_status !== StoreTransferItem::STATUS_REJECTED) {
+                        $allRejected = false;
+                        break;
+                    }
+                }
+
+                if ($allRejected) {
+                    $model->status = StoreTransfer::STATUS_CANCELLED;
+                }
+            }
+
+            $model->save(false);
+            $transaction->commit();
+
+            Yii::$app->session->setFlash('success', 'Заявка успешно утверждена');
+        } catch (\Exception $e) {
+            $transaction->rollBack();
+            Yii::$app->session->setFlash('error', 'Ошибка при утверждении заявки: ' . $e->getMessage());
+        }
+
+        return $this->redirect(['view', 'id' => $model->id]);
     }
 
     /**
