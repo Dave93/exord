@@ -237,4 +237,13 @@ class Products extends \yii\db\ActiveRecord
         return $r;
     }
 
+    /**
+     * Получить единицу измерения продукта
+     * @return string
+     */
+    public function getUnit()
+    {
+        return $this->mainUnit ?? 'шт';
+    }
+
 }

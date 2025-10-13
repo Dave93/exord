@@ -17,6 +17,7 @@ $this->params['breadcrumbs'][] = $this->title;
         <h4 class="title">
             <?= Html::encode($this->title) ?>
             <div class="pull-right">
+                <?= Html::a('Входящие заявки', ['incoming'], ['class' => 'btn btn-info btn-fill btn-sm']) ?>
                 <?= Html::a('Создать заявку', ['create'], ['class' => 'btn btn-success btn-fill btn-sm']) ?>
             </div>
         </h4>

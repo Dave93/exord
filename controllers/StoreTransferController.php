@@ -35,7 +35,7 @@ class StoreTransferController extends Controller
                 'only' => ['*'],
                 'rules' => [
                     [
-                        'actions' => ['index', 'create', 'update', 'view', 'cancel'],
+                        'actions' => ['index', 'create', 'update', 'view', 'cancel', 'incoming', 'process-incoming', 'confirm-transfer'],
                         'allow' => true,
                         'roles' => [
                             User::ROLE_COOK,
@@ -63,6 +63,7 @@ class StoreTransferController extends Controller
                     'set-in-progress' => ['POST'],
                     'approve-items' => ['POST'],
                     'mark-transferred' => ['POST'],
+                    'confirm-transfer' => ['POST'],
                 ],
             ],
         ];
@@ -102,6 +103,148 @@ class StoreTransferController extends Controller
             'searchModel' => $searchModel,
             'dataProvider' => $dataProvider,
         ]);
+    }
+
+    /**
+     * Список входящих заявок (где текущий филиал - источник)
+     * @return mixed
+     */
+    public function actionIncoming()
+    {
+        $currentStoreId = Yii::$app->user->identity->store_id;
+
+        // Находим все заявки, где текущий филиал является источником
+        $query = StoreTransfer::find()
+            ->joinWith('items')
+            ->where([
+                'store_transfer_items.source_store_id' => $currentStoreId,
+                'store_transfers.status' => [StoreTransfer::STATUS_NEW, StoreTransfer::STATUS_IN_PROGRESS]
+            ])
+            ->groupBy('store_transfers.id')
+            ->orderBy(['store_transfers.created_at' => SORT_DESC]);
+
+        $transfers = $query->all();
+
+        return $this->render('incoming', [
+            'transfers' => $transfers,
+        ]);
+    }
+
+    /**
+     * Просмотр и обработка входящей заявки
+     * @param integer $id
+     * @return mixed
+     * @throws NotFoundHttpException if the model cannot be found
+     */
+    public function actionProcessIncoming($id)
+    {
+        $model = $this->findModelForIncoming($id);
+        $currentStoreId = Yii::$app->user->identity->store_id;
+
+        // Фильтруем только позиции для текущего филиала
+        $items = StoreTransferItem::find()
+            ->where([
+                'transfer_id' => $model->id,
+                'source_store_id' => $currentStoreId,
+            ])
+            ->all();
+
+        if (empty($items)) {
+            Yii::$app->session->setFlash('error', 'Нет позиций для вашего филиала в этой заявке');
+            return $this->redirect(['incoming']);
+        }
+
+        return $this->render('process-incoming', [
+            'model' => $model,
+            'items' => $items,
+        ]);
+    }
+
+    /**
+     * Подтверждение передачи товаров
+     * @param integer $id
+     * @return mixed
+     * @throws NotFoundHttpException if the model cannot be found
+     */
+    public function actionConfirmTransfer($id)
+    {
+        $model = $this->findModelForIncoming($id);
+        $currentStoreId = Yii::$app->user->identity->store_id;
+        $transferredQuantities = Yii::$app->request->post('transferred_quantities', []);
+
+        $transaction = Yii::$app->db->beginTransaction();
+        try {
+            $hasUpdates = false;
+
+            foreach ($transferredQuantities as $itemId => $quantity) {
+                $item = StoreTransferItem::findOne([
+                    'id' => $itemId,
+                    'transfer_id' => $model->id,
+                    'source_store_id' => $currentStoreId,
+                ]);
+
+                if ($item && $item->item_status === StoreTransferItem::STATUS_PENDING) {
+                    if ($quantity > 0) {
+                        // Устанавливаем переданное количество и меняем статус
+                        $item->transferred_quantity = $quantity;
+                        $item->item_status = StoreTransferItem::STATUS_TRANSFERRED;
+                        $hasUpdates = true;
+                    } else {
+                        // Если количество 0, считаем что отклонили
+                        $item->item_status = StoreTransferItem::STATUS_REJECTED;
+                        $hasUpdates = true;
+                    }
+                    $item->save(false);
+                }
+            }
+
+            if ($hasUpdates) {
+                // Проверяем, все ли позиции обработаны
+                $allProcessed = true;
+                foreach ($model->items as $item) {
+                    if ($item->item_status === StoreTransferItem::STATUS_PENDING) {
+                        $allProcessed = false;
+                        break;
+                    }
+                }
+
+                // Если все обработаны, меняем статус заявки
+                if ($allProcessed) {
+                    // Проверяем, есть ли хоть одна переданная позиция
+                    $hasTransferred = false;
+                    foreach ($model->items as $item) {
+                        if ($item->item_status === StoreTransferItem::STATUS_TRANSFERRED) {
+                            $hasTransferred = true;
+                            break;
+                        }
+                    }
+
+                    if ($hasTransferred) {
+                        $model->status = StoreTransfer::STATUS_COMPLETED;
+                    } else {
+                        $model->status = StoreTransfer::STATUS_CANCELLED;
+                    }
+                    $model->save(false);
+                } else {
+                    // Если не все обработаны, ставим "В работе"
+                    if ($model->status === StoreTransfer::STATUS_NEW) {
+                        $model->status = StoreTransfer::STATUS_IN_PROGRESS;
+                        $model->save(false);
+                    }
+                }
+
+                $transaction->commit();
+                Yii::$app->session->setFlash('success', 'Передача подтверждена');
+            } else {
+                $transaction->rollBack();
+                Yii::$app->session->setFlash('warning', 'Нет изменений для сохранения');
+            }
+        } catch (\Exception $e) {
+            $transaction->rollBack();
+            Yii::$app->session->setFlash('error', 'Ошибка при подтверждении передачи: ' . $e->getMessage());
+        }
+
+        return $this->redirect(['incoming']);
     }
 
     /**
@@ -451,6 +594,36 @@ class StoreTransferController extends Controller
                 if ($model->request_store_id != Yii::$app->user->identity->store_id) {
                     throw new NotFoundHttpException('Нет доступа к этой заявке.');
                 }
+            }
+
+            return $model;
+        }
+
+        throw new NotFoundHttpException('Запрашиваемая страница не найдена.');
+    }
+
+    /**
+     * Находит модель StoreTransfer для входящих заявок
+     * Проверяет, что текущий филиал является источником для этой заявки
+     * @param integer $id
+     * @return StoreTransfer the loaded model
+     * @throws NotFoundHttpException if the model cannot be found
+     */
+    protected function findModelForIncoming($id)
+    {
+        if (($model = StoreTransfer::findOne($id)) !== null) {
+            $currentStoreId = Yii::$app->user->identity->store_id;
+
+            // Проверяем, есть ли позиции для текущего филиала
+            $hasItems = StoreTransferItem::find()
+                ->where([
+                    'transfer_id' => $model->id,
+                    'source_store_id' => $currentStoreId,
+                ])
+                ->exists();
+
+            if (!$hasItems) {
+                throw new NotFoundHttpException('Нет доступа к этой заявке.');
             }
 
             return $model;
