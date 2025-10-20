@@ -7,6 +7,7 @@ use app\models\Availability;
 use app\models\Dashboard;
 use app\models\Iiko;
 use app\models\OrderItems;
+use app\models\OrderItemsChangelog;
 use app\models\OrderItemSearch;
 use app\models\Orders;
 use app\models\OrderSearch;
@@ -190,11 +191,15 @@ class OrdersController extends Controller
         $searchModel->orderId = $model->id;
         $dataProvider = $searchModel->search(Yii::$app->request->queryParams, $showDeleted);
 
+        // Получаем историю изменений заказа
+        $changelog = OrderItemsChangelog::getOrderHistory($id);
+
         return $this->render('view', [
             'model' => $model,
             'searchModel' => $searchModel,
             'dataProvider' => $dataProvider,
             'showDeleted' => $showDeleted,
+            'changelog' => $changelog,
         ]);
     }
 
@@ -285,6 +290,16 @@ class OrdersController extends Controller
                     $existingItem->deleted_at = date('Y-m-d H:i:s');
                     $existingItem->deleted_by = Yii::$app->user->id;
                     $existingItem->save(false);
+
+                    // Логируем удаление
+                    OrderItemsChangelog::log(
+                        $model->id,
+                        $existingItem->productId,
+                        OrderItemsChangelog::ACTION_DELETED,
+                        $existingItem->quantity,
+                        null,
+                        Yii::$app->user->id
+                    );
                 }
 
                 foreach ($items as $key => $value) {
@@ -305,6 +320,16 @@ class OrdersController extends Controller
                     $oi->available = $available[$key] ?? 0;
                     $oi->userId = Yii::$app->user->id;
                     $oi->save();
+
+                    // Логируем добавление
+                    OrderItemsChangelog::log(
+                        $model->id,
+                        $key,
+                        OrderItemsChangelog::ACTION_ADDED,
+                        null,
+                        $value,
+                        Yii::$app->user->id
+                    );
                     if (!empty(Yii::$app->user->identity->terminalId)) {
                         $arrytData['orderItems'][] = [
                             'productId' => $oi->productId,
@@ -488,27 +513,80 @@ class OrdersController extends Controller
             $items = Yii::$app->request->post("Items");
             $model->state = 0;
             if (count($items) > 0 && $model->save()) {
-//                OrderItems::deleteAll(['orderId' => $model->id]);
+                // Получаем все существующие позиции заказа для сравнения
+                $existingItems = OrderItems::find()
+                    ->where(['orderId' => $model->id])
+                    ->indexBy('productId')
+                    ->all();
+
+                // Обрабатываем новые/обновленные позиции
                 foreach ($items as $key => $value) {
-                    $oi = OrderItems::findOne(['orderId' => $model->id, 'productId' => $key]);
+                    $oi = isset($existingItems[$key]) ? $existingItems[$key] : null;
+
                     if (empty($value)) {
-                        if ($oi != null)
+                        // Удаление позиции
+                        if ($oi != null) {
+                            $oldQuantity = $oi->quantity;
                             $oi->delete();
+
+                            // Логируем удаление
+                            OrderItemsChangelog::log(
+                                $model->id,
+                                $key,
+                                OrderItemsChangelog::ACTION_DELETED,
+                                $oldQuantity,
+                                null,
+                                $userId
+                            );
+                        }
                         continue;
                     }
+
                     if ($oi == null) {
+                        // Добавление новой позиции
                         $oi = new OrderItems();
                         $oi->orderId = $model->id;
                         $oi->productId = $key;
                         $oi->storeId = $stockId;
                         $oi->supplierId = $supplierId;
                         $oi->storeQuantity = 0;
+                        $oi->quantity = $value;
+                        $oi->supplierQuantity = $value;
+                        $oi->userId = $userId;
+                        $oi->save();
+
+                        // Логируем добавление
+                        OrderItemsChangelog::log(
+                            $model->id,
+                            $key,
+                            OrderItemsChangelog::ACTION_ADDED,
+                            null,
+                            $value,
+                            $userId
+                        );
+                    } else {
+                        // Обновление существующей позиции
+                        $oldQuantity = $oi->quantity;
+
+                        if ($oldQuantity != $value) {
+                            $oi->quantity = $value;
+                            $oi->supplierQuantity = $value;
+                            $oi->userId = $userId;
+                            $oi->save();
+
+                            // Логируем изменение
+                            OrderItemsChangelog::log(
+                                $model->id,
+                                $key,
+                                OrderItemsChangelog::ACTION_UPDATED,
+                                $oldQuantity,
+                                $value,
+                                $userId
+                            );
+                        }
                     }
-                    $oi->quantity = $value;
-                    $oi->supplierQuantity = $value;
-                    $oi->userId = $userId;
-                    $oi->save();
                 }
+
                 return $this->redirect(['orders/view', 'id' => $model->id]);
             }
         }
@@ -526,7 +604,18 @@ class OrdersController extends Controller
         }
         $oi = OrderItems::findOne(['orderId' => $orderId, 'productId' => $itemId]);
         if ($oi != null) {
+            $oldQuantity = $oi->quantity;
             $oi->delete();
+
+            // Логируем удаление
+            OrderItemsChangelog::log(
+                $orderId,
+                $itemId,
+                OrderItemsChangelog::ACTION_DELETED,
+                $oldQuantity,
+                null,
+                Yii::$app->user->id
+            );
         }
         return $this->redirect(['orders/stock', 'tab' => $model->id]);
     }
@@ -551,11 +640,24 @@ class OrdersController extends Controller
         }
         $oi = OrderItems::findOne(['orderId' => $orderId, 'productId' => $itemId]);
         if ($oi != null) {
+            $oldStoreQuantity = $oi->storeQuantity;
             $oi->storeQuantity = 0;
 //                $oi->supplierQuantity = 0;
             $oi->shipped_from_warehouse = 0;
             $oi->minused = 1;
             $oi->save();
+
+            // Логируем обнуление количества со склада
+            if ($oldStoreQuantity != 0) {
+                OrderItemsChangelog::log(
+                    $orderId,
+                    $itemId,
+                    OrderItemsChangelog::ACTION_UPDATED,
+                    $oldStoreQuantity,
+                    0,
+                    Yii::$app->user->id
+                );
+            }
         }
         return $this->redirect(['orders/stock', 'tab' => $model->id]);
     }
@@ -730,11 +832,27 @@ class OrdersController extends Controller
                 $oi = OrderItems::findOne(['orderId' => $orderId, 'productId' => $key]);
 //                $oi->storeId = $stockId;
 
-                $oi->storeQuantity = $value['s'];
+                // Сохраняем старое значение для логирования
+                $oldStoreQuantity = $oi->storeQuantity;
+                $newStoreQuantity = $value['s'];
+
+                $oi->storeQuantity = $newStoreQuantity;
 //                $oi->supplierQuantity = $value['b'];
-                $oi->shipped_from_warehouse = $value['s'];
+                $oi->shipped_from_warehouse = $newStoreQuantity;
                 if (!$oi->save()) {
                     return print_r($oi->firstErrors);
+                }
+
+                // Логируем изменение, если количество изменилось
+                if ($oldStoreQuantity != $newStoreQuantity) {
+                    OrderItemsChangelog::log(
+                        $orderId,
+                        $key,
+                        OrderItemsChangelog::ACTION_UPDATED,
+                        $oldStoreQuantity,
+                        $newStoreQuantity,
+                        Yii::$app->user->id
+                    );
                 }
             }
 
@@ -796,6 +914,16 @@ class OrdersController extends Controller
                     $existingItem->deleted_at = date('Y-m-d H:i:s');
                     $existingItem->deleted_by = Yii::$app->user->id;
                     $existingItem->save(false);
+
+                    // Логируем удаление
+                    OrderItemsChangelog::log(
+                        $model->id,
+                        $existingItem->productId,
+                        OrderItemsChangelog::ACTION_DELETED,
+                        $existingItem->quantity,
+                        null,
+                        Yii::$app->user->id
+                    );
                 }
 
                 foreach ($items as $key => $value) {
@@ -811,6 +939,16 @@ class OrdersController extends Controller
                     $oi->supplierQuantity = $value;
                     $oi->userId = Yii::$app->user->id;
                     $oi->save();
+
+                    // Логируем добавление
+                    OrderItemsChangelog::log(
+                        $model->id,
+                        $key,
+                        OrderItemsChangelog::ACTION_ADDED,
+                        null,
+                        $value,
+                        Yii::$app->user->id
+                    );
                 }
                 return $this->redirect(['orders/view', 'id' => $model->id]);
             }
@@ -840,6 +978,16 @@ class OrdersController extends Controller
                     $existingItem->deleted_at = date('Y-m-d H:i:s');
                     $existingItem->deleted_by = Yii::$app->user->id;
                     $existingItem->save(false);
+
+                    // Логируем удаление
+                    OrderItemsChangelog::log(
+                        $model->id,
+                        $existingItem->productId,
+                        OrderItemsChangelog::ACTION_DELETED,
+                        $existingItem->quantity,
+                        null,
+                        $userId
+                    );
                 }
 
                 foreach ($items as $key => $value) {
@@ -853,6 +1001,16 @@ class OrdersController extends Controller
                     $oi->supplierQuantity = $value;
                     $oi->userId = $userId;
                     $oi->save();
+
+                    // Логируем добавление
+                    OrderItemsChangelog::log(
+                        $model->id,
+                        $key,
+                        OrderItemsChangelog::ACTION_ADDED,
+                        null,
+                        $value,
+                        $userId
+                    );
                 }
                 return $this->redirect(['orders/view', 'id' => $model->id]);
             }
@@ -1377,6 +1535,16 @@ class OrdersController extends Controller
 
         // Восстанавливаем позицию
         if ($item->restore()) {
+            // Логируем восстановление
+            OrderItemsChangelog::log(
+                $orderId,
+                $productId,
+                OrderItemsChangelog::ACTION_RESTORED,
+                null,
+                $item->quantity,
+                Yii::$app->user->id
+            );
+
             Yii::$app->session->setFlash('success', 'Позиция успешно восстановлена.');
         } else {
             Yii::$app->session->setFlash('error', 'Ошибка при восстановлении позиции.');
