@@ -23,6 +23,24 @@ $this->params['breadcrumbs'][] = $this->title;
     </div>
     <hr>
 
+    <?php if (Yii::$app->session->hasFlash('success')): ?>
+        <div class="alert alert-success alert-dismissible" role="alert">
+            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                <span aria-hidden="true">&times;</span>
+            </button>
+            <?= Yii::$app->session->getFlash('success') ?>
+        </div>
+    <?php endif; ?>
+
+    <?php if (Yii::$app->session->hasFlash('error')): ?>
+        <div class="alert alert-danger alert-dismissible" role="alert">
+            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                <span aria-hidden="true">&times;</span>
+            </button>
+            <?= Yii::$app->session->getFlash('error') ?>
+        </div>
+    <?php endif; ?>
+
     <?php if (in_array(Yii::$app->user->identity->role, [User::ROLE_ADMIN, User::ROLE_OFFICE])): ?>
         <div class="content" style="padding-bottom: 10px;">
             <div class="form-group">
@@ -162,6 +180,33 @@ $this->params['breadcrumbs'][] = $this->title;
 //                        ]
 //                    ],
 //                'purchaseQuantity',
+                    [
+                        'label' => 'Действия',
+                        'format' => 'raw',
+                        'visible' => in_array(Yii::$app->user->identity->role, [User::ROLE_ADMIN, User::ROLE_OFFICE]) && $showDeleted,
+                        'value' => function ($model) use ($showDeleted) {
+                            if ($model->deleted_at !== null && in_array(Yii::$app->user->identity->role, [User::ROLE_ADMIN, User::ROLE_OFFICE])) {
+                                return Html::a(
+                                    '<i class="fa fa-undo"></i> Восстановить',
+                                    ['restore-item', 'orderId' => $model->orderId, 'productId' => $model->productId],
+                                    [
+                                        'class' => 'btn btn-success btn-sm',
+                                        'data-confirm' => 'Вы действительно хотите восстановить эту позицию?',
+                                        'data-method' => 'post',
+                                        'title' => 'Восстановить позицию'
+                                    ]
+                                );
+                            }
+                            return '';
+                        },
+                        'headerOptions' => [
+                            'class' => 'text-center',
+                            'style' => 'width: 150px;'
+                        ],
+                        'contentOptions' => [
+                            'class' => 'text-center'
+                        ]
+                    ],
                 ],
             ]); ?>
         </div>

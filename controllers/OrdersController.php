@@ -49,7 +49,7 @@ class OrdersController extends Controller
                 'only' => ['*'],
                 'rules' => [
                     [
-                        'actions' => ['index', 'return', 'list', 'view', 'delete', 'close', 'try-again', 'return-back', 'return-to-new'],
+                        'actions' => ['index', 'return', 'list', 'view', 'delete', 'close', 'try-again', 'return-back', 'return-to-new', 'restore-item'],
                         'allow' => true,
                         'roles' => [
                             User::ROLE_ADMIN,
@@ -1354,6 +1354,35 @@ class OrdersController extends Controller
         }
 
         return $this->redirect(['index']);
+    }
+
+    /**
+     * Восстанавливает удалённую позицию заказа
+     * @param integer $orderId ID заказа
+     * @param string $productId ID продукта
+     * @return mixed
+     * @throws NotFoundHttpException if the model cannot be found
+     */
+    public function actionRestoreItem($orderId, $productId)
+    {
+        // Находим удалённую позицию
+        $item = OrderItems::findWithDeleted()
+            ->where(['orderId' => $orderId, 'productId' => $productId])
+            ->andWhere(['not', ['deleted_at' => null]])
+            ->one();
+
+        if ($item === null) {
+            throw new NotFoundHttpException('Позиция не найдена или уже восстановлена.');
+        }
+
+        // Восстанавливаем позицию
+        if ($item->restore()) {
+            Yii::$app->session->setFlash('success', 'Позиция успешно восстановлена.');
+        } else {
+            Yii::$app->session->setFlash('error', 'Ошибка при восстановлении позиции.');
+        }
+
+        return $this->redirect(['view', 'id' => $orderId, 'showDeleted' => 1]);
     }
 
     /**
