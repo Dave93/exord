@@ -181,6 +181,40 @@ $this->params['breadcrumbs'][] = $this->title;
 //                    ],
 //                'purchaseQuantity',
                     [
+                        'label' => 'Удалил',
+                        'format' => 'raw',
+                        'visible' => in_array(Yii::$app->user->identity->role, [User::ROLE_ADMIN, User::ROLE_OFFICE]) && $showDeleted,
+                        'value' => function ($model) {
+                            if ($model->deleted_at !== null && $model->deletedBy !== null) {
+                                return $model->deletedBy->username;
+                            }
+                            return '-';
+                        },
+                        'headerOptions' => [
+                            'class' => 'text-center'
+                        ],
+                        'contentOptions' => [
+                            'class' => 'text-center'
+                        ]
+                    ],
+                    [
+                        'label' => 'Дата удаления',
+                        'format' => 'raw',
+                        'visible' => in_array(Yii::$app->user->identity->role, [User::ROLE_ADMIN, User::ROLE_OFFICE]) && $showDeleted,
+                        'value' => function ($model) {
+                            if ($model->deleted_at !== null) {
+                                return Yii::$app->formatter->asDatetime($model->deleted_at, 'php:d.m.Y H:i');
+                            }
+                            return '-';
+                        },
+                        'headerOptions' => [
+                            'class' => 'text-center'
+                        ],
+                        'contentOptions' => [
+                            'class' => 'text-center'
+                        ]
+                    ],
+                    [
                         'label' => 'Действия',
                         'format' => 'raw',
                         'visible' => in_array(Yii::$app->user->identity->role, [User::ROLE_ADMIN, User::ROLE_OFFICE]) && $showDeleted,
