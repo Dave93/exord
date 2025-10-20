@@ -152,7 +152,7 @@ class Orders extends \yii\db\ActiveRecord
                 left join order_items oi on oi.orderId=o.id
                 left join products p on p.id=oi.productId
 				left join products p1 on p1.id=p.parentId
-                where o.state=0 {$in}
+                where o.state=0 {$in} and oi.deleted_at is null
                 group by oi.productId, o.id
 				order by p.parentId";
         $data = Yii::$app->db->createCommand($sql)->queryAll();
@@ -183,7 +183,7 @@ class Orders extends \yii\db\ActiveRecord
                 left join order_items oi on oi.orderId=o.id
                 left join products p on p.id=oi.productId
 				left join products p1 on p1.id=p.parentId
-                where o.state=0 {$in} and oi.supplierQuantity>0
+                where o.state=0 {$in} and oi.supplierQuantity>0 and oi.deleted_at is null
                 group by oi.productId, o.id
 				order by p.parentId";
         $data = Yii::$app->db->createCommand($sql)->queryAll();
@@ -208,7 +208,7 @@ class Orders extends \yii\db\ActiveRecord
                 ->leftJoin("product_groups_link pgl", "pgl.productId=products.id")
                 ->leftJoin("product_groups pg", "pg.id=pgl.productGroupId")
                 ->leftJoin("products p1", "p1.id=products.parentId")
-                ->where("order_items.orderId=:id and order_items.productId in(select category_id from user_categories where user_id=:u) and pgl.productGroupId = :d and (pg.is_market = :m or pg.is_market is null)", [":id" => $id, ':u' => Yii::$app->user->id, ':d' => Yii::$app->user->identity->product_group_id, ':m' => $is_market ? 1 : 0])
+                ->where("order_items.orderId=:id and order_items.productId in(select category_id from user_categories where user_id=:u) and pgl.productGroupId = :d and (pg.is_market = :m or pg.is_market is null) and order_items.deleted_at is null", [":id" => $id, ':u' => Yii::$app->user->id, ':d' => Yii::$app->user->identity->product_group_id, ':m' => $is_market ? 1 : 0])
                 ->groupBy("order_items.productId")
 //            ->orderBy("p1.name,products.name")
                 ->all();
@@ -220,7 +220,7 @@ class Orders extends \yii\db\ActiveRecord
                 ->leftJoin("product_groups_link pgl", "pgl.productId=products.id")
                 ->leftJoin("product_groups pg", "pg.id=pgl.productGroupId")
                 ->leftJoin("products p1", "p1.id=products.parentId")
-                ->where("order_items.orderId=:id and order_items.productId in(select category_id from user_categories where user_id=:u) and (pg.is_market = :m or pg.is_market is null)", [":id" => $id, ':u' => Yii::$app->user->id, ':m' => $is_market ? 1 : 0])
+                ->where("order_items.orderId=:id and order_items.productId in(select category_id from user_categories where user_id=:u) and (pg.is_market = :m or pg.is_market is null) and order_items.deleted_at is null", [":id" => $id, ':u' => Yii::$app->user->id, ':m' => $is_market ? 1 : 0])
                 ->groupBy("order_items.productId")
 //            ->orderBy("p1.name,products.name")
                 ->all();
@@ -234,7 +234,7 @@ class Orders extends \yii\db\ActiveRecord
             ->from("order_items")
             ->leftJoin("products", "products.id=order_items.productId")
             ->leftJoin("products p1", "p1.id=products.parentId")
-            ->where("order_items.orderId=:id and order_items.supplierQuantity>0 and order_items.productId in(select category_id from user_categories where user_id=:u)", [":id" => $id, ':u' => Yii::$app->user->id])
+            ->where("order_items.orderId=:id and order_items.supplierQuantity>0 and order_items.productId in(select category_id from user_categories where user_id=:u) and order_items.deleted_at is null", [":id" => $id, ':u' => Yii::$app->user->id])
 //            ->orderBy("p1.name,products.name")
             ->all();
     }
@@ -254,7 +254,7 @@ class Orders extends \yii\db\ActiveRecord
             return "-";
         $sql = "select s.name from order_items oi
                 left join stores s on s.id=oi.storeId
-                where oi.orderId=:id and storeId is not null
+                where oi.orderId=:id and storeId is not null and oi.deleted_at is null
                 limit 1";
         return Yii::$app->db->createCommand($sql)
             ->bindParam(":id", $id, PDO::PARAM_INT)
@@ -268,7 +268,7 @@ class Orders extends \yii\db\ActiveRecord
             return "-";
         $sql = "select s.name from order_items oi
                 left join suppliers s on s.id=oi.supplierId
-                where oi.orderId=:id and storeId is not null
+                where oi.orderId=:id and storeId is not null and oi.deleted_at is null
                 limit 1";
         return Yii::$app->db->createCommand($sql)
             ->bindParam(":id", $id, PDO::PARAM_INT)
@@ -277,10 +277,10 @@ class Orders extends \yii\db\ActiveRecord
 
     public function canClose()
     {
-        $sql1 = "select count(*) from order_items where orderId=:o and storeQuantity>0";
+        $sql1 = "select count(*) from order_items where orderId=:o and storeQuantity>0 and deleted_at is null";
         $store = Yii::$app->db->createCommand($sql1)->bindValue(":o", $this->id, PDO::PARAM_INT)->queryScalar();
 
-        $sql3 = "select count(*) from order_items where orderId=:o and purchaseQuantity>0";
+        $sql3 = "select count(*) from order_items where orderId=:o and purchaseQuantity>0 and deleted_at is null";
         $supplier = Yii::$app->db->createCommand($sql3)->bindValue(":o", $this->id, PDO::PARAM_INT)->queryScalar();
 
         if ($store > 0 || $supplier > 0) {

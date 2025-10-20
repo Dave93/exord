@@ -176,7 +176,7 @@ class OrdersController extends Controller
         return $this->redirect(['/orders/index']);
     }
 
-    public function actionView($id)
+    public function actionView($id, $showDeleted = 0)
     {
         if (in_array(Yii::$app->user->identity->role, [User::ROLE_BARMEN, User::ROLE_COOK, User::ROLE_PASTRY]))
             $model = Orders::findOne(['id' => $id, 'userId' => Yii::$app->user->id]);
@@ -188,12 +188,13 @@ class OrdersController extends Controller
 
         $searchModel = new OrderItemSearch();
         $searchModel->orderId = $model->id;
-        $dataProvider = $searchModel->search(Yii::$app->request->queryParams);
+        $dataProvider = $searchModel->search(Yii::$app->request->queryParams, $showDeleted);
 
         return $this->render('view', [
             'model' => $model,
             'searchModel' => $searchModel,
             'dataProvider' => $dataProvider,
+            'showDeleted' => $showDeleted,
         ]);
     }
 
@@ -278,7 +279,14 @@ class OrdersController extends Controller
                     ];
                 }
 
-                OrderItems::deleteAll(['orderId' => $model->id]);
+                // Soft delete всех items для этого заказа перед созданием новых
+                $existingItems = OrderItems::findWithDeleted()->where(['orderId' => $model->id])->all();
+                foreach ($existingItems as $existingItem) {
+                    $existingItem->deleted_at = date('Y-m-d H:i:s');
+                    $existingItem->deleted_by = Yii::$app->user->id;
+                    $existingItem->save(false);
+                }
+
                 foreach ($items as $key => $value) {
 //                    if (empty($value) && empty($available[$key]))
 //                        continue;
@@ -782,7 +790,14 @@ class OrdersController extends Controller
             $model->addDate = date("Y-m-d H:i:s");
             $model->state = 0;
             if (count($items) > 0 && $model->save()) {
-                OrderItems::deleteAll(['orderId' => $model->id]);
+                // Soft delete всех items для этого заказа перед созданием новых
+                $existingItems = OrderItems::findWithDeleted()->where(['orderId' => $model->id])->all();
+                foreach ($existingItems as $existingItem) {
+                    $existingItem->deleted_at = date('Y-m-d H:i:s');
+                    $existingItem->deleted_by = Yii::$app->user->id;
+                    $existingItem->save(false);
+                }
+
                 foreach ($items as $key => $value) {
                     if (empty($value))
                         continue;
@@ -819,7 +834,14 @@ class OrdersController extends Controller
             $items = Yii::$app->request->post("Items");
             $model->state = 0;
             if (count($items) > 0 && $model->save()) {
-                OrderItems::deleteAll(['orderId' => $model->id]);
+                // Soft delete всех items для этого заказа перед созданием новых
+                $existingItems = OrderItems::findWithDeleted()->where(['orderId' => $model->id])->all();
+                foreach ($existingItems as $existingItem) {
+                    $existingItem->deleted_at = date('Y-m-d H:i:s');
+                    $existingItem->deleted_by = Yii::$app->user->id;
+                    $existingItem->save(false);
+                }
+
                 foreach ($items as $key => $value) {
                     if (empty($value))
                         continue;
@@ -1322,9 +1344,13 @@ class OrdersController extends Controller
     {
         $model = $this->findModel($id);
         if ($model->delete()) {
-            Yii::$app->db->createCommand("delete from order_items where orderId=:o")
-                ->bindValue(":o", $model->id, PDO::PARAM_INT)
-                ->execute();
+            // Soft delete всех order_items для этого заказа
+            $items = OrderItems::findWithDeleted()->where(['orderId' => $model->id])->all();
+            foreach ($items as $item) {
+                $item->deleted_at = date('Y-m-d H:i:s');
+                $item->deleted_by = Yii::$app->user->id;
+                $item->save(false);
+            }
         }
 
         return $this->redirect(['index']);

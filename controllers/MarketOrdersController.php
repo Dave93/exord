@@ -252,7 +252,14 @@ class MarketOrdersController extends Controller
                     ];
                 }
 
-                OrderItems::deleteAll(['orderId' => $model->id]);
+                // Soft delete всех items для этого заказа перед созданием новых
+                $existingItems = OrderItems::findWithDeleted()->where(['orderId' => $model->id])->all();
+                foreach ($existingItems as $existingItem) {
+                    $existingItem->deleted_at = date('Y-m-d H:i:s');
+                    $existingItem->deleted_by = Yii::$app->user->id;
+                    $existingItem->save(false);
+                }
+
                 foreach ($items as $key => $value) {
 //                    if (empty($value) && empty($available[$key]))
 //                        continue;
@@ -588,7 +595,13 @@ class MarketOrdersController extends Controller
 
             if ($isDelete == 'Y' && Yii::$app->user->identity->role == User::ROLE_ADMIN) {
                 $model = Orders::findOne(['id' => $orderId]);
-                OrderItems::deleteAll(['orderId' => $orderId]);
+                // Soft delete всех order_items для этого заказа
+                $items = OrderItems::findWithDeleted()->where(['orderId' => $orderId])->all();
+                foreach ($items as $item) {
+                    $item->deleted_at = date('Y-m-d H:i:s');
+                    $item->deleted_by = Yii::$app->user->id;
+                    $item->save(false);
+                }
                 $model->delete();
 // http post query of $arrytData
                 // $ch = curl_init();
@@ -678,7 +691,14 @@ class MarketOrdersController extends Controller
             $model->addDate = date("Y-m-d H:i:s");
             $model->state = 0;
             if (count($items) > 0 && $model->save()) {
-                OrderItems::deleteAll(['orderId' => $model->id]);
+                // Soft delete всех items для этого заказа перед созданием новых
+                $existingItems = OrderItems::findWithDeleted()->where(['orderId' => $model->id])->all();
+                foreach ($existingItems as $existingItem) {
+                    $existingItem->deleted_at = date('Y-m-d H:i:s');
+                    $existingItem->deleted_by = Yii::$app->user->id;
+                    $existingItem->save(false);
+                }
+
                 foreach ($items as $key => $value) {
                     if (empty($value))
                         continue;
@@ -715,7 +735,14 @@ class MarketOrdersController extends Controller
             $items = Yii::$app->request->post("Items");
             $model->state = 0;
             if (count($items) > 0 && $model->save()) {
-                OrderItems::deleteAll(['orderId' => $model->id]);
+                // Soft delete всех items для этого заказа перед созданием новых
+                $existingItems = OrderItems::findWithDeleted()->where(['orderId' => $model->id])->all();
+                foreach ($existingItems as $existingItem) {
+                    $existingItem->deleted_at = date('Y-m-d H:i:s');
+                    $existingItem->deleted_by = Yii::$app->user->id;
+                    $existingItem->save(false);
+                }
+
                 foreach ($items as $key => $value) {
                     if (empty($value))
                         continue;
@@ -1218,9 +1245,13 @@ class MarketOrdersController extends Controller
     {
         $model = $this->findModel($id);
         if ($model->delete()) {
-            Yii::$app->db->createCommand("delete from order_items where orderId=:o")
-                ->bindValue(":o", $model->id, PDO::PARAM_INT)
-                ->execute();
+            // Soft delete всех order_items для этого заказа
+            $items = OrderItems::findWithDeleted()->where(['orderId' => $model->id])->all();
+            foreach ($items as $item) {
+                $item->deleted_at = date('Y-m-d H:i:s');
+                $item->deleted_by = Yii::$app->user->id;
+                $item->save(false);
+            }
         }
 
         return $this->redirect(['index']);

@@ -9,6 +9,7 @@ use yii\grid\GridView;
 /* @var $model app\models\Orders */
 /* @var $searchModel app\models\OrderItemSearch */
 /* @var $dataProvider yii\data\ActiveDataProvider */
+/* @var $showDeleted int */
 
 $this->title = "Заказ #" . $model->id;
 $this->params['breadcrumbs'][] = $this->title;
@@ -21,6 +22,47 @@ $this->params['breadcrumbs'][] = $this->title;
         </p>
     </div>
     <hr>
+
+    <?php if (in_array(Yii::$app->user->identity->role, [User::ROLE_ADMIN, User::ROLE_OFFICE])): ?>
+        <div class="content" style="padding-bottom: 10px;">
+            <div class="form-group">
+                <label class="checkbox-inline">
+                    <input type="checkbox" id="show-deleted-toggle" <?= $showDeleted ? 'checked' : '' ?>>
+                    Показать удалённые позиции
+                </label>
+            </div>
+        </div>
+        <hr>
+    <?php endif; ?>
+
+    <style>
+        .deleted-row {
+            background-color: #ffe6e6 !important;
+            opacity: 0.7;
+        }
+        .deleted-row td {
+            text-decoration: line-through;
+            color: #999;
+        }
+    </style>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            var checkbox = document.getElementById('show-deleted-toggle');
+            if (checkbox) {
+                checkbox.addEventListener('change', function() {
+                    var currentUrl = new URL(window.location.href);
+                    if (this.checked) {
+                        currentUrl.searchParams.set('showDeleted', '1');
+                    } else {
+                        currentUrl.searchParams.delete('showDeleted');
+                    }
+                    window.location.href = currentUrl.toString();
+                });
+            }
+        });
+    </script>
+
     <div class="content">
         <div class="table-responsive mb20">
             <?= GridView::widget([
@@ -30,6 +72,12 @@ $this->params['breadcrumbs'][] = $this->title;
                 'tableOptions' => [
                     'class' => 'table table-hover table-striped',
                 ],
+                'rowOptions' => function ($model, $key, $index, $grid) {
+                    if ($model->deleted_at !== null) {
+                        return ['class' => 'deleted-row'];
+                    }
+                    return [];
+                },
                 'columns' => [
                     [
                         'class' => 'yii\grid\SerialColumn',
@@ -39,8 +87,13 @@ $this->params['breadcrumbs'][] = $this->title;
                     ],
                     [
                         'attribute' => 'productId',
+                        'format' => 'raw',
                         'value' => function ($model) {
-                            return $model->product->name;
+                            $productName = $model->product->name;
+                            if ($model->deleted_at !== null) {
+                                return $productName . ' <span class="badge badge-danger" style="background-color: #dc3545; color: white; margin-left: 5px;">Удалено</span>';
+                            }
+                            return $productName;
                         }
                     ],
                     [

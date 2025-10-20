@@ -37,12 +37,18 @@ class OrderItemSearch extends OrderItems
      * Creates data provider instance with search query applied
      *
      * @param array $params
+     * @param int $showDeleted Показывать удалённые записи (0 - не показывать, 1 - показывать)
      *
      * @return ActiveDataProvider
      */
-    public function search($params)
+    public function search($params, $showDeleted = 0)
     {
-        $query = OrderItems::find();
+        // Используем findWithDeleted() если нужно показать удалённые записи
+        if ($showDeleted) {
+            $query = OrderItems::findWithDeleted();
+        } else {
+            $query = OrderItems::find();
+        }
 
         // add conditions that should always apply here
 
