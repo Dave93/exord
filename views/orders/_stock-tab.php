@@ -46,6 +46,12 @@ uasort($groupedProducts, function ($a, $b) {
             <?php if (Yii::$app->user->identity->role == User::ROLE_ADMIN) { ?>
                 <?= Html::a('<i class="glyphicon glyphicon-plus"></i> Добавить', ['orders/add-items-to-stock', 'orderId' => $order['id'], 'storeId' => $storeId, 'supplierId' => $supplierId], ['class' => 'btn btn-primary btn-fill']) ?>
             <?php } ?>
+            <?php if (in_array(Yii::$app->user->identity->role, [User::ROLE_ADMIN, User::ROLE_OFFICE])) { ?>
+                <?= Html::button('<i class="glyphicon glyphicon-time"></i> История изменений', [
+                    'class' => 'btn btn-info btn-fill show-changelog-modal',
+                    'data-order-id' => $order['id']
+                ]) ?>
+            <?php } ?>
             <?= Html::a('<i class="glyphicon glyphicon-download-alt"></i> Накладной', ['orders/invoice', 'id' => $order['id']], ['class' => 'btn btn-warning btn-fill']) ?>
             <?= Html::a('<i class="glyphicon glyphicon-download-alt"></i> Загрузить', ['order-excel', 'id' => $order['id']], ['class' => 'btn btn-success btn-fill order-excel']) ?>
         </div>

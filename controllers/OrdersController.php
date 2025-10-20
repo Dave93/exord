@@ -50,7 +50,7 @@ class OrdersController extends Controller
                 'only' => ['*'],
                 'rules' => [
                     [
-                        'actions' => ['index', 'return', 'list', 'view', 'delete', 'close', 'try-again', 'return-back', 'return-to-new', 'restore-item'],
+                        'actions' => ['index', 'return', 'list', 'view', 'delete', 'close', 'try-again', 'return-back', 'return-to-new', 'restore-item', 'get-changelog'],
                         'allow' => true,
                         'roles' => [
                             User::ROLE_ADMIN,
@@ -1551,6 +1551,26 @@ class OrdersController extends Controller
         }
 
         return $this->redirect(['view', 'id' => $orderId, 'showDeleted' => 1]);
+    }
+
+    /**
+     * Получает историю изменений заказа для отображения в модальном окне
+     * @param int $orderId
+     * @return string
+     */
+    public function actionGetChangelog($orderId)
+    {
+        // Получаем историю изменений для данного заказа
+        $changelog = OrderItemsChangelog::find()
+            ->where(['orderId' => $orderId])
+            ->with(['product', 'user'])
+            ->orderBy(['created_at' => SORT_DESC])
+            ->all();
+
+        // Рендерим частичное представление с историей
+        return $this->renderPartial('_changelog', [
+            'changelog' => $changelog
+        ]);
     }
 
     /**
