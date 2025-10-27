@@ -196,7 +196,7 @@ class Products extends \yii\db\ActiveRecord
     public static function getProducts($id, $order, $user, $is_market = false)
     {
         $sql = "select p.id,p.parentId,p.name,p.price,p.mainUnit,oi.quantity, oi.prepared from products p
-                 left join order_items oi on oi.productId=p.id and oi.orderId=:o
+                 left join order_items oi on oi.productId=p.id and oi.orderId=:o and oi.deleted_at IS NULL
                  left join product_groups_link pgl ON p.id = pgl.productId
                 left join product_groups pg ON pg.id = pgl.productGroupId
                 where p.id in(select category_id from user_categories where user_id=:u) and p.parentId=:p and p.productType!='' and (pg.is_market=:m or pg.is_market is null)
