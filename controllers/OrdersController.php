@@ -471,21 +471,52 @@ class OrdersController extends Controller
             if (count($items) > 0 && $model->save()) {
 
                 foreach ($items as $key => $value) {
-//                    if (empty($value) && empty($available[$key]))
-//                        continue;
                     if (empty($value))
                         continue;
-                    $oi = new OrderItems();
-                    $oi->orderId = $model->id;
-                    $oi->productId = $key;
-                    $oi->quantity = $value;
-                    $oi->storeId = $storeId;
-                    $oi->supplierId = $supplierId;
-                    $oi->storeQuantity = 0;
-                    $oi->supplierQuantity = $value;
-                    $oi->available = 0;
-                    $oi->userId = Yii::$app->user->id;
-                    $oi->save();
+
+                    // Проверяем, существует ли уже этот товар в заказе
+                    $oi = OrderItems::findOne(['orderId' => $model->id, 'productId' => $key]);
+
+                    if ($oi === null) {
+                        // Если товар не существует, создаем новую запись
+                        $oi = new OrderItems();
+                        $oi->orderId = $model->id;
+                        $oi->productId = $key;
+                        $oi->quantity = $value;
+                        $oi->storeId = $storeId;
+                        $oi->supplierId = $supplierId;
+                        $oi->storeQuantity = 0;
+                        $oi->supplierQuantity = $value;
+                        $oi->available = 0;
+                        $oi->userId = Yii::$app->user->id;
+                        $oi->save();
+
+                        // Логируем добавление
+                        OrderItemsChangelog::log(
+                            $model->id,
+                            $key,
+                            OrderItemsChangelog::ACTION_ADDED,
+                            null,
+                            $value,
+                            Yii::$app->user->id
+                        );
+                    } else {
+                        // Если товар уже существует, обновляем количество
+                        $oldQuantity = $oi->quantity;
+                        $oi->quantity = $value;
+                        $oi->supplierQuantity = $value;
+                        $oi->save();
+
+                        // Логируем изменение
+                        OrderItemsChangelog::log(
+                            $model->id,
+                            $key,
+                            OrderItemsChangelog::ACTION_UPDATED,
+                            $oldQuantity,
+                            $value,
+                            Yii::$app->user->id
+                        );
+                    }
                 }
 
                 return $this->redirect(['orders/stock', 'tab' => $model->id]);
