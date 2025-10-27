@@ -474,8 +474,8 @@ class OrdersController extends Controller
                     if (empty($value))
                         continue;
 
-                    // Проверяем, существует ли уже этот товар в заказе
-                    $oi = OrderItems::findOne(['orderId' => $model->id, 'productId' => $key]);
+                    // Проверяем, существует ли уже этот товар в заказе (включая удаленные)
+                    $oi = OrderItems::findWithDeleted()->where(['orderId' => $model->id, 'productId' => $key])->one();
 
                     if ($oi === null) {
                         // Если товар не существует, создаем новую запись
@@ -501,21 +501,40 @@ class OrdersController extends Controller
                             Yii::$app->user->id
                         );
                     } else {
-                        // Если товар уже существует, обновляем количество
-                        $oldQuantity = $oi->quantity;
+                        // Если товар существует
+                        if ($oi->deleted_at !== null) {
+                            // Если товар был удален, восстанавливаем его
+                            $oi->deleted_at = null;
+                            $oi->deleted_by = null;
+
+                            // Логируем восстановление
+                            OrderItemsChangelog::log(
+                                $model->id,
+                                $key,
+                                OrderItemsChangelog::ACTION_RESTORED,
+                                null,
+                                $value,
+                                Yii::$app->user->id
+                            );
+                        } else {
+                            // Логируем изменение количества
+                            $oldQuantity = $oi->quantity;
+                            if ($oldQuantity != $value) {
+                                OrderItemsChangelog::log(
+                                    $model->id,
+                                    $key,
+                                    OrderItemsChangelog::ACTION_UPDATED,
+                                    $oldQuantity,
+                                    $value,
+                                    Yii::$app->user->id
+                                );
+                            }
+                        }
+
+                        // Обновляем количество
                         $oi->quantity = $value;
                         $oi->supplierQuantity = $value;
                         $oi->save();
-
-                        // Логируем изменение
-                        OrderItemsChangelog::log(
-                            $model->id,
-                            $key,
-                            OrderItemsChangelog::ACTION_UPDATED,
-                            $oldQuantity,
-                            $value,
-                            Yii::$app->user->id
-                        );
                     }
                 }
 
