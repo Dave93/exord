@@ -11,6 +11,12 @@ use yii\helpers\Html;
     <li class="<?= Dashboard::isNavActive('product-writeoff', 'admin-index') ? 'active' : '' ?>">
         <?= Html::a('Списания', ['product-writeoff/admin-index']) ?>
     </li>
+    <li class="<?= Dashboard::isNavActive('store-transfer', 'admin-index') ? 'active' : '' ?>">
+        <?= Html::a('Внутренние перемещения', ['store-transfer/admin-index']) ?>
+    </li>
+    <li class="<?= Dashboard::isNavActive('oil-inventory-dashboard', 'index') ? 'active' : '' ?>">
+        <?= Html::a('Контроль масла', ['oil-inventory-dashboard/index']) ?>
+    </li>
     <li>
         <?= Html::a('Выйти (' . Yii::$app->user->identity->username . ')', ['/logout'], ['data-method' => 'POST']) ?>
     </li>

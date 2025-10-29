@@ -51,6 +51,7 @@ class StoreTransferController extends Controller
                         'roles' => [
                             User::ROLE_ADMIN,
                             User::ROLE_OFFICE,
+                            User::ROLE_OFFICE_MANAGER,
                         ],
                     ],
                 ],

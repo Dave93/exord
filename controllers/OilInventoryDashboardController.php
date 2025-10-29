@@ -30,7 +30,7 @@ class OilInventoryDashboardController extends Controller
                 "rules" => [
                     [
                         "allow" => true,
-                        "roles" => [User::ROLE_ADMIN],
+                        "roles" => [User::ROLE_ADMIN, User::ROLE_OFFICE_MANAGER],
                     ],
                 ],
             ],

@@ -46,7 +46,7 @@ class ProductWriteoffController extends Controller
                         ],
                     ],
                     [
-                        'actions' => ['admin-index', 'approve-form', 'approve', 'delete'],
+                        'actions' => ['admin-index', 'approve-form', 'approve','view',  'delete'],
                         'allow' => true,
                         'roles' => [
                             User::ROLE_ADMIN,
