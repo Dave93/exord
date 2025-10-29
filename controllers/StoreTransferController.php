@@ -46,7 +46,7 @@ class StoreTransferController extends Controller
                         ],
                     ],
                     [
-                        'actions' => ['admin-index', 'set-in-progress', 'approve-items', 'mark-transferred', 'delete', 'admin-approve', 'final-approve'],
+                        'actions' => ['admin-index','view',  'set-in-progress', 'approve-items', 'mark-transferred', 'delete', 'admin-approve', 'final-approve'],
                         'allow' => true,
                         'roles' => [
                             User::ROLE_ADMIN,
