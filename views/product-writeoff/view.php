@@ -13,7 +13,7 @@ $this->title = 'Списание #' . $model->id;
 $this->params['breadcrumbs'][] = ['label' => 'Списания', 'url' => ['index']];
 $this->params['breadcrumbs'][] = $this->title;
 
-$isAdmin = in_array(Yii::$app->user->identity->role, [User::ROLE_ADMIN, User::ROLE_OFFICE]);
+$isAdmin = in_array(Yii::$app->user->identity->role, [User::ROLE_ADMIN, User::ROLE_OFFICE, User::ROLE_OFFICE_MANAGER]);
 ?>
 
 <div class="card">
@@ -23,7 +23,7 @@ $isAdmin = in_array(Yii::$app->user->identity->role, [User::ROLE_ADMIN, User::RO
             <?php if ($model->canEdit()): ?>
                 <?= Html::a('Редактировать', ['update', 'id' => $model->id], ['class' => 'btn btn-primary btn-fill']) ?>
             <?php endif; ?>
-            <?= Html::a('Назад к списку', ['index'], ['class' => 'btn btn-default']) ?>
+            <?= Html::a('Назад к списку', [$isAdmin ? 'admin-index' : 'index'], ['class' => 'btn btn-default']) ?>
         </p>
     </div>
     <hr>

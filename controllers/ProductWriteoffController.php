@@ -342,7 +342,7 @@ class ProductWriteoffController extends Controller
             Yii::$app->session->setFlash('success', 'Списание удалено');
         }
 
-        return $this->redirect(['index']);
+        return $this->redirect(['admin-index']);
     }
 
     /**

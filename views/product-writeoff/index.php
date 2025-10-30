@@ -121,18 +121,7 @@ $isAdmin = in_array(Yii::$app->user->identity->role, [User::ROLE_ADMIN, User::RO
                     'buttons' => [
                         'update' => function ($url, $model, $key) {
                             return $model->canEdit() ? Html::a('<span class="glyphicon glyphicon-pencil"></span>', $url) : '';
-                        },
-                        'delete' => function ($url, $model, $key) use ($isAdmin) {
-                            if ($isAdmin && $model->status === ProductWriteoff::STATUS_NEW) {
-                                return Html::a('<span class="glyphicon glyphicon-trash"></span>', $url, [
-                                    'data' => [
-                                        'confirm' => 'Вы уверены, что хотите удалить это списание?',
-                                        'method' => 'post',
-                                    ],
-                                ]);
-                            }
-                            return '';
-                        },
+                        }
                     ],
                     'contentOptions' => [
                         'width' => 80,
