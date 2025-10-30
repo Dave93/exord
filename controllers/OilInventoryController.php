@@ -49,6 +49,7 @@ class OilInventoryController extends Controller
                             User::ROLE_BARMEN,
                             User::ROLE_COOK,
                             User::ROLE_PASTRY,
+                            User::ROLE_OFFICE_MANAGER,
                         ],
                     ],
                 ],

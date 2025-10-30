@@ -686,7 +686,7 @@ class StoreTransferController extends Controller
     {
         if (($model = StoreTransfer::findOne($id)) !== null) {
             // Проверяем права доступа
-            if (!in_array(Yii::$app->user->identity->role, [User::ROLE_ADMIN, User::ROLE_OFFICE])) {
+            if (!in_array(Yii::$app->user->identity->role, [User::ROLE_ADMIN, User::ROLE_OFFICE, User::ROLE_OFFICE_MANAGER])) {
                 if ($model->request_store_id != Yii::$app->user->identity->store_id) {
                     throw new NotFoundHttpException('Нет доступа к этой заявке.');
                 }
