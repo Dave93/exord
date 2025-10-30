@@ -30,7 +30,7 @@ $isAdmin = in_array(Yii::$app->user->identity->role, [User::ROLE_ADMIN, User::RO
                     StoreTransfer::STATUS_CANCELLED => 'label-default',
                 ];
                 ?>
-                <span class="label <?= $statusClass[$model->status] ?? 'label-default' ?>" style="font-size: 14px;">
+                <span class="label <?= $statusClass[$model->status] ?? 'label-default' ?>" style="font-size: 14px; margin-right: 10px;">
                     <?= $model->getStatusLabel() ?>
                 </span>
 
