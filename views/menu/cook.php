@@ -16,12 +16,6 @@ echo Yii::$app->user->identity->id;
     <li class="<?= Dashboard::isNavActive('oil-inventory', 'index') ? 'active' : '' ?>">
         <?= Html::a('Масло', ['oil-inventory/index']) ?>
     </li>
-    <li class="<?= Dashboard::isNavActive('invoice', 'index') ? 'active' : '' ?>">
-        <?= Html::a('Накадная', ['invoice/index']) ?>
-    </li>
-    <li class="<?= Dashboard::isNavActive('orders', 'customer-history') ? 'active' : '' ?>">
-        <?= Html::a('Архив', ['orders/customer-history'], ['class' => 'nav-link']) ?>
-    </li>
     <li>
         <?= Html::a('Выйти (' . Yii::$app->user->identity->username . ')', ['/logout'], ['data-method' => 'POST']) ?>
     </li>

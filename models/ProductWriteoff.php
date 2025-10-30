@@ -41,7 +41,7 @@ class ProductWriteoff extends \yii\db\ActiveRecord
     public function rules()
     {
         return [
-            [['store_id', 'created_by'], 'required'],
+            [['store_id', 'created_by', 'comment'], 'required'],
             [['store_id'], 'string', 'max' => 36],
             [['created_by', 'approved_by'], 'integer'],
             [['created_at', 'approved_at'], 'safe'],

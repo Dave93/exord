@@ -89,6 +89,12 @@ class OrderSearch extends Orders
 
         if (Yii::$app->user->identity->role != User::ROLE_ADMIN) {
             $query->andWhere('deleted_at is null');
+
+            // Для не-админов ограничиваем выборку последними 50 днями
+            if (empty($start) && empty($end)) {
+                $fiftyDaysAgo = date('Y-m-d', strtotime('-50 days'));
+                $query->andWhere(['>=', 'date', $fiftyDaysAgo]);
+            }
         }
 
         $query->andFilterWhere(['like', 'defaultStoreId', $this->defaultStoreId])

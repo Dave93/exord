@@ -425,8 +425,8 @@ $this->registerJs($js);
         <div class="row">
             <div class="col-md-8 col-md-offset-2">
                 <div class="form-group">
-                    <label>Комментарий (необязательно)</label>
-                    <textarea class="form-control" name="comment" rows="3" placeholder="Добавьте комментарий к списанию..."><?= Html::encode($model->comment) ?></textarea>
+                    <label>Комментарий <span class="text-danger">*</span></label>
+                    <textarea class="form-control" name="comment" rows="3" placeholder="Добавьте комментарий к списанию..." required><?= Html::encode($model->comment) ?></textarea>
                 </div>
             </div>
         </div>
