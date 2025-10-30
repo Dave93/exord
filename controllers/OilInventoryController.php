@@ -306,9 +306,10 @@ class OilInventoryController extends Controller
     protected function checkStoreAccess($model)
     {
         $currentUserStoreId = User::getStoreId();
-        
-        if (empty($currentUserStoreId) || $model->store_id !== $currentUserStoreId) {
-            throw new NotFoundHttpException('У вас нет доступа к этой записи.');
+        if (!in_array(Yii::$app->user->identity->role, [User::ROLE_ADMIN, User::ROLE_OFFICE, User::ROLE_OFFICE_MANAGER])) {
+            if (empty($currentUserStoreId) || $model->store_id !== $currentUserStoreId) {
+                throw new NotFoundHttpException('У вас нет доступа к этой записи.');
+            }
         }
     }
 
