@@ -14,7 +14,7 @@ $this->title = 'Заявка на перемещение #' . $model->id;
 $this->params['breadcrumbs'][] = ['label' => 'Внутренние перемещения', 'url' => ['index']];
 $this->params['breadcrumbs'][] = $this->title;
 
-$isAdmin = in_array(Yii::$app->user->identity->role, [User::ROLE_ADMIN, User::ROLE_OFFICE]);
+$isAdmin = in_array(Yii::$app->user->identity->role, [User::ROLE_ADMIN, User::ROLE_OFFICE, User::ROLE_OFFICE_MANAGER]);
 ?>
 
 <div class="card">
@@ -33,6 +33,8 @@ $isAdmin = in_array(Yii::$app->user->identity->role, [User::ROLE_ADMIN, User::RO
                 <span class="label <?= $statusClass[$model->status] ?? 'label-default' ?>" style="font-size: 14px;">
                     <?= $model->getStatusLabel() ?>
                 </span>
+
+            <?= Html::a('Назад к списку', [$isAdmin ? 'admin-index' : 'index'], ['class' => 'btn btn-default']) ?>
             </span>
         </h4>
     </div>
@@ -91,8 +93,8 @@ $isAdmin = in_array(Yii::$app->user->identity->role, [User::ROLE_ADMIN, User::RO
                                     <th>Продукт</th>
                                     <th class="text-center" width="120">Ед. изм.</th>
                                     <th class="text-center" width="150">Запрошено</th>
-                                    <th class="text-center" width="150">Утверждено</th>
                                     <th class="text-center" width="150">Передано</th>
+                                    <th class="text-center" width="150">Утверждено</th>
                                     <th class="text-center" width="120">Статус</th>
                                 </tr>
                             </thead>
@@ -113,18 +115,18 @@ $isAdmin = in_array(Yii::$app->user->identity->role, [User::ROLE_ADMIN, User::RO
                                             </span>
                                         </td>
                                         <td class="text-center">
-                                            <?php if ($item->approved_quantity !== null): ?>
-                                                <span class="label label-success">
-                                                    <?= Yii::$app->formatter->asDecimal($item->approved_quantity, 2) ?>
+                                            <?php if ($item->transferred_quantity !== null): ?>
+                                                <span class="label <?= $item->transferred_quantity > 0 ? 'label-primary' : 'label-danger' ?>">
+                                                    <?= Yii::$app->formatter->asDecimal($item->transferred_quantity, 2) ?>
                                                 </span>
                                             <?php else: ?>
                                                 <span class="text-muted">—</span>
                                             <?php endif; ?>
                                         </td>
                                         <td class="text-center">
-                                            <?php if ($item->transferred_quantity !== null): ?>
-                                                <span class="label <?= $item->transferred_quantity > 0 ? 'label-primary' : 'label-danger' ?>">
-                                                    <?= Yii::$app->formatter->asDecimal($item->transferred_quantity, 2) ?>
+                                            <?php if ($item->approved_quantity !== null): ?>
+                                                <span class="label label-success">
+                                                    <?= Yii::$app->formatter->asDecimal($item->approved_quantity, 2) ?>
                                                 </span>
                                             <?php else: ?>
                                                 <span class="text-muted">—</span>
@@ -184,7 +186,6 @@ $isAdmin = in_array(Yii::$app->user->identity->role, [User::ROLE_ADMIN, User::RO
                     ) ?>
                 <?php endif; ?>
 
-                <?= Html::a('Назад к списку', $isAdmin ? ['admin-index'] : ['index'], ['class' => 'btn btn-default']) ?>
             </div>
         </div>
     </div>
