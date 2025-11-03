@@ -719,7 +719,7 @@ class Iiko extends Model
      * @param string|null $accountId ID статьи списания (опционально)
      * @return bool|string true при успехе, строка с ошибкой при неудаче
      */
-    public function createWriteoffDoc($model, $accountId = null)
+    public function createWriteoffDoc($model)
     {
         if ($model->status !== ProductWriteoff::STATUS_APPROVED) {
             return 'Списание должно быть утверждено перед отправкой в iiko';
@@ -759,15 +759,16 @@ class Iiko extends Model
             'status' => 'NEW',
             'comment' => $model->comment ?? 'Списание из системы учета',
             'storeId' => $model->store_id,
+            'accountId' => "f3e1733a-8b67-44f9-941d-5cfa5340970e",
             'items' => $itemsArray
         ];
 
         @file_put_contents(__DIR__ . '/createWriteoffDoc.txt', "data: " . print_r($data, true) . "\n\n", FILE_APPEND);
 
         // Добавляем accountId если указан
-        if (!empty($accountId)) {
-            $data['accountId'] = $accountId;
-        }
+        // if (!empty($accountId)) {
+        //     $data['accountId'] = $accountId;
+        // }
 
         // Авторизуемся и отправляем документ
         if ($this->auth()) {
