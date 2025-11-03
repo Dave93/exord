@@ -756,7 +756,7 @@ class Iiko extends Model
         // Формируем данные для запроса
         $data = [
             'dateIncoming' => $model->approved_at ? date('Y-m-d\TH:i', strtotime($model->approved_at)) : date('Y-m-d\TH:i'),
-            'status' => 'NEW',
+            'status' => 'PROCESSED',
             'comment' => $model->comment ?? 'Списание из системы учета',
             'storeId' => $model->store_id,
             'accountId' => "f3e1733a-8b67-44f9-941d-5cfa5340970e",
