@@ -727,6 +727,7 @@ class Iiko extends Model
 
         // Получаем позиции списания с утвержденными количествами
         $items = $model->items;
+        @file_put_contents(__DIR__ . '/createWriteoffDoc.txt', "items: " . print_r($items, true) . "\n\n", FILE_APPEND);
         if (empty($items)) {
             return 'Нет позиций для списания';
         }
@@ -747,7 +748,7 @@ class Iiko extends Model
                 'amount' => (float)$item->approved_count
             ];
         }
-
+        @file_put_contents(__DIR__ . '/createWriteoffDoc.txt', "itemsArray: " . print_r($itemsArray, true) . "\n\n", FILE_APPEND);
         if (empty($itemsArray)) {
             return 'Нет утвержденных позиций для списания';
         }
@@ -760,6 +761,8 @@ class Iiko extends Model
             'storeId' => $model->store_id,
             'items' => $itemsArray
         ];
+
+        @file_put_contents(__DIR__ . '/createWriteoffDoc.txt', "data: " . print_r($data, true) . "\n\n", FILE_APPEND);
 
         // Добавляем accountId если указан
         if (!empty($accountId)) {
@@ -778,8 +781,9 @@ class Iiko extends Model
 
             // Проверяем ответ
             if (!empty($result)) {
+                @file_put_contents(__DIR__ . '/createWriteoffDoc.txt', "result: " . print_r($result, true) . "\n\n", FILE_APPEND);
                 $response = json_decode($result, true);
-
+                @file_put_contents(__DIR__ . '/createWriteoffDoc.txt', "response json_decode: " . print_r($response, true) . "\n\n", FILE_APPEND);
                 // Если получили корректный JSON ответ
                 if (json_last_error() === JSON_ERROR_NONE) {
                     // Проверяем успешность создания документа
