@@ -318,6 +318,17 @@ class ProductWriteoffController extends Controller
 
         if ($model->approve($approvedCounts)) {
             Yii::$app->session->setFlash('success', 'Списание утверждено');
+
+            // Создаем акт списания в iiko
+            $iiko = new \app\models\Iiko();
+            $result = $iiko->createWriteoffDoc($model);
+
+            if ($result === true) {
+                Yii::$app->session->setFlash('success', 'Списание утверждено и акт списания создан в iiko');
+            } else {
+                // Если произошла ошибка при создании акта в iiko, выводим предупреждение
+                Yii::$app->session->setFlash('warning', 'Списание утверждено, но возникла ошибка при создании акта в iiko: ' . $result);
+            }
         } else {
             Yii::$app->session->setFlash('error', 'Ошибка при утверждении списания');
         }

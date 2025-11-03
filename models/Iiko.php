@@ -714,6 +714,94 @@ class Iiko extends Model
     }
 
     /**
+     * Создание акта списания в iiko
+     * @param ProductWriteoff $model
+     * @param string|null $accountId ID статьи списания (опционально)
+     * @return bool|string true при успехе, строка с ошибкой при неудаче
+     */
+    public function createWriteoffDoc($model, $accountId = null)
+    {
+        if ($model->status !== ProductWriteoff::STATUS_APPROVED) {
+            return 'Списание должно быть утверждено перед отправкой в iiko';
+        }
+
+        // Получаем позиции списания с утвержденными количествами
+        $items = $model->items;
+        if (empty($items)) {
+            return 'Нет позиций для списания';
+        }
+
+        $itemsArray = [];
+        foreach ($items as $item) {
+            if (empty($item->approved_count) || $item->approved_count <= 0) {
+                continue;
+            }
+
+            $product = Products::findOne($item->product_id);
+            if ($product == null) {
+                continue;
+            }
+
+            $itemsArray[] = [
+                'productId' => $item->product_id,
+                'amount' => (float)$item->approved_count
+            ];
+        }
+
+        if (empty($itemsArray)) {
+            return 'Нет утвержденных позиций для списания';
+        }
+
+        // Формируем данные для запроса
+        $data = [
+            'dateIncoming' => $model->approved_at ? date('Y-m-d\TH:i', strtotime($model->approved_at)) : date('Y-m-d\TH:i'),
+            'status' => 'NEW',
+            'comment' => $model->comment ?? 'Списание из системы учета',
+            'storeId' => $model->store_id,
+            'items' => $itemsArray
+        ];
+
+        // Добавляем accountId если указан
+        if (!empty($accountId)) {
+            $data['accountId'] = $accountId;
+        }
+
+        // Авторизуемся и отправляем документ
+        if ($this->auth()) {
+            $url = "{$this->baseUrl}resto/api/v2/documents/writeoff?key={$this->token}";
+
+            $result = $this->post($url, json_encode($data), [
+                CURLOPT_HTTPHEADER => [
+                    'Content-Type: application/json'
+                ]
+            ]);
+
+            // Проверяем ответ
+            if (!empty($result)) {
+                $response = json_decode($result, true);
+
+                // Если получили корректный JSON ответ
+                if (json_last_error() === JSON_ERROR_NONE) {
+                    // Проверяем успешность создания документа
+                    if (isset($response['id']) || (isset($response['success']) && $response['success'] === true)) {
+                        return true;
+                    } else {
+                        // Возвращаем описание ошибки если есть
+                        $errorMessage = $response['message'] ?? $response['error'] ?? 'Неизвестная ошибка при создании акта списания';
+                        return $errorMessage;
+                    }
+                } else {
+                    return 'Ошибка парсинга ответа iiko: ' . $result;
+                }
+            }
+
+            return 'Пустой ответ от сервера iiko';
+        }
+
+        return 'Ошибка авторизации в iiko';
+    }
+
+    /**
      * Расходной накладной
      * @param Orders $model
      * @return bool
