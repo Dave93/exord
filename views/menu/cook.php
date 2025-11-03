@@ -16,6 +16,9 @@ echo Yii::$app->user->identity->id;
     <li class="<?= Dashboard::isNavActive('oil-inventory', 'index') ? 'active' : '' ?>">
         <?= Html::a('Масло', ['oil-inventory/index']) ?>
     </li>
+    <li class="<?= Dashboard::isNavActive('product-writeoff', 'index') ? 'active' : '' ?>">
+        <?= Html::a('Списания', ['product-writeoff/index']) ?>
+    </li>
     <li>
         <?= Html::a('Выйти (' . Yii::$app->user->identity->username . ')', ['/logout'], ['data-method' => 'POST']) ?>
     </li>
