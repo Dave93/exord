@@ -771,7 +771,7 @@ class Iiko extends Model
 
         // Авторизуемся и отправляем документ
         if ($this->auth()) {
-            $url = "{$this->baseUrl}resto/api/v2/documents/writeoff?key={$this->token}";
+            $url = "{$this->baseUrl}v2/documents/writeoff?key={$this->token}";
 
             $result = $this->post($url, json_encode($data), [
                 CURLOPT_HTTPHEADER => [
