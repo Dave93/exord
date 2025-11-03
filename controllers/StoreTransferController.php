@@ -334,7 +334,31 @@ class StoreTransferController extends Controller
             $model->save(false);
             $transaction->commit();
 
-            Yii::$app->session->setFlash('success', 'Заявка успешно утверждена');
+            // Если заявка завершена и есть утвержденные позиции, создаем документы в iiko
+            if ($model->status === StoreTransfer::STATUS_COMPLETED && $hasApprovedItems) {
+                $iiko = new \app\models\Iiko();
+                $iikoResult = $iiko->createInternalTransferDoc($model);
+
+                if ($iikoResult['success']) {
+                    Yii::$app->session->setFlash('success', 'Заявка успешно утверждена. ' . $iikoResult['message']);
+                } else {
+                    // Показываем предупреждение, но заявка остается утвержденной
+                    $message = 'Заявка успешно утверждена, но возникла ошибка при создании документа в iiko: ' . $iikoResult['message'];
+
+                    // Добавляем детали если есть
+                    if (isset($iikoResult['details']) && !empty($iikoResult['details'])) {
+                        $detailsText = [];
+                        foreach ($iikoResult['details'] as $detail) {
+                            $detailsText[] = $detail['message'];
+                        }
+                        $message .= '<br>' . implode('<br>', $detailsText);
+                    }
+
+                    Yii::$app->session->setFlash('warning', $message);
+                }
+            } else {
+                Yii::$app->session->setFlash('success', 'Заявка успешно утверждена');
+            }
         } catch (\Exception $e) {
             $transaction->rollBack();
             Yii::$app->session->setFlash('error', 'Ошибка при утверждении заявки: ' . $e->getMessage());

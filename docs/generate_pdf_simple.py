@@ -189,7 +189,7 @@ def parse_markdown_to_elements(md_content, styles):
 def footer(canvas, doc):
     """Функция для добавления нижнего колонтитула"""
     canvas.saveState()
-    footer_text = "© EXORD 2024"
+    footer_text = "© EXORD 2025"
     page_num = f"Стр. {canvas.getPageNumber()}"
 
     canvas.setFont('Helvetica', 9)
@@ -254,34 +254,65 @@ def main():
     # Путь к папке с документами
     docs_dir = os.path.dirname(os.path.abspath(__file__))
 
-    # Генерируем русскую версию
+    # Генерируем регламенты списания
+    print("РЕГЛАМЕНТЫ СПИСАНИЯ ПРОДУКТОВ")
+    print("-" * 60)
     print("1. Генерация русской версии...")
-    ru_md = os.path.join(docs_dir, "writeoff-regulation-ru.md")
-    ru_pdf = os.path.join(docs_dir, "writeoff-regulation-ru.pdf")
-    ru_success = markdown_to_pdf(
-        ru_md,
-        ru_pdf,
+    ru_writeoff_md = os.path.join(docs_dir, "writeoff-regulation-ru.md")
+    ru_writeoff_pdf = os.path.join(docs_dir, "writeoff-regulation-ru.pdf")
+    ru_writeoff_success = markdown_to_pdf(
+        ru_writeoff_md,
+        ru_writeoff_pdf,
         "Регламент работы с функционалом списания продуктов"
     )
     print()
 
-    # Генерируем узбекскую версию
     print("2. Генерация узбекской версии...")
-    uz_md = os.path.join(docs_dir, "writeoff-regulation-uz.md")
-    uz_pdf = os.path.join(docs_dir, "writeoff-regulation-uz.pdf")
-    uz_success = markdown_to_pdf(
-        uz_md,
-        uz_pdf,
+    uz_writeoff_md = os.path.join(docs_dir, "writeoff-regulation-uz.md")
+    uz_writeoff_pdf = os.path.join(docs_dir, "writeoff-regulation-uz.pdf")
+    uz_writeoff_success = markdown_to_pdf(
+        uz_writeoff_md,
+        uz_writeoff_pdf,
         "Mahsulotlarni hisobdan chiqarish funksiyasi bilan ishlash tartibi"
+    )
+    print()
+
+    # Генерируем регламенты внутреннего перемещения
+    print("РЕГЛАМЕНТЫ ВНУТРЕННЕГО ПЕРЕМЕЩЕНИЯ")
+    print("-" * 60)
+    print("3. Генерация русской версии...")
+    ru_transfer_md = os.path.join(docs_dir, "store-transfer-regulation-ru.md")
+    ru_transfer_pdf = os.path.join(docs_dir, "store-transfer-regulation-ru.pdf")
+    ru_transfer_success = markdown_to_pdf(
+        ru_transfer_md,
+        ru_transfer_pdf,
+        "Регламент управления внутренним перемещением товаров"
+    )
+    print()
+
+    print("4. Генерация узбекской версии...")
+    uz_transfer_md = os.path.join(docs_dir, "store-transfer-regulation-uz.md")
+    uz_transfer_pdf = os.path.join(docs_dir, "store-transfer-regulation-uz.pdf")
+    uz_transfer_success = markdown_to_pdf(
+        uz_transfer_md,
+        uz_transfer_pdf,
+        "Mahsulotlarni ichki ko'chirishni boshqarish tartibi"
     )
     print()
 
     # Итоги
     print("=" * 60)
-    if ru_success and uz_success:
+    all_success = (ru_writeoff_success and uz_writeoff_success and
+                   ru_transfer_success and uz_transfer_success)
+
+    if all_success:
         print("✓ Все PDF файлы успешно созданы!")
-        print(f"  - {os.path.basename(ru_pdf)}")
-        print(f"  - {os.path.basename(uz_pdf)}")
+        print("\nСписание продуктов:")
+        print(f"  - {os.path.basename(ru_writeoff_pdf)}")
+        print(f"  - {os.path.basename(uz_writeoff_pdf)}")
+        print("\nВнутреннее перемещение:")
+        print(f"  - {os.path.basename(ru_transfer_pdf)}")
+        print(f"  - {os.path.basename(uz_transfer_pdf)}")
         print()
         print(f"Файлы сохранены в: {docs_dir}")
     else:

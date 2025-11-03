@@ -807,6 +807,131 @@ class Iiko extends Model
     }
 
     /**
+     * Создание документа внутреннего перемещения в iiko
+     * @param StoreTransfer $model
+     * @return array Массив результатов для каждой пары магазинов ['success' => bool, 'message' => string]
+     */
+    public function createInternalTransferDoc($model)
+    {
+        if ($model->status !== StoreTransfer::STATUS_COMPLETED) {
+            return ['success' => false, 'message' => 'Заявка должна быть завершена перед отправкой в iiko'];
+        }
+
+        // Получаем все утвержденные позиции
+        $approvedItems = [];
+        foreach ($model->items as $item) {
+            if ($item->item_status === StoreTransferItem::STATUS_APPROVED && $item->approved_quantity > 0) {
+                $approvedItems[] = $item;
+            }
+        }
+
+        if (empty($approvedItems)) {
+            return ['success' => false, 'message' => 'Нет утвержденных позиций для перемещения'];
+        }
+
+        // Группируем позиции по филиалу-источнику
+        $itemsBySource = [];
+        foreach ($approvedItems as $item) {
+            $sourceId = $item->source_store_id;
+            if (!isset($itemsBySource[$sourceId])) {
+                $itemsBySource[$sourceId] = [];
+            }
+            $itemsBySource[$sourceId][] = $item;
+        }
+
+        // Создаем документ для каждой пары магазинов
+        $results = [];
+        $allSuccess = true;
+
+        foreach ($itemsBySource as $sourceStoreId => $items) {
+            $itemsArray = [];
+            foreach ($items as $item) {
+                $product = Products::findOne($item->product_id);
+                if ($product == null) {
+                    continue;
+                }
+
+                $itemsArray[] = [
+                    'productId' => $item->product_id,
+                    'amount' => (float)$item->approved_quantity
+                ];
+            }
+
+            if (empty($itemsArray)) {
+                continue;
+            }
+
+            // Формируем данные для запроса
+            $data = [
+                'dateIncoming' => date('Y-m-d\TH:i'),
+                'status' => 'NEW',
+                'comment' => $model->comment ?? "Внутреннее перемещение #{$model->id}",
+                'storeFromId' => $sourceStoreId,
+                'storeToId' => $model->request_store_id,
+                'items' => $itemsArray
+            ];
+
+            // Авторизуемся и отправляем документ
+            if ($this->auth()) {
+                $url = "{$this->baseUrl}v2/documents/internalTransfer?key={$this->token}";
+
+                $result = $this->post($url, json_encode($data), [
+                    CURLOPT_HTTPHEADER => [
+                        'Content-Type: application/json'
+                    ]
+                ]);
+
+                // Проверяем ответ
+                if (!empty($result)) {
+                    $response = json_decode($result, true);
+
+                    // Если получили корректный JSON ответ
+                    if (json_last_error() === JSON_ERROR_NONE) {
+                        // Проверяем успешность создания документа
+                        if (isset($response['id']) || (isset($response['success']) && $response['success'] === true)) {
+                            $sourceStore = Stores::findOne($sourceStoreId);
+                            $sourceStoreName = $sourceStore ? $sourceStore->name : $sourceStoreId;
+                            $results[] = ['success' => true, 'message' => "Создан документ перемещения из {$sourceStoreName}"];
+                        } else {
+                            // Возвращаем описание ошибки если есть
+                            $errorMessage = $response['message'] ?? $response['error'] ?? 'Неизвестная ошибка';
+                            $sourceStore = Stores::findOne($sourceStoreId);
+                            $sourceStoreName = $sourceStore ? $sourceStore->name : $sourceStoreId;
+                            $results[] = ['success' => false, 'message' => "Ошибка для {$sourceStoreName}: {$errorMessage}"];
+                            $allSuccess = false;
+                        }
+                    } else {
+                        $results[] = ['success' => false, 'message' => "Ошибка парсинга ответа iiko: {$result}"];
+                        $allSuccess = false;
+                    }
+                } else {
+                    $results[] = ['success' => false, 'message' => 'Пустой ответ от сервера iiko'];
+                    $allSuccess = false;
+                }
+            } else {
+                return ['success' => false, 'message' => 'Ошибка авторизации в iiko'];
+            }
+        }
+
+        // Формируем итоговый результат
+        if ($allSuccess) {
+            $message = 'Все документы внутреннего перемещения успешно созданы в iiko';
+            if (count($results) > 1) {
+                $message .= ' (' . count($results) . ' документов)';
+            }
+            return ['success' => true, 'message' => $message, 'details' => $results];
+        } else {
+            $successCount = count(array_filter($results, function($r) { return $r['success']; }));
+            $totalCount = count($results);
+            return [
+                'success' => false,
+                'message' => "Создано {$successCount} из {$totalCount} документов. Проверьте детали.",
+                'details' => $results
+            ];
+        }
+    }
+
+    /**
      * Расходной накладной
      * @param Orders $model
      * @return bool
