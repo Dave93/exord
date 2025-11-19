@@ -109,6 +109,7 @@ class CheckMissingInvoicesController extends Controller
         $orders = Orders::find()
             ->where(['>=', 'addDate', $fromDate . ' 00:00:00'])
             ->andWhere(['<=', 'addDate', $toDate . ' 23:59:59'])
+            ->andWhere(['state' => 1])
             ->all();
 
         $this->stdout("Найдено заказов в базе: " . count($orders) . "\n\n");
