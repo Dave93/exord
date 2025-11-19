@@ -937,7 +937,7 @@ class Iiko extends Model
      * @return bool
      * @throws \yii\db\Exception
      */
-    public function supplierOutStockDoc($model, $debug = false)
+    public function supplierOutStockDoc($model, $debug = false, $customDate = null)
     {
 //        echo '<pre>';
 //        print_r($model->id);
@@ -996,7 +996,7 @@ class Iiko extends Model
                 return false;
 
             $number = "sup-out-1-{$orderId}";
-            $date = date("Y-m-d\TH:i:s");
+            $date = $customDate ? date("Y-m-d\TH:i:s", strtotime($customDate)) : date("Y-m-d\TH:i:s");
             $doc = "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>
                     <document>
                         <documentNumber>{$number}</documentNumber>

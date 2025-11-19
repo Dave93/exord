@@ -23,6 +23,11 @@ class CheckMissingInvoicesController extends Controller
     public $to;
 
     /**
+     * @var bool Отправить отсутствующие накладные в iiko
+     */
+    public $send = false;
+
+    /**
      * @inheritdoc
      */
     public function options($actionID)
@@ -30,6 +35,7 @@ class CheckMissingInvoicesController extends Controller
         return array_merge(parent::options($actionID), [
             'from',
             'to',
+            'send',
         ]);
     }
 
@@ -41,6 +47,7 @@ class CheckMissingInvoicesController extends Controller
         return array_merge(parent::optionAliases(), [
             'f' => 'from',
             't' => 'to',
+            's' => 'send',
         ]);
     }
 
@@ -50,6 +57,7 @@ class CheckMissingInvoicesController extends Controller
      * Использование:
      * php yii check-missing-invoices/index --from=2024-01-01 --to=2024-01-31
      * php yii check-missing-invoices/index -f 2024-01-01 -t 2024-01-31
+     * php yii check-missing-invoices/index --from=2024-10-01 --to=2024-10-31 --send
      *
      * @return int Exit code
      */
@@ -148,6 +156,42 @@ class CheckMissingInvoicesController extends Controller
 
         $this->stdout(str_repeat('-', 80) . "\n");
         $this->stdout("Итого: " . count($missingInvoices) . " заказов без накладных\n");
+
+        // Отправка накладных в iiko если указан параметр --send
+        if ($this->send) {
+            $this->stdout("\nОтправка расходных накладных в iiko...\n");
+            $this->stdout(str_repeat('-', 80) . "\n");
+
+            $successCount = 0;
+            $errorCount = 0;
+
+            foreach ($missingInvoices as $order) {
+                // Определяем дату для накладной
+                // Октябрьские накладные должны сесть как 1 ноября
+                $orderMonth = date('m', strtotime($order->addDate));
+                $orderYear = date('Y', strtotime($order->addDate));
+
+                if ($orderMonth == '10') {
+                    $customDate = $orderYear . '-11-01';
+                } else {
+                    $customDate = null; // Используем текущую дату
+                }
+
+                $result = $iiko->supplierOutStockDoc($order, false, $customDate);
+
+                if ($result === true) {
+                    $this->stdout("✓ Заказ #{$order->id} - накладная создана успешно\n");
+                    $successCount++;
+                } else {
+                    $errorMessage = is_string($result) ? $result : 'Неизвестная ошибка';
+                    $this->stdout("✗ Заказ #{$order->id} - ошибка: {$errorMessage}\n");
+                    $errorCount++;
+                }
+            }
+
+            $this->stdout(str_repeat('-', 80) . "\n");
+            $this->stdout("Результат отправки: успешно - {$successCount}, ошибок - {$errorCount}\n");
+        }
 
         return ExitCode::OK;
     }
