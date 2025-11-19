@@ -135,12 +135,12 @@ class CheckMissingInvoicesController extends Controller
 
         foreach ($missingInvoices as $order) {
             $storeName = $order->store ? $order->store->name : 'N/A';
-            $status = $this->getOrderStatusName($order->status);
+            $state = $this->getOrderStateName($order->state);
 
             $this->stdout(sprintf("%-10s | %-20s | %-15s | %-20s\n",
                 $order->id,
                 $order->addDate,
-                $status,
+                $state,
                 mb_substr($storeName, 0, 20)
             ));
         }
@@ -152,20 +152,20 @@ class CheckMissingInvoicesController extends Controller
     }
 
     /**
-     * Возвращает название статуса заказа
+     * Возвращает название состояния заказа
      *
-     * @param int $status
+     * @param int $state
      * @return string
      */
-    private function getOrderStatusName($status)
+    private function getOrderStateName($state)
     {
-        $statuses = [
+        $states = [
             0 => 'Новый',
             1 => 'Отправлен',
             2 => 'Завершен',
             3 => 'На проверке',
         ];
 
-        return isset($statuses[$status]) ? $statuses[$status] : 'Неизвестен';
+        return isset($states[$state]) ? $states[$state] : 'Неизвестен';
     }
 }
