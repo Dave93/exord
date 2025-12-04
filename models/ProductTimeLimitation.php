@@ -77,4 +77,48 @@ class ProductTimeLimitation extends \yii\db\ActiveRecord
     {
         return $this->hasOne(Products::class, ['id' => 'productId']);
     }
+
+    /**
+     * Checks if products can be ordered at the current time
+     * @param array $productIds Array of product IDs to check
+     * @return array Array of product IDs that are NOT allowed at current time
+     */
+    public static function getRestrictedProducts($productIds)
+    {
+        if (empty($productIds)) {
+            return [];
+        }
+
+        $currentTime = date('H:i');
+        $restrictedProducts = [];
+
+        $limitations = self::find()
+            ->where(['productId' => $productIds])
+            ->all();
+
+        foreach ($limitations as $limitation) {
+            $startTime = $limitation->startTime;
+            $endTime = $limitation->endTime;
+
+            $isTimeAllowed = false;
+
+            // If end time is less than start time (spans midnight)
+            if ($endTime < $startTime) {
+                $isTimeAllowed = ($currentTime >= $startTime || $currentTime < $endTime);
+            } else {
+                $isTimeAllowed = ($currentTime >= $startTime && $currentTime < $endTime);
+            }
+
+            if (!$isTimeAllowed) {
+                $restrictedProducts[$limitation->productId] = [
+                    'productId' => $limitation->productId,
+                    'startTime' => $startTime,
+                    'endTime' => $endTime,
+                    'productName' => $limitation->product ? $limitation->product->name : $limitation->productId
+                ];
+            }
+        }
+
+        return $restrictedProducts;
+    }
 }

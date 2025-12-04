@@ -16,6 +16,7 @@ use app\models\Stores;
 use app\models\TelegramBot;
 use app\models\Terminals;
 use app\models\User;
+use app\models\ProductTimeLimitation;
 use app\models\Zone;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use Yii;
@@ -254,13 +255,32 @@ class OrdersController extends Controller
 
 
         if (Yii::$app->request->isPost) {
-            
+
             $model->load(Yii::$app->request->post());
             $stockId = User::getStoreId();
             $supplierId = User::getSupplierId();
 
             $items = Yii::$app->request->post("Items");
-            
+
+            // Server-side validation for product time limitations
+            $submittedProductIds = array_keys(array_filter($items, function($value) {
+                return !empty($value);
+            }));
+            $restrictedProducts = ProductTimeLimitation::getRestrictedProducts($submittedProductIds);
+
+            if (!empty($restrictedProducts)) {
+                $errorMessages = [];
+                foreach ($restrictedProducts as $restricted) {
+                    $errorMessages[] = "{$restricted['productName']} (доступно с {$restricted['startTime']} до {$restricted['endTime']})";
+                }
+                Yii::$app->session->setFlash('error', 'Невозможно заказать следующие продукты из-за ограничений по времени: ' . implode(', ', $errorMessages));
+
+                return $this->render('create', [
+                    'model' => $model,
+                    'availability' => $av
+                ]);
+            }
+
             $available = Yii::$app->request->post("Available");
             $model->addDate = date("Y-m-d H:i:s");
             $model->state = 0;
@@ -550,6 +570,26 @@ class OrdersController extends Controller
             $supplierId = Settings::getValue("supplier-id");
 
             $items = Yii::$app->request->post("Items");
+
+            // Server-side validation for product time limitations
+            $submittedProductIds = array_keys(array_filter($items, function($value) {
+                return !empty($value);
+            }));
+            $restrictedProducts = ProductTimeLimitation::getRestrictedProducts($submittedProductIds);
+
+            if (!empty($restrictedProducts)) {
+                $errorMessages = [];
+                foreach ($restrictedProducts as $restricted) {
+                    $errorMessages[] = "{$restricted['productName']} (доступно с {$restricted['startTime']} до {$restricted['endTime']})";
+                }
+                Yii::$app->session->setFlash('error', 'Невозможно заказать следующие продукты из-за ограничений по времени: ' . implode(', ', $errorMessages));
+
+                return $this->render('update', [
+                    'user_id' => $userId,
+                    'model' => $model,
+                ]);
+            }
+
             $model->state = 0;
             if (count($items) > 0 && $model->save()) {
                 // Получаем все существующие позиции заказа для сравнения
