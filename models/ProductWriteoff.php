@@ -240,7 +240,8 @@ class ProductWriteoff extends \yii\db\ActiveRecord
         // Формируем текст сообщения
         $message = "✅ *Списание #{$this->id} утверждено*\n\n";
         $message .= "📍 *Филиал:* {$storeName}\n";
-        $message .= "📅 *Дата:* " . Yii::$app->formatter->asDatetime($this->approved_at, 'php:d.m.Y H:i') . "\n";
+        $message .= "📅 *Дата списания:* " . date('d.m.Y H:i', strtotime($this->created_at)) . "\n";
+        $message .= "✔️ *Дата утверждения:* " . date('d.m.Y H:i', strtotime($this->approved_at)) . "\n";
         $message .= "👤 *Утвердил:* " . ($this->approvedBy ? $this->approvedBy->fullname : 'Неизвестно') . "\n";
 
         if ($this->comment) {
