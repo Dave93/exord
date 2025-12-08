@@ -230,10 +230,15 @@ class StoreTransfer extends \yii\db\ActiveRecord
      */
     public function sendTransferConfirmationNotification($sourceStoreId)
     {
+        $debugFile = __DIR__ . '/transfer_notification_debug.txt';
+        @file_put_contents($debugFile, "=== " . date('Y-m-d H:i:s') . " ===\n", FILE_APPEND);
+        @file_put_contents($debugFile, "Transfer ID: {$this->id}, SourceStoreId: {$sourceStoreId}\n", FILE_APPEND);
+
         $botToken = '2015516888:AAHcuE2OK2mVMKgnMCaI5M-jHfKybc_GY-Y';
 
         // Определяем chat_id на основе названия магазина-получателя
         $requestStoreName = $this->requestStore ? $this->requestStore->name : '';
+        @file_put_contents($debugFile, "RequestStoreName: {$requestStoreName}\n", FILE_APPEND);
 
         if (stripos($requestStoreName, 'Chopar') !== false) {
             $chatId = '-1001378351090';
@@ -271,7 +276,10 @@ class StoreTransfer extends \yii\db\ActiveRecord
             ])
             ->all();
 
+        @file_put_contents($debugFile, "Items count: " . count($items) . "\n", FILE_APPEND);
+
         if (empty($items)) {
+            @file_put_contents($debugFile, "ERROR: No items with TRANSFERRED status\n\n", FILE_APPEND);
             Yii::warning("Transfer #{$this->id}: нет переданных позиций для филиала {$sourceStoreId}", 'transfer-telegram');
             return false;
         }
@@ -282,6 +290,9 @@ class StoreTransfer extends \yii\db\ActiveRecord
             $transferredQty = $item->transferred_quantity ?? 0;
             $message .= "• {$productName}: *{$transferredQty}* {$unit}\n";
         }
+
+        @file_put_contents($debugFile, "Message: {$message}\n", FILE_APPEND);
+        @file_put_contents($debugFile, "ChatId: {$chatId}\n", FILE_APPEND);
 
         // Отправляем сообщение через Telegram API
         $url = "https://api.telegram.org/bot{$botToken}/sendMessage";
@@ -301,6 +312,9 @@ class StoreTransfer extends \yii\db\ActiveRecord
         $response = curl_exec($ch);
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         curl_close($ch);
+
+        @file_put_contents($debugFile, "HTTP Code: {$httpCode}\n", FILE_APPEND);
+        @file_put_contents($debugFile, "Response: {$response}\n\n", FILE_APPEND);
 
         if ($httpCode === 200) {
             Yii::info("Transfer #{$this->id}: Telegram notification sent to {$chatId}", 'transfer-telegram');
