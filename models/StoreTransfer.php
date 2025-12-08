@@ -222,4 +222,92 @@ class StoreTransfer extends \yii\db\ActiveRecord
         $this->status = self::STATUS_COMPLETED;
         return $this->save(false);
     }
+
+    /**
+     * Отправить уведомление о подтверждении передачи в Telegram
+     * @param string $sourceStoreId ID филиала-источника, который подтвердил передачу
+     * @return bool
+     */
+    public function sendTransferConfirmationNotification($sourceStoreId)
+    {
+        $botToken = '2015516888:AAHcuE2OK2mVMKgnMCaI5M-jHfKybc_GY-Y';
+
+        // Определяем chat_id на основе названия магазина-получателя
+        $requestStoreName = $this->requestStore ? $this->requestStore->name : '';
+
+        if (stripos($requestStoreName, 'Chopar') !== false) {
+            $chatId = '-1001378351090';
+        } elseif (stripos($requestStoreName, 'Les') !== false) {
+            $chatId = '-1001827735517';
+        } else {
+            Yii::warning("Transfer #{$this->id}: requestStore '{$requestStoreName}' не содержит Chopar или Les, уведомление не отправлено", 'transfer-telegram');
+            return false;
+        }
+
+        // Получаем филиал-источник
+        $sourceStore = Stores::findOne($sourceStoreId);
+        $sourceStoreName = $sourceStore ? $sourceStore->name : 'Неизвестный филиал';
+
+        // Формируем текст сообщения
+        $message = "📦 *Перемещение #{$this->id}*\n\n";
+        $message .= "🏪 *Откуда:* {$sourceStoreName}\n";
+        $message .= "🏪 *Куда:* {$requestStoreName}\n";
+        $message .= "📅 *Дата заявки:* " . date('d.m.Y H:i', strtotime($this->created_at)) . "\n";
+        $message .= "✔️ *Дата подтверждения:* " . date('d.m.Y H:i') . "\n";
+
+        if ($this->comment) {
+            $message .= "💬 *Комментарий:* {$this->comment}\n";
+        }
+
+        $message .= "\n📋 *Передаваемые позиции:*\n";
+
+        // Получаем позиции только для указанного филиала-источника
+        $items = StoreTransferItem::find()
+            ->with('product')
+            ->where([
+                'transfer_id' => $this->id,
+                'source_store_id' => $sourceStoreId,
+                'item_status' => StoreTransferItem::STATUS_TRANSFERRED,
+            ])
+            ->all();
+
+        if (empty($items)) {
+            Yii::warning("Transfer #{$this->id}: нет переданных позиций для филиала {$sourceStoreId}", 'transfer-telegram');
+            return false;
+        }
+
+        foreach ($items as $item) {
+            $productName = $item->product ? $item->product->name : 'Неизвестный продукт';
+            $unit = $item->product ? $item->product->mainUnit : 'шт';
+            $transferredQty = $item->transferred_quantity ?? 0;
+            $message .= "• {$productName}: *{$transferredQty}* {$unit}\n";
+        }
+
+        // Отправляем сообщение через Telegram API
+        $url = "https://api.telegram.org/bot{$botToken}/sendMessage";
+        $params = [
+            'chat_id' => $chatId,
+            'text' => $message,
+            'parse_mode' => 'Markdown',
+        ];
+
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, $url);
+        curl_setopt($ch, CURLOPT_POST, true);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($params));
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+
+        $response = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($httpCode === 200) {
+            Yii::info("Transfer #{$this->id}: Telegram notification sent to {$chatId}", 'transfer-telegram');
+            return true;
+        } else {
+            Yii::error("Transfer #{$this->id}: Failed to send Telegram notification. Response: {$response}", 'transfer-telegram');
+            return false;
+        }
+    }
 }

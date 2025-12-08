@@ -209,6 +209,10 @@ class StoreTransferController extends Controller
                 }
 
                 $transaction->commit();
+
+                // Отправляем уведомление в Telegram
+                $model->sendTransferConfirmationNotification($currentStoreId);
+
                 Yii::$app->session->setFlash('success', 'Передача подтверждена. Заявка ожидает утверждения администратором.');
             } else {
                 $transaction->rollBack();
