@@ -152,13 +152,13 @@ class ProductWriteoff extends \yii\db\ActiveRecord
             // Обновляем утвержденные количества в позициях
             if ($approvedCounts && is_array($approvedCounts)) {
                 foreach ($this->items as $item) {
-                    if (isset($approvedCounts[$item->id])) {
+                    // Если указано значение — используем его, иначе берём исходное количество
+                    if (isset($approvedCounts[$item->id]) && $approvedCounts[$item->id] !== '' && $approvedCounts[$item->id] !== null) {
                         $item->approved_count = $approvedCounts[$item->id];
-                        $item->save(false);
                     } else {
                         $item->approved_count = $item->count;
-                        $item->save(false);
                     }
+                    $item->save(false);
                 }
             } else {
                 // Утверждаем все с исходным количеством
