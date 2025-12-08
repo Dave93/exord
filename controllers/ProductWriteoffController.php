@@ -319,6 +319,9 @@ class ProductWriteoffController extends Controller
         if ($model->approve($approvedCounts)) {
             Yii::$app->session->setFlash('success', 'Списание утверждено');
 
+            // Отправляем уведомление в Telegram
+            $model->sendApprovalNotification();
+
             // Создаем акт списания в iiko
             $iiko = new \app\models\Iiko();
             $result = $iiko->createWriteoffDoc($model);

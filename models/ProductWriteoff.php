@@ -215,4 +215,79 @@ class ProductWriteoff extends \yii\db\ActiveRecord
     {
         return $this->status === self::STATUS_NEW;
     }
+
+    /**
+     * Отправить уведомление об утверждении списания в Telegram
+     * @return bool
+     */
+    public function sendApprovalNotification()
+    {
+        $botToken = '2015516888:AAHcuE2OK2mVMKgnMCaI5M-jHfKybc_GY-Y';
+
+        // Определяем chat_id на основе названия магазина
+        $storeName = $this->store ? $this->store->name : '';
+
+        if (stripos($storeName, 'Chopar') !== false) {
+            $chatId = '-1001378351090';
+        } elseif (stripos($storeName, 'Les') !== false) {
+            $chatId = '-1001827735517';
+        } else {
+            // Если магазин не подходит под критерии — не отправляем
+            Yii::warning("Writeoff #{$this->id}: store '{$storeName}' не содержит Chopar или Les, уведомление не отправлено", 'writeoff-telegram');
+            return false;
+        }
+
+        // Формируем текст сообщения
+        $message = "✅ *Списание #{$this->id} утверждено*\n\n";
+        $message .= "📍 *Филиал:* {$storeName}\n";
+        $message .= "📅 *Дата:* " . Yii::$app->formatter->asDatetime($this->approved_at, 'php:d.m.Y H:i') . "\n";
+        $message .= "👤 *Утвердил:* " . ($this->approvedBy ? $this->approvedBy->fullname : 'Неизвестно') . "\n";
+
+        if ($this->comment) {
+            $message .= "💬 *Комментарий:* {$this->comment}\n";
+        }
+
+        $message .= "\n📦 *Позиции:*\n";
+
+        // Перезагружаем items чтобы получить актуальные approved_count
+        $this->refresh();
+        $items = ProductWriteoffItem::find()
+            ->with('product')
+            ->where(['writeoff_id' => $this->id])
+            ->all();
+
+        foreach ($items as $item) {
+            $productName = $item->product ? $item->product->name : 'Неизвестный продукт';
+            $unit = $item->product ? $item->product->mainUnit : 'шт';
+            $approvedCount = $item->approved_count ?? $item->count;
+            $message .= "• {$productName}: *{$approvedCount}* {$unit}\n";
+        }
+
+        // Отправляем сообщение через Telegram API
+        $url = "https://api.telegram.org/bot{$botToken}/sendMessage";
+        $params = [
+            'chat_id' => $chatId,
+            'text' => $message,
+            'parse_mode' => 'Markdown',
+        ];
+
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, $url);
+        curl_setopt($ch, CURLOPT_POST, true);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($params));
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+
+        $response = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($httpCode === 200) {
+            Yii::info("Writeoff #{$this->id}: Telegram notification sent to {$chatId}", 'writeoff-telegram');
+            return true;
+        } else {
+            Yii::error("Writeoff #{$this->id}: Failed to send Telegram notification. Response: {$response}", 'writeoff-telegram');
+            return false;
+        }
+    }
 }
