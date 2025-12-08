@@ -259,6 +259,8 @@ class ProductWriteoff extends \yii\db\ActiveRecord
 
         foreach ($items as $item) {
             $productName = $item->product ? $item->product->name : 'Неизвестный продукт';
+            // Экранируем специальные символы Markdown
+            $productName = str_replace(['*', '_', '`', '['], ['\\*', '\\_', '\\`', '\\['], $productName);
             $unit = $item->product ? $item->product->mainUnit : 'шт';
             $approvedCount = $item->approved_count ?? $item->count;
             $message .= "• {$productName}: *{$approvedCount}* {$unit}\n";

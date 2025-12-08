@@ -286,6 +286,8 @@ class StoreTransfer extends \yii\db\ActiveRecord
 
         foreach ($items as $item) {
             $productName = $item->product ? $item->product->name : 'Неизвестный продукт';
+            // Экранируем специальные символы Markdown
+            $productName = str_replace(['*', '_', '`', '['], ['\\*', '\\_', '\\`', '\\['], $productName);
             $unit = $item->product ? $item->product->mainUnit : 'шт';
             $transferredQty = $item->transferred_quantity ?? 0;
             $message .= "• {$productName}: *{$transferredQty}* {$unit}\n";
