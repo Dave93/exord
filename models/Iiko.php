@@ -863,8 +863,8 @@ class Iiko extends Model
 
             // Формируем данные для запроса
             $data = [
-                'dateIncoming' => date('Y-m-d\TH:i'),
-                'status' => 'NEW',
+                'dateIncoming' => $model->created_at ? date('Y-m-d\TH:i', strtotime($model->created_at)) : date('Y-m-d\TH:i'),
+                'status' => 'PROCESSED',
                 'comment' => $model->comment ?? "Внутреннее перемещение #{$model->id}",
                 'storeFromId' => $sourceStoreId,
                 'storeToId' => $model->request_store_id,
