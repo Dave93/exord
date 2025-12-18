@@ -190,12 +190,13 @@ class OrderRecommendation
 5. Отвечай ТОЛЬКО в формате JSON
 6. ВАЖНО: Ограничь список максимум 30 продуктами (самые важные/частые)
 7. Поле reason должно быть коротким (до 30 символов)
+8. КРИТИЧЕСКИ ВАЖНО: Используй ТОЛЬКО те product_id, которые указаны в квадратных скобках в данных. НЕ выдумывай ID!
 
 Формат ответа (строго JSON, без markdown):
 {
   "recommendations": [
     {
-      "product_id": "uuid-продукта",
+      "product_id": "uuid-из-данных",
       "product_name": "Название",
       "quantity": 10,
       "unit": "кг",
@@ -207,10 +208,11 @@ class OrderRecommendation
 PROMPT;
 
         // Формируем краткую статистику для экономии токенов
+        // ВАЖНО: включаем product_id чтобы Claude использовал реальные ID из базы
         $statsText = "Статистика заказов за {$this->daysHistory} дней:\n";
         foreach (array_slice($data['product_stats'], 0, 50) as $stat) { // Ограничиваем до 50 продуктов
             $avgQty = round($stat['avg_quantity'], 2);
-            $statsText .= "- {$stat['product_name']} ({$stat['unit']}): среднее {$avgQty}, заказов {$stat['order_count']}\n";
+            $statsText .= "- [{$stat['product_id']}] {$stat['product_name']} ({$stat['unit']}): среднее {$avgQty}, заказов {$stat['order_count']}\n";
         }
 
         $dayNames = [1 => 'Пн', 2 => 'Вт', 3 => 'Ср', 4 => 'Чт', 5 => 'Пт', 6 => 'Сб', 7 => 'Вс'];
