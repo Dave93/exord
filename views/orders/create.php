@@ -234,12 +234,13 @@ $(document).on('submit', '#order-form', function(e){
     }
 });
 
-// ИИ-рекомендации
+JS;
+
+$aiJs = <<<'AIJS'
 $('#ai-recommend-btn').on('click', function() {
     var btn = $(this);
     var originalText = btn.html();
 
-    // Показываем индикатор загрузки
     btn.prop('disabled', true);
     btn.html('<i class="fa fa-spinner fa-spin"></i> Анализ...');
 
@@ -251,24 +252,18 @@ $('#ai-recommend-btn').on('click', function() {
             if (response.success && response.data && response.data.recommendations) {
                 var filledCount = 0;
 
-                // Заполняем поля рекомендациями
                 response.data.recommendations.forEach(function(item) {
                     var input = $('input[name="Items[' + item.product_id + ']"]');
                     if (input.length > 0) {
                         input.val(item.quantity);
-                        // Подсвечиваем заполненные поля
                         input.closest('tr').css('background-color', '#d4edda');
                         filledCount++;
-
-                        // Раскрываем группу с продуктом
                         input.closest('.panel-collapse').addClass('in').css('height', 'auto');
                     }
                 });
 
-                // Пересчитываем сумму
                 calculateOrderTotal();
 
-                // Сохраняем данные ИИ в скрытое поле для отправки с формой
                 var aiData = {
                     recommendations: response.data.recommendations,
                     usage: response.data.usage,
@@ -276,24 +271,22 @@ $('#ai-recommend-btn').on('click', function() {
                 };
                 $('#ai-recommendations-data').val(JSON.stringify(aiData));
 
-                // Формируем информацию о стоимости
                 var usageInfo = '';
                 if (response.data.usage) {
                     var u = response.data.usage;
-                    usageInfo = '\n\nТокены: ' + u.input_tokens + ' вход / ' + u.output_tokens + ' выход';
-                    usageInfo += '\nСтоимость: $' + u.cost_usd.toFixed(6);
+                    usageInfo = '\n\nTokens: ' + u.input_tokens + ' in / ' + u.output_tokens + ' out';
+                    usageInfo += '\nCost: $' + u.cost_usd.toFixed(6);
                 }
 
-                // Показываем сообщение
-                var summary = response.data.summary || 'Рекомендации применены';
-                alert('Заполнено ' + filledCount + ' позиций.\n\n' + summary + usageInfo);
+                var summary = response.data.summary || 'Recommendations applied';
+                alert('Filled ' + filledCount + ' items.\n\n' + summary + usageInfo);
 
             } else {
-                alert('Ошибка: ' + (response.error || 'Не удалось получить рекомендации'));
+                alert('Error: ' + (response.error || 'Failed to get recommendations'));
             }
         },
         error: function(xhr, status, error) {
-            alert('Ошибка соединения: ' + error);
+            alert('Connection error: ' + error);
         },
         complete: function() {
             btn.prop('disabled', false);
@@ -301,8 +294,9 @@ $('#ai-recommend-btn').on('click', function() {
         }
     });
 });
-JS;
+AIJS;
 $this->registerJs($js);
+$this->registerJs($aiJs);
 ?>
 <div class="card">
     <div class="header clearfix">
