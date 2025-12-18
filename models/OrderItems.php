@@ -30,6 +30,7 @@ use yii\db\mssql\PDO;
  * @property int $minused
  * @property string $deleted_at
  * @property int $deleted_by
+ * @property float $ai_recommended_quantity
  *
  * @property Products $product
  * @property User $deletedBy
@@ -52,7 +53,7 @@ class OrderItems extends \yii\db\ActiveRecord
         return [
             [['orderId', 'productId', 'quantity'], 'required'],
             [['orderId', 'userId', 'deleted_by'], 'integer'],
-            [['quantity', 'storeQuantity', 'factStoreQuantity', 'supplierQuantity', 'purchaseQuantity', 'price', 'factSupplierQuantity', 'available', 'shipped_from_warehouse', 'factOfficeQuantity', 'returned_quantity', 'prepared', 'minused'], 'number'],
+            [['quantity', 'storeQuantity', 'factStoreQuantity', 'supplierQuantity', 'purchaseQuantity', 'price', 'factSupplierQuantity', 'available', 'shipped_from_warehouse', 'factOfficeQuantity', 'returned_quantity', 'prepared', 'minused', 'ai_recommended_quantity'], 'number'],
             [['productId', 'storeId', 'supplierId', 'storeSupplierId'], 'string', 'max' => 36],
             [['supplierDescription'], 'string'],
             [['deleted_at'], 'safe'],
@@ -84,7 +85,8 @@ class OrderItems extends \yii\db\ActiveRecord
             'prepared' => 'Подготовлено',
             'minused' => 'Обнулён',
             'deleted_at' => 'Дата удаления',
-            'deleted_by' => 'Удалил'
+            'deleted_by' => 'Удалил',
+            'ai_recommended_quantity' => 'ИИ рекомендация'
         ];
     }
 

@@ -18,6 +18,7 @@ use app\models\Terminals;
 use app\models\User;
 use app\models\ProductTimeLimitation;
 use app\models\Zone;
+use app\models\OrderRecommendation;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use Yii;
 use yii\data\ArrayDataProvider;
@@ -59,7 +60,7 @@ class OrdersController extends Controller
                         ],
                     ],
                     [
-                        'actions' => ['customer-orders', 'customer-history', 'create', 'update', 'send', 'fact-stock', 'fact-supplier', 'view', 'preview-invoice'],
+                        'actions' => ['customer-orders', 'customer-history', 'create', 'update', 'send', 'fact-stock', 'fact-supplier', 'view', 'preview-invoice', 'ai-recommend', 'save-ai-recommendations'],
                         'allow' => true,
                         'roles' => [
                             User::ROLE_COOK,
@@ -357,6 +358,38 @@ class OrdersController extends Controller
                             'price' => $oi->product->price,
                             'name' => $oi->product->name,
                         ];
+                    }
+                }
+
+                // Сохраняем данные ИИ-рекомендаций, если они были использованы
+                $aiRecommendations = Yii::$app->request->post("AiRecommendations");
+                if (!empty($aiRecommendations)) {
+                    $aiData = json_decode($aiRecommendations, true);
+                    if ($aiData) {
+                        // Сохраняем статистику токенов в заказ
+                        if (isset($aiData['usage'])) {
+                            $model->ai_input_tokens = $aiData['usage']['input_tokens'] ?? null;
+                            $model->ai_output_tokens = $aiData['usage']['output_tokens'] ?? null;
+                            $model->ai_cost = $aiData['usage']['cost_usd'] ?? null;
+                            $model->ai_recommended_at = date('Y-m-d H:i:s');
+                            $model->save(false);
+                        }
+
+                        // Сохраняем рекомендованные количества в order_items
+                        if (isset($aiData['recommendations']) && is_array($aiData['recommendations'])) {
+                            foreach ($aiData['recommendations'] as $rec) {
+                                $productId = $rec['product_id'] ?? null;
+                                $recQuantity = $rec['quantity'] ?? null;
+
+                                if ($productId && $recQuantity !== null) {
+                                    $item = OrderItems::findOne(['orderId' => $model->id, 'productId' => $productId]);
+                                    if ($item) {
+                                        $item->ai_recommended_quantity = $recQuantity;
+                                        $item->save(false);
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
 
@@ -1650,6 +1683,91 @@ class OrdersController extends Controller
         return $this->renderPartial('_changelog', [
             'changelog' => $changelog
         ]);
+    }
+
+    /**
+     * Получить ИИ-рекомендации для автоформирования заказа
+     * @return string JSON ответ с рекомендациями
+     */
+    public function actionAiRecommend()
+    {
+        Yii::$app->response->format = \yii\web\Response::FORMAT_JSON;
+
+        // Тестовый store_id (потом заменим на динамический)
+        $storeId = Yii::$app->request->get('storeId', 'f2964059-af9d-4290-8722-bd927cbfe222');
+        $userId = Yii::$app->user->id;
+
+        try {
+            $recommender = new OrderRecommendation($storeId, $userId);
+            $recommendations = $recommender->getRecommendations();
+
+            if ($recommendations === null) {
+                return [
+                    'success' => false,
+                    'error' => 'Не удалось получить рекомендации от ИИ. Проверьте настройки API.',
+                    'recommendations' => []
+                ];
+            }
+
+            return [
+                'success' => true,
+                'data' => $recommendations
+            ];
+
+        } catch (\Exception $e) {
+            Yii::error("AI Recommend error: " . $e->getMessage(), 'orders');
+            return [
+                'success' => false,
+                'error' => $e->getMessage(),
+                'recommendations' => []
+            ];
+        }
+    }
+
+    /**
+     * Сохранить ИИ-рекомендации в заказ
+     * Вызывается через AJAX при применении рекомендаций
+     *
+     * @param int $orderId ID заказа
+     * @return array JSON ответ
+     */
+    public function actionSaveAiRecommendations($orderId)
+    {
+        Yii::$app->response->format = \yii\web\Response::FORMAT_JSON;
+
+        $model = Orders::findOne($orderId);
+        if ($model === null) {
+            return ['success' => false, 'error' => 'Заказ не найден'];
+        }
+
+        $post = Yii::$app->request->post();
+
+        // Сохраняем статистику использования токенов в заказ
+        if (isset($post['usage'])) {
+            $model->ai_input_tokens = $post['usage']['input_tokens'] ?? null;
+            $model->ai_output_tokens = $post['usage']['output_tokens'] ?? null;
+            $model->ai_cost = $post['usage']['cost_usd'] ?? null;
+            $model->ai_recommended_at = date('Y-m-d H:i:s');
+            $model->save(false);
+        }
+
+        // Сохраняем рекомендованные количества в order_items
+        if (isset($post['recommendations']) && is_array($post['recommendations'])) {
+            foreach ($post['recommendations'] as $rec) {
+                $productId = $rec['product_id'] ?? null;
+                $quantity = $rec['quantity'] ?? null;
+
+                if ($productId && $quantity !== null) {
+                    $item = OrderItems::findOne(['orderId' => $orderId, 'productId' => $productId]);
+                    if ($item) {
+                        $item->ai_recommended_quantity = $quantity;
+                        $item->save(false);
+                    }
+                }
+            }
+        }
+
+        return ['success' => true];
     }
 
     /**

@@ -27,6 +27,10 @@ use yii\db\Query;
  * @property bool $is_locked
  * @property string $deleted_at
  * @property string $deleted_by
+ * @property int $ai_input_tokens
+ * @property int $ai_output_tokens
+ * @property float $ai_cost
+ * @property string $ai_recommended_at
  *
  * @property Stores $store
  * @property User $user
@@ -63,6 +67,9 @@ class Orders extends \yii\db\ActiveRecord
             [['defaultStoreId', 'storeId', 'supplierId', 'outgoingDocumentId', 'incomingDocumentId', 'supplierDocumentId', 'deleted_at', 'deleted_by'], 'string', 'max' => 36],
             [['userId'], 'exist', 'skipOnError' => true, 'targetClass' => User::className(), 'targetAttribute' => ['userId' => 'id']],
             [['is_market'], 'boolean'],
+            [['ai_input_tokens', 'ai_output_tokens'], 'integer'],
+            [['ai_cost'], 'number'],
+            [['ai_recommended_at'], 'safe'],
         ];
     }
 
@@ -87,6 +94,10 @@ class Orders extends \yii\db\ActiveRecord
             'is_market' => 'Базар',
             'deleted_at' => 'Удалено в',
             'deleted_by' => 'Удалено пользователем',
+            'ai_input_tokens' => 'ИИ входные токены',
+            'ai_output_tokens' => 'ИИ выходные токены',
+            'ai_cost' => 'Стоимость ИИ (USD)',
+            'ai_recommended_at' => 'ИИ рекомендация получена',
         ];
     }
 

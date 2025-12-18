@@ -233,6 +233,74 @@ $(document).on('submit', '#order-form', function(e){
         return true;
     }
 });
+
+// ИИ-рекомендации
+$('#ai-recommend-btn').on('click', function() {
+    var btn = $(this);
+    var originalText = btn.html();
+
+    // Показываем индикатор загрузки
+    btn.prop('disabled', true);
+    btn.html('<i class="fa fa-spinner fa-spin"></i> Анализ...');
+
+    $.ajax({
+        url: '/orders/ai-recommend',
+        type: 'GET',
+        dataType: 'json',
+        success: function(response) {
+            if (response.success && response.data && response.data.recommendations) {
+                var filledCount = 0;
+
+                // Заполняем поля рекомендациями
+                response.data.recommendations.forEach(function(item) {
+                    var input = $('input[name="Items[' + item.product_id + ']"]');
+                    if (input.length > 0) {
+                        input.val(item.quantity);
+                        // Подсвечиваем заполненные поля
+                        input.closest('tr').css('background-color', '#d4edda');
+                        filledCount++;
+
+                        // Раскрываем группу с продуктом
+                        input.closest('.panel-collapse').addClass('in').css('height', 'auto');
+                    }
+                });
+
+                // Пересчитываем сумму
+                calculateOrderTotal();
+
+                // Сохраняем данные ИИ в скрытое поле для отправки с формой
+                var aiData = {
+                    recommendations: response.data.recommendations,
+                    usage: response.data.usage,
+                    summary: response.data.summary
+                };
+                $('#ai-recommendations-data').val(JSON.stringify(aiData));
+
+                // Формируем информацию о стоимости
+                var usageInfo = '';
+                if (response.data.usage) {
+                    var u = response.data.usage;
+                    usageInfo = '\n\nТокены: ' + u.input_tokens + ' вход / ' + u.output_tokens + ' выход';
+                    usageInfo += '\nСтоимость: $' + u.cost_usd.toFixed(6);
+                }
+
+                // Показываем сообщение
+                var summary = response.data.summary || 'Рекомендации применены';
+                alert('Заполнено ' + filledCount + ' позиций.\n\n' + summary + usageInfo);
+
+            } else {
+                alert('Ошибка: ' + (response.error || 'Не удалось получить рекомендации'));
+            }
+        },
+        error: function(xhr, status, error) {
+            alert('Ошибка соединения: ' + error);
+        },
+        complete: function() {
+            btn.prop('disabled', false);
+            btn.html(originalText);
+        }
+    });
+});
 JS;
 $this->registerJs($js);
 ?>
@@ -253,12 +321,22 @@ $this->registerJs($js);
                     <p>Заказ можно оформлять только в период с 11:00 до 04:00.</p>
                 </div> -->
             <?php else: ?>
-                <h4 class="title" style="padding-bottom: 20px">Продукты</h4>
+                <div class="row" style="margin-bottom: 15px;">
+                    <div class="col-md-6">
+                        <h4 class="title" style="padding-bottom: 0">Продукты</h4>
+                    </div>
+                    <div class="col-md-6 text-right">
+                        <button type="button" id="ai-recommend-btn" class="btn btn-info btn-fill">
+                            <i class="fa fa-magic"></i> ИИ-рекомендации
+                        </button>
+                    </div>
+                </div>
                 <?= Html::textInput('search', null, ['id' => 'searchField', 'class' => 'form-control', 'placeholder' => 'Введите название продукта']) ?>
                 <hr>
                 <?php $form = ActiveForm::begin([
                     'id' => 'order-form'
                 ]); ?>
+                <?= Html::hiddenInput('AiRecommendations', '', ['id' => 'ai-recommendations-data']) ?>
                 <div class="panel-group" id="accordion">
                     <?= $list ?>
                 </div>
