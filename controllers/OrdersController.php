@@ -1697,6 +1697,16 @@ class OrdersController extends Controller
         $storeId = Yii::$app->request->get('storeId', 'f2964059-af9d-4290-8722-bd927cbfe222');
         $userId = Yii::$app->user->id;
 
+        // Проверяем наличие API ключа
+        $apiKey = Settings::getValue("claude-api-key");
+        if (empty($apiKey)) {
+            return [
+                'success' => false,
+                'error' => 'API ключ Claude не настроен. Добавьте "claude-api-key" в таблицу settings.',
+                'recommendations' => []
+            ];
+        }
+
         try {
             $recommender = new OrderRecommendation($storeId, $userId);
             $recommendations = $recommender->getRecommendations();
@@ -1704,7 +1714,7 @@ class OrdersController extends Controller
             if ($recommendations === null) {
                 return [
                     'success' => false,
-                    'error' => 'Не удалось получить рекомендации от ИИ. Проверьте настройки API.',
+                    'error' => 'Не удалось получить рекомендации от ИИ. Проверьте логи.',
                     'recommendations' => []
                 ];
             }
@@ -1718,7 +1728,7 @@ class OrdersController extends Controller
             Yii::error("AI Recommend error: " . $e->getMessage(), 'orders');
             return [
                 'success' => false,
-                'error' => $e->getMessage(),
+                'error' => 'Ошибка: ' . $e->getMessage(),
                 'recommendations' => []
             ];
         }
