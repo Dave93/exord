@@ -188,6 +188,8 @@ class OrderRecommendation
 3. Рекомендуй только те продукты, которые заказывались регулярно (минимум 2 раза за месяц)
 4. Округляй количества до разумных значений
 5. Отвечай ТОЛЬКО в формате JSON
+6. ВАЖНО: Ограничь список максимум 30 продуктами (самые важные/частые)
+7. Поле reason должно быть коротким (до 30 символов)
 
 Формат ответа (строго JSON, без markdown):
 {
@@ -197,10 +199,10 @@ class OrderRecommendation
       "product_name": "Название",
       "quantity": 10,
       "unit": "кг",
-      "reason": "Краткое объяснение"
+      "reason": "Коротко"
     }
   ],
-  "summary": "Краткое описание рекомендаций"
+  "summary": "Краткое описание"
 }
 PROMPT;
 
@@ -250,7 +252,7 @@ MSG;
             $response = $claude->sendMessage(
                 $prompt['system'],
                 $prompt['user'],
-                2048
+                4096
             );
 
             Yii::info("Claude API response: " . json_encode($response), 'order-recommendation');
