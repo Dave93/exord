@@ -271,22 +271,12 @@ $('#ai-recommend-btn').on('click', function() {
                 };
                 $('#ai-recommendations-data').val(JSON.stringify(aiData));
 
-                var usageInfo = '';
-                if (response.data.usage) {
-                    var u = response.data.usage;
-                    usageInfo = '\n\nTokens: ' + u.input_tokens + ' in / ' + u.output_tokens + ' out';
-                    usageInfo += '\nCost: $' + u.cost_usd.toFixed(6);
-                }
-
-                var summary = response.data.summary || 'Recommendations applied';
-                alert('Filled ' + filledCount + ' items.\n\n' + summary + usageInfo);
-
             } else {
-                alert('Error: ' + (response.error || 'Failed to get recommendations'));
+                alert('Ошибка: ' + (response.error || 'Не удалось получить рекомендации'));
             }
         },
         error: function(xhr, status, error) {
-            alert('Connection error: ' + error);
+            alert('Ошибка соединения: ' + error);
         },
         complete: function() {
             btn.prop('disabled', false);
