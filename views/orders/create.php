@@ -240,6 +240,7 @@ $aiJs = <<<'AIJS'
 $('#ai-recommend-btn').on('click', function() {
     var btn = $(this);
     var originalText = btn.html();
+    var storeId = btn.data('store-id');
 
     btn.prop('disabled', true);
     btn.html('<i class="fa fa-spinner fa-spin"></i> Анализ...');
@@ -247,6 +248,7 @@ $('#ai-recommend-btn').on('click', function() {
     $.ajax({
         url: '/orders/ai-recommend',
         type: 'GET',
+        data: { storeId: storeId },
         dataType: 'json',
         success: function(response) {
             if (response.success && response.data && response.data.recommendations) {
@@ -310,7 +312,7 @@ $this->registerJs($aiJs);
                         <h4 class="title" style="padding-bottom: 0">Продукты</h4>
                     </div>
                     <div class="col-md-6 text-right">
-                        <button type="button" id="ai-recommend-btn" class="btn btn-info btn-fill">
+                        <button type="button" id="ai-recommend-btn" class="btn btn-info btn-fill" data-store-id="<?= $model->storeId ?>">
                             <i class="fa fa-magic"></i> ИИ-рекомендации
                         </button>
                     </div>

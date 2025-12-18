@@ -86,10 +86,18 @@ class OrderRecommendation
             ORDER BY order_count DESC, avg_quantity DESC
         ";
 
-        return Yii::$app->db->createCommand($sql)
+        $result = Yii::$app->db->createCommand($sql)
             ->bindValue(':storeId', $this->storeId)
             ->bindValue(':dateFrom', $dateFrom)
             ->queryAll();
+
+        Yii::info("getProductStats: storeId={$this->storeId}, dateFrom={$dateFrom}, products found: " . count($result), 'order-recommendation');
+
+        // Log product IDs for debugging
+        $productIds = array_column($result, 'product_id');
+        Yii::info("getProductStats: product IDs: " . implode(', ', array_slice($productIds, 0, 10)) . "...", 'order-recommendation');
+
+        return $result;
     }
 
     /**
