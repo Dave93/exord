@@ -312,9 +312,11 @@ $this->registerJs($aiJs);
                         <h4 class="title" style="padding-bottom: 0">Продукты</h4>
                     </div>
                     <div class="col-md-6 text-right">
+                        <?php if ($model->storeId === 'f2964059-af9d-4290-8722-bd927cbfe222'): ?>
                         <button type="button" id="ai-recommend-btn" class="btn btn-info btn-fill" data-store-id="<?= $model->storeId ?>">
                             <i class="fa fa-magic"></i> ИИ-рекомендации
                         </button>
+                        <?php endif; ?>
                     </div>
                 </div>
                 <?= Html::textInput('search', null, ['id' => 'searchField', 'class' => 'form-control', 'placeholder' => 'Введите название продукта']) ?>
