@@ -243,11 +243,17 @@ MSG;
             $claude = new ClaudeService();
             $prompt = $this->buildPrompt();
 
+            Yii::info("Sending request to Claude API", 'order-recommendation');
+            Yii::info("System prompt length: " . strlen($prompt['system']), 'order-recommendation');
+            Yii::info("User prompt length: " . strlen($prompt['user']), 'order-recommendation');
+
             $response = $claude->sendMessage(
                 $prompt['system'],
                 $prompt['user'],
                 2048
             );
+
+            Yii::info("Claude API response: " . json_encode($response), 'order-recommendation');
 
             if (!$response) {
                 Yii::error("Claude API returned empty response", 'order-recommendation');
@@ -255,27 +261,33 @@ MSG;
             }
 
             $text = $claude->extractText($response);
+            Yii::info("Extracted text: " . $text, 'order-recommendation');
+
             if (!$text) {
-                Yii::error("Could not extract text from Claude response", 'order-recommendation');
+                Yii::error("Could not extract text from Claude response: " . json_encode($response), 'order-recommendation');
                 return null;
             }
 
             // Парсим JSON из ответа
             $jsonText = $this->extractJson($text);
+            Yii::info("Extracted JSON: " . $jsonText, 'order-recommendation');
+
             $recommendations = json_decode($jsonText, true);
 
             if (json_last_error() !== JSON_ERROR_NONE) {
-                Yii::error("Failed to parse JSON from Claude: " . $text, 'order-recommendation');
+                Yii::error("Failed to parse JSON. Error: " . json_last_error_msg() . ". Text: " . $text, 'order-recommendation');
                 return null;
             }
 
             // Добавляем статистику использования токенов
             $recommendations['usage'] = $claude->getUsageStats();
 
+            Yii::info("Successfully parsed recommendations: " . count($recommendations['recommendations'] ?? []) . " items", 'order-recommendation');
+
             return $recommendations;
 
         } catch (\Exception $e) {
-            Yii::error("OrderRecommendation error: " . $e->getMessage(), 'order-recommendation');
+            Yii::error("OrderRecommendation error: " . $e->getMessage() . "\nTrace: " . $e->getTraceAsString(), 'order-recommendation');
             return null;
         }
     }
