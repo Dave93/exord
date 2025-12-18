@@ -312,7 +312,7 @@ $this->registerJs($aiJs);
                         <h4 class="title" style="padding-bottom: 0">Продукты</h4>
                     </div>
                     <div class="col-md-6 text-right">
-                        <?php if ($model->storeId === 'f2964059-af9d-4290-8722-bd927cbfe222'): ?>
+                        <?php if (in_array($model->storeId, ['f2964059-af9d-4290-8722-bd927cbfe222', 'df55ade3-f1c3-4eb7-a66c-61f873c33251'])): ?>
                         <button type="button" id="ai-recommend-btn" class="btn btn-info btn-fill" data-store-id="<?= $model->storeId ?>">
                             <i class="fa fa-magic"></i> ИИ-рекомендации
                         </button>
