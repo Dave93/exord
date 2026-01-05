@@ -37,7 +37,7 @@ class StoreTransferController extends Controller
                 'only' => ['*'],
                 'rules' => [
                     [
-                        'actions' => ['index', 'create', 'update', 'view', 'cancel', 'incoming', 'process-incoming', 'confirm-transfer', 'export-excel'],
+                        'actions' => ['index', 'create', 'update', 'view', 'cancel', 'incoming', 'process-incoming', 'confirm-transfer', 'export-excel', 'export-view-excel'],
                         'allow' => true,
                         'roles' => [
                             User::ROLE_COOK,
@@ -193,6 +193,106 @@ class StoreTransferController extends Controller
         }
 
         $filename = 'Перемещения_' . date('Y-m-d_H-i') . '.xlsx';
+
+        header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        header('Content-Disposition: attachment; filename="' . $filename . '"');
+        header('Cache-Control: max-age=0');
+
+        $writer = IOFactory::createWriter($spreadsheet, 'Xlsx');
+        $writer->save('php://output');
+        exit;
+    }
+
+    /**
+     * Экспорт одного перемещения в Excel
+     * @param integer $id
+     * @return void
+     * @throws NotFoundHttpException if the model cannot be found
+     */
+    public function actionExportViewExcel($id)
+    {
+        $model = $this->findModel($id);
+
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('Перемещение #' . $model->id);
+
+        // Информация о заявке
+        $sheet->setCellValue('A1', 'Заявка на перемещение #' . $model->id);
+        $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(14);
+        $sheet->mergeCells('A1:F1');
+
+        $sheet->setCellValue('A3', 'Филиал-заказчик:');
+        $sheet->setCellValue('B3', $model->requestStore ? $model->requestStore->name : '-');
+        $sheet->setCellValue('A4', 'Дата создания:');
+        $sheet->setCellValue('B4', date('d.m.Y H:i', strtotime($model->created_at)));
+        $sheet->setCellValue('A5', 'Создал:');
+        $sheet->setCellValue('B5', $model->createdBy ? $model->createdBy->fullname : '-');
+        $sheet->setCellValue('A6', 'Статус:');
+        $sheet->setCellValue('B6', $model->getStatusLabel());
+        $sheet->setCellValue('A7', 'Комментарий:');
+        $sheet->setCellValue('B7', $model->comment ?: '-');
+
+        $sheet->getStyle('A3:A7')->getFont()->setBold(true);
+
+        // Группируем позиции по филиалам-источникам
+        $itemsByStore = [];
+        foreach ($model->items as $item) {
+            if (!isset($itemsByStore[$item->source_store_id])) {
+                $itemsByStore[$item->source_store_id] = [
+                    'store' => $item->sourceStore,
+                    'items' => [],
+                ];
+            }
+            $itemsByStore[$item->source_store_id]['items'][] = $item;
+        }
+
+        $currentRow = 9;
+
+        foreach ($itemsByStore as $storeId => $data) {
+            // Заголовок филиала
+            $sheet->setCellValue('A' . $currentRow, 'Филиал-источник: ' . ($data['store'] ? $data['store']->name : '-'));
+            $sheet->getStyle('A' . $currentRow)->getFont()->setBold(true)->setSize(12);
+            $sheet->mergeCells('A' . $currentRow . ':F' . $currentRow);
+            $currentRow++;
+
+            // Заголовки таблицы
+            $headers = ['Продукт', 'Ед. изм.', 'Запрошено', 'Передано', 'Утверждено', 'Статус'];
+            $col = 'A';
+            foreach ($headers as $header) {
+                $sheet->setCellValue($col . $currentRow, $header);
+                $col++;
+            }
+
+            $sheet->getStyle('A' . $currentRow . ':F' . $currentRow)->applyFromArray([
+                'font' => ['bold' => true],
+                'fill' => [
+                    'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
+                    'startColor' => ['rgb' => 'E0E0E0'],
+                ],
+            ]);
+            $currentRow++;
+
+            // Данные позиций
+            foreach ($data['items'] as $item) {
+                $sheet->setCellValue('A' . $currentRow, $item->product ? $item->product->name : '-');
+                $sheet->setCellValue('B' . $currentRow, $item->product ? $item->product->mainUnit : '-');
+                $sheet->setCellValue('C' . $currentRow, $item->requested_quantity);
+                $sheet->setCellValue('D' . $currentRow, $item->transferred_quantity !== null ? $item->transferred_quantity : '-');
+                $sheet->setCellValue('E' . $currentRow, $item->approved_quantity !== null ? $item->approved_quantity : '-');
+                $sheet->setCellValue('F' . $currentRow, $item->getStatusLabel());
+                $currentRow++;
+            }
+
+            $currentRow++; // Пустая строка между филиалами
+        }
+
+        // Авто-ширина колонок
+        foreach (range('A', 'F') as $col) {
+            $sheet->getColumnDimension($col)->setAutoSize(true);
+        }
+
+        $filename = 'Перемещение_' . $model->id . '_' . date('Y-m-d') . '.xlsx';
 
         header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
         header('Content-Disposition: attachment; filename="' . $filename . '"');

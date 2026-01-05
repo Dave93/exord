@@ -37,7 +37,7 @@ class ProductWriteoffController extends Controller
                 'only' => ['*'],
                 'rules' => [
                     [
-                        'actions' => ['index', 'create', 'update', 'view', 'delete-photo', 'export-excel'],
+                        'actions' => ['index', 'create', 'update', 'view', 'delete-photo', 'export-excel', 'export-view-excel'],
                         'allow' => true,
                         'roles' => [
                             User::ROLE_COOK,
@@ -189,6 +189,97 @@ class ProductWriteoffController extends Controller
         }
 
         $filename = 'Списания_' . date('Y-m-d_H-i') . '.xlsx';
+
+        header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        header('Content-Disposition: attachment; filename="' . $filename . '"');
+        header('Cache-Control: max-age=0');
+
+        $writer = IOFactory::createWriter($spreadsheet, 'Xlsx');
+        $writer->save('php://output');
+        exit;
+    }
+
+    /**
+     * Экспорт одного списания в Excel
+     * @param integer $id
+     * @return void
+     * @throws NotFoundHttpException if the model cannot be found
+     */
+    public function actionExportViewExcel($id)
+    {
+        $model = $this->findModel($id);
+
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('Списание #' . $model->id);
+
+        // Информация о списании
+        $sheet->setCellValue('A1', 'Списание #' . $model->id);
+        $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(14);
+        $sheet->mergeCells('A1:D1');
+
+        $sheet->setCellValue('A3', 'Магазин:');
+        $sheet->setCellValue('B3', $model->store ? $model->store->name : '-');
+        $sheet->setCellValue('A4', 'Дата создания:');
+        $sheet->setCellValue('B4', date('d.m.Y H:i', strtotime($model->created_at)));
+        $sheet->setCellValue('A5', 'Создал:');
+        $sheet->setCellValue('B5', $model->createdBy ? $model->createdBy->fullname : '-');
+        $sheet->setCellValue('A6', 'Статус:');
+        $sheet->setCellValue('B6', $model->getStatusLabel());
+        $sheet->setCellValue('A7', 'Комментарий:');
+        $sheet->setCellValue('B7', $model->comment ?: '-');
+
+        if ($model->status === ProductWriteoff::STATUS_APPROVED) {
+            $sheet->setCellValue('A8', 'Утвердил:');
+            $sheet->setCellValue('B8', $model->approvedBy ? $model->approvedBy->fullname : '-');
+            $sheet->setCellValue('A9', 'Дата утверждения:');
+            $sheet->setCellValue('B9', $model->approved_at ? date('d.m.Y H:i', strtotime($model->approved_at)) : '-');
+        }
+
+        $sheet->getStyle('A3:A9')->getFont()->setBold(true);
+
+        // Заголовки таблицы позиций
+        $headerRow = 11;
+        $headers = ['№', 'Продукт', 'Ед. изм.', 'Количество'];
+        if ($model->status === ProductWriteoff::STATUS_APPROVED) {
+            $headers[] = 'Утверждено';
+        }
+
+        $col = 'A';
+        foreach ($headers as $header) {
+            $sheet->setCellValue($col . $headerRow, $header);
+            $col++;
+        }
+
+        $lastCol = chr(ord('A') + count($headers) - 1);
+        $sheet->getStyle('A' . $headerRow . ':' . $lastCol . $headerRow)->applyFromArray([
+            'font' => ['bold' => true],
+            'fill' => [
+                'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
+                'startColor' => ['rgb' => 'E0E0E0'],
+            ],
+        ]);
+
+        // Данные позиций
+        $row = $headerRow + 1;
+        $i = 1;
+        foreach ($model->items as $item) {
+            $sheet->setCellValue('A' . $row, $i++);
+            $sheet->setCellValue('B' . $row, $item->product ? $item->product->name : '-');
+            $sheet->setCellValue('C' . $row, $item->product ? $item->product->mainUnit : '-');
+            $sheet->setCellValue('D' . $row, $item->count);
+            if ($model->status === ProductWriteoff::STATUS_APPROVED) {
+                $sheet->setCellValue('E' . $row, $item->approved_count !== null ? $item->approved_count : '-');
+            }
+            $row++;
+        }
+
+        // Авто-ширина колонок
+        foreach (range('A', $lastCol) as $col) {
+            $sheet->getColumnDimension($col)->setAutoSize(true);
+        }
+
+        $filename = 'Списание_' . $model->id . '_' . date('Y-m-d') . '.xlsx';
 
         header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
         header('Content-Disposition: attachment; filename="' . $filename . '"');

@@ -34,6 +34,7 @@ $isAdmin = in_array(Yii::$app->user->identity->role, [User::ROLE_ADMIN, User::RO
                     <?= $model->getStatusLabel() ?>
                 </span>
 
+            <?= Html::a('<i class="glyphicon glyphicon-download-alt"></i> Excel', ['export-view-excel', 'id' => $model->id], ['class' => 'btn btn-info btn-fill btn-sm', 'style' => 'margin-right: 5px;']) ?>
             <?= Html::a('Назад к списку', [$isAdmin ? 'admin-index' : 'index'], ['class' => 'btn btn-default']) ?>
             </span>
         </h4>

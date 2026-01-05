@@ -20,6 +20,7 @@ $isAdmin = in_array(Yii::$app->user->identity->role, [User::ROLE_ADMIN, User::RO
     <div class="header clearfix">
         <h2 class="pull-left title"><?= Html::encode($this->title) ?></h2>
         <p class="pull-right">
+            <?= Html::a('<i class="glyphicon glyphicon-download-alt"></i> Excel', ['export-view-excel', 'id' => $model->id], ['class' => 'btn btn-info btn-fill', 'style' => 'margin-right: 5px;']) ?>
             <?php if ($model->canEdit()): ?>
                 <?= Html::a('Редактировать', ['update', 'id' => $model->id], ['class' => 'btn btn-primary btn-fill']) ?>
             <?php endif; ?>
