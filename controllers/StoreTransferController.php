@@ -15,6 +15,8 @@ use yii\filters\VerbFilter;
 use yii\web\Controller;
 use yii\web\NotFoundHttpException;
 use yii\helpers\Json;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\IOFactory;
 
 /**
  * StoreTransferController implements the CRUD actions for StoreTransfer model.
@@ -35,7 +37,7 @@ class StoreTransferController extends Controller
                 'only' => ['*'],
                 'rules' => [
                     [
-                        'actions' => ['index', 'create', 'update', 'view', 'cancel', 'incoming', 'process-incoming', 'confirm-transfer'],
+                        'actions' => ['index', 'create', 'update', 'view', 'cancel', 'incoming', 'process-incoming', 'confirm-transfer', 'export-excel'],
                         'allow' => true,
                         'roles' => [
                             User::ROLE_COOK,
@@ -105,6 +107,100 @@ class StoreTransferController extends Controller
             'searchModel' => $searchModel,
             'dataProvider' => $dataProvider,
         ]);
+    }
+
+    /**
+     * Экспорт перемещений в Excel
+     * @return void
+     */
+    public function actionExportExcel()
+    {
+        $searchModel = new StoreTransferSearch();
+
+        // Если не админ/офис, показываем только заявки своего магазина
+        if (!in_array(Yii::$app->user->identity->role, [User::ROLE_ADMIN, User::ROLE_OFFICE])) {
+            $searchModel->request_store_id = Yii::$app->user->identity->store_id;
+        }
+
+        $dataProvider = $searchModel->search(Yii::$app->request->queryParams);
+        $dataProvider->pagination = false;
+
+        $transfers = $dataProvider->getModels();
+
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('Перемещения');
+
+        // Заголовки
+        $headers = ['ID', 'Филиал-заказчик', 'Филиал-источник', 'Продукт', 'Ед. изм.', 'Запрошено', 'Передано', 'Утверждено', 'Статус позиции', 'Статус заявки', 'Дата создания', 'Создал', 'Комментарий'];
+        $col = 'A';
+        foreach ($headers as $header) {
+            $sheet->setCellValue($col . '1', $header);
+            $col++;
+        }
+
+        // Стиль заголовков
+        $sheet->getStyle('A1:M1')->applyFromArray([
+            'font' => ['bold' => true],
+            'fill' => [
+                'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
+                'startColor' => ['rgb' => 'E0E0E0'],
+            ],
+        ]);
+
+        $row = 2;
+        foreach ($transfers as $transfer) {
+            $items = $transfer->items;
+
+            if (empty($items)) {
+                $sheet->setCellValue('A' . $row, $transfer->id);
+                $sheet->setCellValue('B' . $row, $transfer->requestStore ? $transfer->requestStore->name : '-');
+                $sheet->setCellValue('C' . $row, '-');
+                $sheet->setCellValue('D' . $row, '-');
+                $sheet->setCellValue('E' . $row, '-');
+                $sheet->setCellValue('F' . $row, '-');
+                $sheet->setCellValue('G' . $row, '-');
+                $sheet->setCellValue('H' . $row, '-');
+                $sheet->setCellValue('I' . $row, '-');
+                $sheet->setCellValue('J' . $row, $transfer->getStatusLabel());
+                $sheet->setCellValue('K' . $row, date('d.m.Y H:i', strtotime($transfer->created_at)));
+                $sheet->setCellValue('L' . $row, $transfer->createdBy ? $transfer->createdBy->fullname : '-');
+                $sheet->setCellValue('M' . $row, $transfer->comment ?: '');
+                $row++;
+            } else {
+                foreach ($items as $index => $item) {
+                    $sheet->setCellValue('A' . $row, $transfer->id);
+                    $sheet->setCellValue('B' . $row, $transfer->requestStore ? $transfer->requestStore->name : '-');
+                    $sheet->setCellValue('C' . $row, $item->sourceStore ? $item->sourceStore->name : '-');
+                    $sheet->setCellValue('D' . $row, $item->product ? $item->product->name : '-');
+                    $sheet->setCellValue('E' . $row, $item->product ? $item->product->mainUnit : '-');
+                    $sheet->setCellValue('F' . $row, $item->requested_quantity);
+                    $sheet->setCellValue('G' . $row, $item->transferred_quantity !== null ? $item->transferred_quantity : '-');
+                    $sheet->setCellValue('H' . $row, $item->approved_quantity !== null ? $item->approved_quantity : '-');
+                    $sheet->setCellValue('I' . $row, $item->getStatusLabel());
+                    $sheet->setCellValue('J' . $row, $transfer->getStatusLabel());
+                    $sheet->setCellValue('K' . $row, date('d.m.Y H:i', strtotime($transfer->created_at)));
+                    $sheet->setCellValue('L' . $row, $transfer->createdBy ? $transfer->createdBy->fullname : '-');
+                    $sheet->setCellValue('M' . $row, $index === 0 ? ($transfer->comment ?: '') : '');
+                    $row++;
+                }
+            }
+        }
+
+        // Авто-ширина колонок
+        foreach (range('A', 'M') as $col) {
+            $sheet->getColumnDimension($col)->setAutoSize(true);
+        }
+
+        $filename = 'Перемещения_' . date('Y-m-d_H-i') . '.xlsx';
+
+        header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        header('Content-Disposition: attachment; filename="' . $filename . '"');
+        header('Cache-Control: max-age=0');
+
+        $writer = IOFactory::createWriter($spreadsheet, 'Xlsx');
+        $writer->save('php://output');
+        exit;
     }
 
     /**
