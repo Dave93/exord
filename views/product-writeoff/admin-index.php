@@ -20,7 +20,10 @@ $stores = ArrayHelper::map(Stores::find()->all(), 'id', 'name');
 ?>
 <div class="card">
     <div class="header clearfix">
-        <h2 class="title"><?= Html::encode($this->title) ?></h2>
+        <h2 class="pull-left title"><?= Html::encode($this->title) ?></h2>
+        <p class="pull-right">
+            <?= Html::a('<i class="glyphicon glyphicon-download-alt"></i> Экспорт в Excel', ['export-excel'] + Yii::$app->request->queryParams, ['class' => 'btn btn-info btn-fill']) ?>
+        </p>
     </div>
     <hr>
     <div class="content">
