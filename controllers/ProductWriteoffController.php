@@ -15,6 +15,8 @@ use yii\filters\VerbFilter;
 use yii\web\Controller;
 use yii\web\NotFoundHttpException;
 use yii\web\UploadedFile;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\IOFactory;
 
 /**
  * ProductWriteoffController implements the CRUD actions for ProductWriteoff model.
@@ -35,7 +37,7 @@ class ProductWriteoffController extends Controller
                 'only' => ['*'],
                 'rules' => [
                     [
-                        'actions' => ['index', 'create', 'update', 'view', 'delete-photo'],
+                        'actions' => ['index', 'create', 'update', 'view', 'delete-photo', 'export-excel'],
                         'allow' => true,
                         'roles' => [
                             User::ROLE_COOK,
@@ -102,6 +104,99 @@ class ProductWriteoffController extends Controller
             'searchModel' => $searchModel,
             'dataProvider' => $dataProvider,
         ]);
+    }
+
+    /**
+     * Экспорт списаний в Excel
+     * @return void
+     */
+    public function actionExportExcel()
+    {
+        $searchModel = new ProductWriteoffSearch();
+
+        // Если не админ/офис/офис менеджер, показываем только списания своего магазина
+        if (!in_array(Yii::$app->user->identity->role, [User::ROLE_ADMIN, User::ROLE_OFFICE, User::ROLE_OFFICE_MANAGER])) {
+            $searchModel->store_id = Yii::$app->user->identity->store_id;
+        }
+
+        $dataProvider = $searchModel->search(Yii::$app->request->queryParams);
+        $dataProvider->pagination = false; // Получить все записи
+
+        $writeoffs = $dataProvider->getModels();
+
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('Списания');
+
+        // Заголовки
+        $headers = ['ID', 'Магазин', 'Продукт', 'Ед. изм.', 'Кол-во запрошено', 'Кол-во утверждено', 'Статус', 'Комментарий', 'Дата создания', 'Создал', 'Дата утверждения', 'Утвердил'];
+        $col = 'A';
+        foreach ($headers as $header) {
+            $sheet->setCellValue($col . '1', $header);
+            $col++;
+        }
+
+        // Стиль заголовков
+        $sheet->getStyle('A1:L1')->applyFromArray([
+            'font' => ['bold' => true],
+            'fill' => [
+                'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
+                'startColor' => ['rgb' => 'E0E0E0'],
+            ],
+        ]);
+
+        $row = 2;
+        foreach ($writeoffs as $writeoff) {
+            $items = $writeoff->items;
+
+            if (empty($items)) {
+                // Запись без позиций
+                $sheet->setCellValue('A' . $row, $writeoff->id);
+                $sheet->setCellValue('B' . $row, $writeoff->store ? $writeoff->store->name : '-');
+                $sheet->setCellValue('C' . $row, '-');
+                $sheet->setCellValue('D' . $row, '-');
+                $sheet->setCellValue('E' . $row, '-');
+                $sheet->setCellValue('F' . $row, '-');
+                $sheet->setCellValue('G' . $row, $writeoff->getStatusLabel());
+                $sheet->setCellValue('H' . $row, $writeoff->comment ?: '');
+                $sheet->setCellValue('I' . $row, date('d.m.Y H:i', strtotime($writeoff->created_at)));
+                $sheet->setCellValue('J' . $row, $writeoff->createdBy ? $writeoff->createdBy->fullname : '-');
+                $sheet->setCellValue('K' . $row, $writeoff->approved_at ? date('d.m.Y H:i', strtotime($writeoff->approved_at)) : '-');
+                $sheet->setCellValue('L' . $row, $writeoff->approvedBy ? $writeoff->approvedBy->fullname : '-');
+                $row++;
+            } else {
+                foreach ($items as $index => $item) {
+                    $sheet->setCellValue('A' . $row, $writeoff->id);
+                    $sheet->setCellValue('B' . $row, $writeoff->store ? $writeoff->store->name : '-');
+                    $sheet->setCellValue('C' . $row, $item->product ? $item->product->name : '-');
+                    $sheet->setCellValue('D' . $row, $item->product ? $item->product->mainUnit : '-');
+                    $sheet->setCellValue('E' . $row, $item->count);
+                    $sheet->setCellValue('F' . $row, $item->approved_count !== null ? $item->approved_count : '-');
+                    $sheet->setCellValue('G' . $row, $writeoff->getStatusLabel());
+                    $sheet->setCellValue('H' . $row, $index === 0 ? ($writeoff->comment ?: '') : '');
+                    $sheet->setCellValue('I' . $row, date('d.m.Y H:i', strtotime($writeoff->created_at)));
+                    $sheet->setCellValue('J' . $row, $writeoff->createdBy ? $writeoff->createdBy->fullname : '-');
+                    $sheet->setCellValue('K' . $row, $writeoff->approved_at ? date('d.m.Y H:i', strtotime($writeoff->approved_at)) : '-');
+                    $sheet->setCellValue('L' . $row, $writeoff->approvedBy ? $writeoff->approvedBy->fullname : '-');
+                    $row++;
+                }
+            }
+        }
+
+        // Авто-ширина колонок
+        foreach (range('A', 'L') as $col) {
+            $sheet->getColumnDimension($col)->setAutoSize(true);
+        }
+
+        $filename = 'Списания_' . date('Y-m-d_H-i') . '.xlsx';
+
+        header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        header('Content-Disposition: attachment; filename="' . $filename . '"');
+        header('Cache-Control: max-age=0');
+
+        $writer = IOFactory::createWriter($spreadsheet, 'Xlsx');
+        $writer->save('php://output');
+        exit;
     }
 
     /**

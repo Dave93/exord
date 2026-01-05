@@ -18,6 +18,7 @@ $isAdmin = in_array(Yii::$app->user->identity->role, [User::ROLE_ADMIN, User::RO
     <div class="header clearfix">
         <h2 class="pull-left title"><?= Html::encode($this->title) ?></h2>
         <p class="pull-right">
+            <?= Html::a('<i class="glyphicon glyphicon-download-alt"></i> Экспорт в Excel', ['export-excel'] + Yii::$app->request->queryParams, ['class' => 'btn btn-info btn-fill', 'style' => 'margin-right: 10px;']) ?>
             <?= Html::a('Добавить списание', ['create'], ['class' => 'btn btn-success btn-fill']) ?>
         </p>
     </div>
