@@ -532,7 +532,7 @@ class OrdersController extends Controller
 
                     // Если запись существует и удалена, физически удаляем её перед созданием новой
                     if ($oi !== null && $oi->deleted_at !== null) {
-                        $oi->delete();
+                        $oi->forceDelete();
                         $oi = null;
                     }
 
@@ -625,8 +625,8 @@ class OrdersController extends Controller
 
             $model->state = 0;
             if (count($items) > 0 && $model->save()) {
-                // Получаем все существующие позиции заказа для сравнения
-                $existingItems = OrderItems::find()
+                // Получаем все существующие позиции заказа для сравнения (включая удалённые)
+                $existingItems = OrderItems::findWithDeleted()
                     ->where(['orderId' => $model->id])
                     ->indexBy('productId')
                     ->all();
@@ -636,8 +636,8 @@ class OrdersController extends Controller
                     $oi = isset($existingItems[$key]) ? $existingItems[$key] : null;
 
                     if (empty($value)) {
-                        // Удаление позиции
-                        if ($oi != null) {
+                        // Удаление позиции (только если она активна)
+                        if ($oi != null && $oi->deleted_at === null) {
                             $oldQuantity = $oi->quantity;
                             $oi->delete();
 
@@ -652,6 +652,12 @@ class OrdersController extends Controller
                             );
                         }
                         continue;
+                    }
+
+                    // Если запись существует и удалена, физически удаляем её
+                    if ($oi !== null && $oi->deleted_at !== null) {
+                        $oi->forceDelete();
+                        $oi = null;
                     }
 
                     if ($oi == null) {

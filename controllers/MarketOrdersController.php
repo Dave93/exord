@@ -350,21 +350,36 @@ class MarketOrdersController extends Controller
             if (count($items) > 0 && $model->save()) {
 
                 foreach ($items as $key => $value) {
-//                    if (empty($value) && empty($available[$key]))
-//                        continue;
                     if (empty($value))
                         continue;
-                    $oi = new OrderItems();
-                    $oi->orderId = $model->id;
-                    $oi->productId = $key;
-                    $oi->quantity = $value;
-                    $oi->storeId = $storeId;
-                    $oi->supplierId = $supplierId;
-                    $oi->storeQuantity = 0;
-                    $oi->supplierQuantity = $value;
-                    $oi->available = 0;
-                    $oi->userId = Yii::$app->user->id;
-                    $oi->save();
+
+                    // Проверяем, существует ли уже этот товар в заказе (включая удаленные)
+                    $oi = OrderItems::findWithDeleted()->where(['orderId' => $model->id, 'productId' => $key])->one();
+
+                    // Если запись существует и удалена, физически удаляем её перед созданием новой
+                    if ($oi !== null && $oi->deleted_at !== null) {
+                        $oi->forceDelete();
+                        $oi = null;
+                    }
+
+                    if ($oi === null) {
+                        $oi = new OrderItems();
+                        $oi->orderId = $model->id;
+                        $oi->productId = $key;
+                        $oi->quantity = $value;
+                        $oi->storeId = $storeId;
+                        $oi->supplierId = $supplierId;
+                        $oi->storeQuantity = 0;
+                        $oi->supplierQuantity = $value;
+                        $oi->available = 0;
+                        $oi->userId = Yii::$app->user->id;
+                        $oi->save();
+                    } else {
+                        // Если товар существует и активен, обновляем количество
+                        $oi->quantity = $value;
+                        $oi->supplierQuantity = $value;
+                        $oi->save();
+                    }
                 }
 
                 return $this->redirect(['orders/stock', 'tab' => $model->id]);
@@ -394,12 +409,21 @@ class MarketOrdersController extends Controller
             if (count($items) > 0 && $model->save()) {
 //                OrderItems::deleteAll(['orderId' => $model->id]);
                 foreach ($items as $key => $value) {
-                    $oi = OrderItems::findOne(['orderId' => $model->id, 'productId' => $key]);
+                    // Ищем включая удалённые записи
+                    $oi = OrderItems::findWithDeleted()->where(['orderId' => $model->id, 'productId' => $key])->one();
+
                     if (empty($value)) {
-                        if ($oi != null)
+                        if ($oi != null && $oi->deleted_at === null)
                             $oi->delete();
                         continue;
                     }
+
+                    // Если запись существует и удалена, физически удаляем её
+                    if ($oi !== null && $oi->deleted_at !== null) {
+                        $oi->forceDelete();
+                        $oi = null;
+                    }
+
                     if ($oi == null) {
                         $oi = new OrderItems();
                         $oi->orderId = $model->id;

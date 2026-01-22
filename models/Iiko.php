@@ -736,25 +736,41 @@ class Iiko extends Model
      */
     public function createWriteoffDoc($model)
     {
+        Yii::info("=== НАЧАЛО createWriteoffDoc для списания #{$model->id} ===", 'iiko');
+        Yii::info("store_id: {$model->store_id}, status: {$model->status}, comment: " . ($model->comment ?? 'нет'), 'iiko');
+
         if ($model->status !== ProductWriteoff::STATUS_APPROVED) {
+            Yii::warning("Списание #{$model->id} не утверждено (status={$model->status})", 'iiko');
             return 'Списание должно быть утверждено перед отправкой в iiko';
         }
 
         // Получаем позиции списания с утвержденными количествами
         $items = $model->items;
-        @file_put_contents(__DIR__ . '/createWriteoffDoc.txt', "items: " . print_r($items, true) . "\n\n", FILE_APPEND);
+        Yii::info("Найдено позиций в списании: " . count($items), 'iiko');
+
         if (empty($items)) {
+            Yii::warning("Нет позиций для списания #{$model->id}", 'iiko');
             return 'Нет позиций для списания';
         }
 
         $itemsArray = [];
+        $skippedItems = [];
         foreach ($items as $item) {
             if (empty($item->approved_count) || $item->approved_count <= 0) {
+                $skippedItems[] = [
+                    'product_id' => $item->product_id,
+                    'approved_count' => $item->approved_count ?? 'null',
+                    'reason' => 'approved_count пустой или <= 0'
+                ];
                 continue;
             }
 
             $product = Products::findOne($item->product_id);
             if ($product == null) {
+                $skippedItems[] = [
+                    'product_id' => $item->product_id,
+                    'reason' => 'продукт не найден в БД'
+                ];
                 continue;
             }
 
@@ -762,11 +778,19 @@ class Iiko extends Model
                 'productId' => $item->product_id,
                 'amount' => (float)$item->approved_count
             ];
+            Yii::info("Добавлена позиция: productId={$item->product_id}, amount={$item->approved_count}, name={$product->name}", 'iiko');
         }
-        @file_put_contents(__DIR__ . '/createWriteoffDoc.txt', "itemsArray: " . print_r($itemsArray, true) . "\n\n", FILE_APPEND);
+
+        if (!empty($skippedItems)) {
+            Yii::warning("Пропущено позиций: " . count($skippedItems) . " - " . json_encode($skippedItems, JSON_UNESCAPED_UNICODE), 'iiko');
+        }
+
         if (empty($itemsArray)) {
+            Yii::warning("Нет утвержденных позиций для списания #{$model->id} после фильтрации", 'iiko');
             return 'Нет утвержденных позиций для списания';
         }
+
+        Yii::info("Итого позиций для отправки в iiko: " . count($itemsArray), 'iiko');
 
         // Формируем данные для запроса
         $data = [
@@ -778,46 +802,59 @@ class Iiko extends Model
             'items' => $itemsArray
         ];
 
-        @file_put_contents(__DIR__ . '/createWriteoffDoc.txt', "data: " . print_r($data, true) . "\n\n", FILE_APPEND);
-
-        // Добавляем accountId если указан
-        // if (!empty($accountId)) {
-        //     $data['accountId'] = $accountId;
-        // }
+        Yii::info("Данные для отправки в iiko: " . json_encode($data, JSON_UNESCAPED_UNICODE), 'iiko');
 
         // Авторизуемся и отправляем документ
+        Yii::info("Попытка авторизации в iiko...", 'iiko');
         if ($this->auth()) {
+            Yii::info("Авторизация успешна, отправляем документ списания...", 'iiko');
             $url = "{$this->baseUrl}v2/documents/writeoff?key={$this->token}";
+            Yii::info("URL запроса: {$this->baseUrl}v2/documents/writeoff", 'iiko');
 
-            $result = $this->post($url, json_encode($data), [
+            $jsonData = json_encode($data);
+            Yii::info("JSON тело запроса: {$jsonData}", 'iiko');
+
+            $result = $this->post($url, $jsonData, [
                 CURLOPT_HTTPHEADER => [
                     'Content-Type: application/json'
                 ]
             ]);
 
+            Yii::info("Ответ от iiko (raw): " . ($result ?: 'ПУСТОЙ'), 'iiko');
+
             // Проверяем ответ
             if (!empty($result)) {
-                @file_put_contents(__DIR__ . '/createWriteoffDoc.txt', "result: " . print_r($result, true) . "\n\n", FILE_APPEND);
                 $response = json_decode($result, true);
-                @file_put_contents(__DIR__ . '/createWriteoffDoc.txt', "response json_decode: " . print_r($response, true) . "\n\n", FILE_APPEND);
+                $jsonError = json_last_error();
+
+                Yii::info("JSON decode error code: {$jsonError}", 'iiko');
+                Yii::info("Ответ от iiko (decoded): " . json_encode($response, JSON_UNESCAPED_UNICODE), 'iiko');
+
                 // Если получили корректный JSON ответ
-                if (json_last_error() === JSON_ERROR_NONE) {
+                if ($jsonError === JSON_ERROR_NONE) {
                     // Проверяем успешность создания документа
                     if (isset($response['id']) || (isset($response['success']) && $response['success'] === true)) {
+                        $docId = $response['id'] ?? 'unknown';
+                        Yii::info("=== УСПЕХ: акт списания создан в iiko, documentId: {$docId} (списание #{$model->id}) ===", 'iiko');
                         return true;
                     } else {
                         // Возвращаем описание ошибки если есть
-                        $errorMessage = $response['message'] ?? $response['error'] ?? 'Неизвестная ошибка при создании акта списания';
+                        $errorMessage = $response['message'] ?? $response['error'] ?? $response['errorDescription'] ?? 'Неизвестная ошибка при создании акта списания';
+                        Yii::error("Ошибка создания акта списания в iiko: {$errorMessage} (списание #{$model->id})", 'iiko');
+                        Yii::error("Полный ответ: " . json_encode($response, JSON_UNESCAPED_UNICODE), 'iiko');
                         return $errorMessage;
                     }
                 } else {
+                    Yii::error("Ошибка парсинга ответа iiko (json_error={$jsonError}): {$result} (списание #{$model->id})", 'iiko');
                     return 'Ошибка парсинга ответа iiko: ' . $result;
                 }
             }
 
+            Yii::error("Пустой ответ от сервера iiko (списание #{$model->id})", 'iiko');
             return 'Пустой ответ от сервера iiko';
         }
 
+        Yii::error("Ошибка авторизации в iiko (списание #{$model->id})", 'iiko');
         return 'Ошибка авторизации в iiko';
     }
 
@@ -828,19 +865,38 @@ class Iiko extends Model
      */
     public function createInternalTransferDoc($model)
     {
+        Yii::info("=== НАЧАЛО createInternalTransferDoc для перемещения #{$model->id} ===", 'iiko');
+        Yii::info("request_store_id: {$model->request_store_id}, status: {$model->status}, comment: " . ($model->comment ?? 'нет'), 'iiko');
+
         if ($model->status !== StoreTransfer::STATUS_COMPLETED) {
+            Yii::warning("Перемещение #{$model->id} не завершено (status={$model->status})", 'iiko');
             return ['success' => false, 'message' => 'Заявка должна быть завершена перед отправкой в iiko'];
         }
 
         // Получаем все утвержденные позиции
         $approvedItems = [];
+        $skippedItems = [];
         foreach ($model->items as $item) {
             if ($item->item_status === StoreTransferItem::STATUS_APPROVED && $item->approved_quantity > 0) {
                 $approvedItems[] = $item;
+                Yii::info("Утвержденная позиция: product_id={$item->product_id}, source_store_id={$item->source_store_id}, approved_quantity={$item->approved_quantity}", 'iiko');
+            } else {
+                $skippedItems[] = [
+                    'product_id' => $item->product_id,
+                    'item_status' => $item->item_status,
+                    'approved_quantity' => $item->approved_quantity ?? 'null',
+                    'reason' => 'не утверждена или approved_quantity <= 0'
+                ];
             }
         }
 
+        Yii::info("Всего позиций: " . count($model->items) . ", утвержденных: " . count($approvedItems), 'iiko');
+        if (!empty($skippedItems)) {
+            Yii::warning("Пропущено позиций: " . count($skippedItems) . " - " . json_encode($skippedItems, JSON_UNESCAPED_UNICODE), 'iiko');
+        }
+
         if (empty($approvedItems)) {
+            Yii::warning("Нет утвержденных позиций для перемещения #{$model->id}", 'iiko');
             return ['success' => false, 'message' => 'Нет утвержденных позиций для перемещения'];
         }
 
@@ -854,15 +910,24 @@ class Iiko extends Model
             $itemsBySource[$sourceId][] = $item;
         }
 
+        Yii::info("Группировка по источникам: " . count($itemsBySource) . " филиалов-источников", 'iiko');
+
         // Создаем документ для каждой пары магазинов
         $results = [];
         $allSuccess = true;
 
         foreach ($itemsBySource as $sourceStoreId => $items) {
+            $sourceStore = Stores::findOne($sourceStoreId);
+            $sourceStoreName = $sourceStore ? $sourceStore->name : $sourceStoreId;
+
+            Yii::info("--- Обработка источника: {$sourceStoreName} ({$sourceStoreId}), позиций: " . count($items) . " ---", 'iiko');
+
             $itemsArray = [];
+            $skippedProducts = [];
             foreach ($items as $item) {
                 $product = Products::findOne($item->product_id);
                 if ($product == null) {
+                    $skippedProducts[] = ['product_id' => $item->product_id, 'reason' => 'продукт не найден в БД'];
                     continue;
                 }
 
@@ -870,9 +935,15 @@ class Iiko extends Model
                     'productId' => $item->product_id,
                     'amount' => (float)$item->approved_quantity
                 ];
+                Yii::info("Добавлена позиция: productId={$item->product_id}, amount={$item->approved_quantity}, name={$product->name}", 'iiko');
+            }
+
+            if (!empty($skippedProducts)) {
+                Yii::warning("Пропущено продуктов для источника {$sourceStoreName}: " . json_encode($skippedProducts, JSON_UNESCAPED_UNICODE), 'iiko');
             }
 
             if (empty($itemsArray)) {
+                Yii::warning("Нет позиций для источника {$sourceStoreName} после фильтрации", 'iiko');
                 continue;
             }
 
@@ -886,44 +957,61 @@ class Iiko extends Model
                 'items' => $itemsArray
             ];
 
-            // Авторизуемся и отправляем документ
-            if ($this->auth()) {
-                $url = "{$this->baseUrl}v2/documents/internalTransfer?key={$this->token}";
+            Yii::info("Данные для отправки в iiko (источник {$sourceStoreName}): " . json_encode($data, JSON_UNESCAPED_UNICODE), 'iiko');
 
-                $result = $this->post($url, json_encode($data), [
+            // Авторизуемся и отправляем документ
+            Yii::info("Попытка авторизации в iiko...", 'iiko');
+            if ($this->auth()) {
+                Yii::info("Авторизация успешна, отправляем документ перемещения...", 'iiko');
+                $url = "{$this->baseUrl}v2/documents/internalTransfer?key={$this->token}";
+                Yii::info("URL запроса: {$this->baseUrl}v2/documents/internalTransfer", 'iiko');
+
+                $jsonData = json_encode($data);
+                Yii::info("JSON тело запроса: {$jsonData}", 'iiko');
+
+                $result = $this->post($url, $jsonData, [
                     CURLOPT_HTTPHEADER => [
                         'Content-Type: application/json'
                     ]
                 ]);
 
+                Yii::info("Ответ от iiko (raw): " . ($result ?: 'ПУСТОЙ'), 'iiko');
+
                 // Проверяем ответ
                 if (!empty($result)) {
                     $response = json_decode($result, true);
+                    $jsonError = json_last_error();
+
+                    Yii::info("JSON decode error code: {$jsonError}", 'iiko');
+                    Yii::info("Ответ от iiko (decoded): " . json_encode($response, JSON_UNESCAPED_UNICODE), 'iiko');
 
                     // Если получили корректный JSON ответ
-                    if (json_last_error() === JSON_ERROR_NONE) {
+                    if ($jsonError === JSON_ERROR_NONE) {
                         // Проверяем успешность создания документа
                         if (isset($response['id']) || (isset($response['success']) && $response['success'] === true)) {
-                            $sourceStore = Stores::findOne($sourceStoreId);
-                            $sourceStoreName = $sourceStore ? $sourceStore->name : $sourceStoreId;
+                            $docId = $response['id'] ?? 'unknown';
+                            Yii::info("УСПЕХ: документ перемещения создан в iiko из {$sourceStoreName}, documentId: {$docId}", 'iiko');
                             $results[] = ['success' => true, 'message' => "Создан документ перемещения из {$sourceStoreName}"];
                         } else {
                             // Возвращаем описание ошибки если есть
-                            $errorMessage = $response['message'] ?? $response['error'] ?? 'Неизвестная ошибка';
-                            $sourceStore = Stores::findOne($sourceStoreId);
-                            $sourceStoreName = $sourceStore ? $sourceStore->name : $sourceStoreId;
+                            $errorMessage = $response['message'] ?? $response['error'] ?? $response['errorDescription'] ?? 'Неизвестная ошибка';
+                            Yii::error("Ошибка создания документа перемещения в iiko из {$sourceStoreName}: {$errorMessage}", 'iiko');
+                            Yii::error("Полный ответ: " . json_encode($response, JSON_UNESCAPED_UNICODE), 'iiko');
                             $results[] = ['success' => false, 'message' => "Ошибка для {$sourceStoreName}: {$errorMessage}"];
                             $allSuccess = false;
                         }
                     } else {
+                        Yii::error("Ошибка парсинга ответа iiko (json_error={$jsonError}): {$result}", 'iiko');
                         $results[] = ['success' => false, 'message' => "Ошибка парсинга ответа iiko: {$result}"];
                         $allSuccess = false;
                     }
                 } else {
+                    Yii::error("Пустой ответ от сервера iiko для источника {$sourceStoreName}", 'iiko');
                     $results[] = ['success' => false, 'message' => 'Пустой ответ от сервера iiko'];
                     $allSuccess = false;
                 }
             } else {
+                Yii::error("Ошибка авторизации в iiko (перемещение #{$model->id})", 'iiko');
                 return ['success' => false, 'message' => 'Ошибка авторизации в iiko'];
             }
         }
@@ -934,13 +1022,16 @@ class Iiko extends Model
             if (count($results) > 1) {
                 $message .= ' (' . count($results) . ' документов)';
             }
+            Yii::info("=== УСПЕХ createInternalTransferDoc: {$message} (перемещение #{$model->id}) ===", 'iiko');
             return ['success' => true, 'message' => $message, 'details' => $results];
         } else {
             $successCount = count(array_filter($results, function($r) { return $r['success']; }));
             $totalCount = count($results);
+            $message = "Создано {$successCount} из {$totalCount} документов. Проверьте детали.";
+            Yii::warning("=== ЧАСТИЧНЫЙ УСПЕХ/ОШИБКА createInternalTransferDoc: {$message} (перемещение #{$model->id}) ===", 'iiko');
             return [
                 'success' => false,
-                'message' => "Создано {$successCount} из {$totalCount} документов. Проверьте детали.",
+                'message' => $message,
                 'details' => $results
             ];
         }
