@@ -44,6 +44,15 @@ $config = [
                     'class' => 'yii\log\FileTarget',
                     'levels' => ['error', 'warning'],
                 ],
+                // Логирование интеграции с iiko
+                [
+                    'class' => 'yii\log\FileTarget',
+                    'levels' => ['info', 'warning', 'error'],
+                    'categories' => ['iiko'],
+                    'logFile' => '@runtime/logs/iiko.log',
+                    'maxFileSize' => 10240, // 10 MB
+                    'maxLogFiles' => 10,
+                ],
             ],
         ],
         'db' => $db,

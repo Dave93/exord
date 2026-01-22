@@ -971,15 +971,30 @@ class OrdersController extends Controller
             $model = Orders::findOne(['id' => $orderId]);
             $model->comment = $comment;
             if ($isSend == 'Y') {
+                Yii::info("=== actionStock: Начало отправки заказа #{$orderId} в iiko ===", 'iiko');
+                Yii::info("Пользователь: " . Yii::$app->user->id . " (" . Yii::$app->user->identity->username . ")", 'iiko');
+                Yii::info("Текущий outgoingDocumentId: " . ($model->outgoingDocumentId ?? 'пусто'), 'iiko');
+
                 // Проверяем, не был ли документ уже отправлен в iiko
                 if (empty($model->outgoingDocumentId)) {
+                    Yii::info("outgoingDocumentId пустой - отправляем в iiko", 'iiko');
+
                     $iiko = new Iiko();
-                    $iiko->auth();
+                    $authResult = $iiko->auth();
+                    Yii::info("Результат авторизации iiko: " . ($authResult ? 'успешно' : 'неудача'), 'iiko');
 
                     $model->sent_date = date("Y-m-d H:i:s");
-//echo '<pre>'; print_r($model); echo '</pre>';
+
                     $outDoc = $iiko->supplierOutStockDoc($model);
-//                echo '<pre>'; print_r($outDoc); echo '</pre>';die();
+                    Yii::info("Результат supplierOutStockDoc: " . var_export($outDoc, true), 'iiko');
+
+                    if ($outDoc === true) {
+                        Yii::info("=== actionStock: Заказ #{$orderId} УСПЕШНО отправлен в iiko ===", 'iiko');
+                    } else {
+                        Yii::error("=== actionStock: ОШИБКА отправки заказа #{$orderId} в iiko ===", 'iiko');
+                    }
+                } else {
+                    Yii::info("Документ уже был отправлен ранее (outgoingDocumentId: {$model->outgoingDocumentId})", 'iiko');
                 }
                 $model->state = 1;
             }

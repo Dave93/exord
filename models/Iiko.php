@@ -31,6 +31,8 @@ class Iiko extends Model
 
     public function auth()
     {
+        Yii::info("Авторизация в iiko: baseUrl={$this->baseUrl}, login={$this->login}", 'iiko');
+
         $arrContextOptions = array(
             "ssl" => array(
                 "verify_peer" => false,
@@ -38,12 +40,25 @@ class Iiko extends Model
             ),
         );
         $hash = sha1($this->password);
-        $token = file_get_contents("{$this->baseUrl}auth?login={$this->login}&pass={$hash}", false, stream_context_create($arrContextOptions));
+        $authUrl = "{$this->baseUrl}auth?login={$this->login}&pass={$hash}";
+
+        $token = @file_get_contents($authUrl, false, stream_context_create($arrContextOptions));
+
         if (!$token) {
+            $error = error_get_last();
+            Yii::error("Ошибка авторизации в iiko: " . ($error['message'] ?? 'пустой ответ'), 'iiko');
+            Yii::error("URL авторизации: {$this->baseUrl}auth?login={$this->login}", 'iiko');
             return false;
         }
+
+        // Проверяем, не вернулась ли ошибка в виде текста
+        if (strpos($token, 'error') !== false || strpos($token, 'Error') !== false || strlen($token) > 100) {
+            Yii::error("Возможная ошибка авторизации iiko, ответ: " . substr($token, 0, 200), 'iiko');
+        }
+
         $this->token = $token;
         Settings::setValue("iiko-token", $this->token);
+        Yii::info("Авторизация в iiko успешна, токен получен (длина: " . strlen($token) . ")", 'iiko');
         return true;
     }
 
@@ -939,48 +954,52 @@ class Iiko extends Model
      */
     public function supplierOutStockDoc($model, $debug = false, $customDate = null)
     {
-//        echo '<pre>';
-//        print_r($model->id);
-//        echo '</pre>';
         $orderId = $model->id;
-        // $sql = "select supplierId from order_items oi where oi.orderId=:id and oi.supplierQuantity>0 and oi.supplierId!='' group by oi.supplierId";
-        // $suppliers = Yii::$app->db->createCommand($sql)
-        //     ->bindParam(":id", $orderId, PDO::PARAM_INT)
-        //     ->queryColumn();
-        // $k = 0;
+
+        Yii::info("=== НАЧАЛО supplierOutStockDoc для заказа #{$orderId} ===", 'iiko');
+        Yii::info("supplierId: {$model->supplierId}, storeId: {$model->storeId}", 'iiko');
+
         $storeId = Settings::getValue('stock-id');
+        Yii::info("stock-id из настроек: {$storeId}", 'iiko');
+
         if ($debug) {
             echo '<pre>';
             print_r($model->supplierId);
             echo '</pre>';
         }
-        // foreach ($suppliers as $supplier) {
-        //     if (empty($supplier))
-        //         continue;
-        //     $k++;
-            $sql = "select * from order_items oi where oi.orderId=:id and oi.supplierQuantity>0";
-            $items = Yii::$app->db->createCommand($sql)
-                ->bindParam(":id", $orderId, PDO::PARAM_INT)
-                ->queryAll();
-//            echo '<pre>'; var_dump(empty($items)); echo '</pre>';
-            if (empty($items))
-                return false;
+
+        $sql = "select * from order_items oi where oi.orderId=:id and oi.supplierQuantity>0";
+        $items = Yii::$app->db->createCommand($sql)
+            ->bindParam(":id", $orderId, PDO::PARAM_INT)
+            ->queryAll();
+
+        Yii::info("Найдено позиций с supplierQuantity>0: " . count($items), 'iiko');
+
+        if (empty($items)) {
+            Yii::warning("Нет позиций для отправки в iiko (заказ #{$orderId})", 'iiko');
+            return false;
+        }
 
             $itemsXml = "";
-//            $defaultStoreId = Settings::getValue('stock-id');
             $defaultStoreId = '';
             $defaultSupplierFromId = $model->supplierId;
+            $addedItemsCount = 0;
+            $skippedItems = [];
+
             foreach ($items as $item) {
                 if (empty($item['price']) || empty($item['productId']) || empty($item['shipped_from_warehouse'])) {
+                    $skippedItems[] = [
+                        'productId' => $item['productId'] ?? 'null',
+                        'price' => $item['price'] ?? 'null',
+                        'shipped_from_warehouse' => $item['shipped_from_warehouse'] ?? 'null',
+                        'reason' => 'пустое price/productId/shipped_from_warehouse'
+                    ];
                     continue;
                 }
                 $price = $item['price'] * (100 + $model->user->percentage) / 100;
                 $sum = $price * $item['shipped_from_warehouse'];
 
                 $defaultStoreId = $item['storeId'];
-                // if (empty($defaultSupplierFromId)) {
-                //     $defaultSupplierFromId = $item['supplierId'];
-                // }
                 $itemsXml .= "<item>
                             <productId>{$item['productId']}</productId>
                             <price>{$price}</price>
@@ -990,10 +1009,18 @@ class Iiko extends Model
                             <vatPercent>0.000000000</vatPercent>
                             <vatSum>0.00</vatSum>
                          </item>";
+                $addedItemsCount++;
             }
 
-            if (empty($itemsXml))
+            Yii::info("Добавлено позиций в XML: {$addedItemsCount}", 'iiko');
+            if (!empty($skippedItems)) {
+                Yii::warning("Пропущено позиций: " . count($skippedItems) . " - " . json_encode($skippedItems, JSON_UNESCAPED_UNICODE), 'iiko');
+            }
+
+            if (empty($itemsXml)) {
+                Yii::warning("itemsXml пустой - нет позиций с ценой и количеством (заказ #{$orderId})", 'iiko');
                 return false;
+            }
 
             $number = "sup-out-1-{$orderId}";
             $date = $customDate ? date("Y-m-d\TH:i:s", strtotime($customDate)) : date("Y-m-d\TH:i:s");
@@ -1007,6 +1034,13 @@ class Iiko extends Model
                         <status>PROCESSED</status>
                         <items>{$itemsXml}</items>
                     </document>";
+
+            Yii::info("Сформирован XML документ для iiko:\n" .
+                "documentNumber: {$number}\n" .
+                "dateIncoming: {$date}\n" .
+                "defaultStoreId: {$storeId}\n" .
+                "counteragentId: {$defaultSupplierFromId}", 'iiko');
+
             if ($debug) {
                 echo '<pre>';
                 print_r("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>
@@ -1020,21 +1054,53 @@ class Iiko extends Model
                     </document>");
                 echo '</pre>';
             }
+
+            Yii::info("Попытка авторизации в iiko...", 'iiko');
             if ($this->auth()) {
+                Yii::info("Авторизация успешна, отправляем документ...", 'iiko');
                 $url = "{$this->baseUrl}documents/import/outgoingInvoice?key={$this->token}";
+                Yii::info("URL запроса: {$this->baseUrl}documents/import/outgoingInvoice", 'iiko');
+
                 $result = $this->post($url, $doc);
+
+                Yii::info("Ответ от iiko (raw): " . substr($result, 0, 1000), 'iiko');
+
+                if (empty($result)) {
+                    Yii::error("Пустой ответ от iiko (заказ #{$orderId})", 'iiko');
+                    return false;
+                }
+
                 try {
                     $xml = new SimpleXMLElement($result);
-                    if ((string)$xml->valid == "true" && (string)$xml->warning == "false") {
-                        $model->outgoingDocumentId = (string)$xml->documentNumber;
+                    $valid = (string)$xml->valid;
+                    $warning = (string)$xml->warning;
+                    $errorDescription = isset($xml->errorDescription) ? (string)$xml->errorDescription : '';
+                    $documentNumber = isset($xml->documentNumber) ? (string)$xml->documentNumber : '';
+
+                    Yii::info("Ответ iiko: valid={$valid}, warning={$warning}, documentNumber={$documentNumber}", 'iiko');
+
+                    if (!empty($errorDescription)) {
+                        Yii::error("Ошибка от iiko: {$errorDescription} (заказ #{$orderId})", 'iiko');
+                    }
+
+                    if ($valid == "true" && $warning == "false") {
+                        $model->outgoingDocumentId = $documentNumber;
                         $model->save();
+                        Yii::info("=== УСПЕХ: документ создан в iiko, documentId: {$documentNumber} (заказ #{$orderId}) ===", 'iiko');
                         return true;
+                    } else {
+                        Yii::error("Документ НЕ создан в iiko: valid={$valid}, warning={$warning} (заказ #{$orderId})", 'iiko');
                     }
                 } catch (\Exception $e) {
+                    Yii::error("Исключение при парсинге ответа iiko: " . $e->getMessage() . " (заказ #{$orderId})", 'iiko');
+                    Yii::error("Raw ответ: " . $result, 'iiko');
                     return $e->getMessage();
                 }
+            } else {
+                Yii::error("Авторизация в iiko НЕ удалась (заказ #{$orderId})", 'iiko');
             }
-        // }
+
+        Yii::warning("=== КОНЕЦ supplierOutStockDoc - документ НЕ создан (заказ #{$orderId}) ===", 'iiko');
         return false;
     }
 
