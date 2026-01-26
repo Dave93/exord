@@ -837,26 +837,44 @@ class OrdersController extends Controller
     {
         $model = $this->findModel($id);
 
+        Yii::info("=== actionClose: Начало закрытия заказа #{$id} ===", 'iiko');
+        Yii::info("storeId: {$model->storeId}, supplierId: {$model->supplierId}, userId: {$model->userId}", 'iiko');
+
         $iiko = new Iiko();
-        if ($iiko->auth()) {
+        $out = false;
+        $in = false;
+
+        $authResult = $iiko->auth();
+        Yii::info("Результат авторизации iiko: " . ($authResult ? 'успешно' : 'неудача'), 'iiko');
+
+        if ($authResult) {
             if (Yii::$app->user->identity->role != User::ROLE_STOCK) {
+                Yii::info("Роль пользователя != ROLE_STOCK, вызываем storeOutDoc и supplierInStockDoc", 'iiko');
+
                 $out = $iiko->storeOutDoc($model);
+                Yii::info("Результат storeOutDoc: " . var_export($out, true), 'iiko');
+
                 $in = $iiko->supplierInStockDoc($model);
+                Yii::info("Результат supplierInStockDoc: " . var_export($in, true), 'iiko');
+            } else {
+                Yii::info("Роль пользователя = ROLE_STOCK, пропускаем отправку в iiko", 'iiko');
             }
-//            else {
-//                $out = true;
-//                $in = $iiko->supplierInDoc($model);
-//            }
         }
+
         if ($in || $out) {
             $model->state = 2;
             $model->save();
+            Yii::info("Заказ #{$id} успешно закрыт (state=2)", 'iiko');
 
             $d = date('d.m.Y H:i');
             $text = "Заказ закрыть: <b>#{$model->id}</b>\nЗаказчик: {$model->user->username}\nДата: {$d}";
             $bot = new TelegramBot();
             $bot->sendMessage(-1001879316029, $text, 'HTML');
+        } else {
+            Yii::warning("Заказ #{$id} НЕ закрыт: in=" . var_export($in, true) . ", out=" . var_export($out, true), 'iiko');
         }
+
+        Yii::info("=== actionClose: Завершение обработки заказа #{$id} ===", 'iiko');
         return $this->redirect(['orders/view', 'id' => $model->id]);
     }
 
