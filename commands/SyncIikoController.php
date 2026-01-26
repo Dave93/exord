@@ -6,18 +6,23 @@ use app\models\Departments;
 use app\models\Groups;
 use app\models\Iiko;
 use app\models\Products;
+use app\models\Settings;
 use app\models\Stores;
 use app\models\Suppliers;
 use Yii;
 use yii\console\Controller;
 use yii\console\ExitCode;
 use yii\helpers\Console;
+use yii\helpers\Json;
 
 /**
  * Синхронизация данных с iiko
  */
 class SyncIikoController extends Controller
 {
+    private $baseUrl;
+    private $token;
+
     /**
      * @var int количество дней для синхронизации цен (по умолчанию 1)
      */
@@ -209,5 +214,190 @@ class SyncIikoController extends Controller
         } elseif (is_string($errors)) {
             $this->stderr("  - {$errors}\n", Console::FG_RED);
         }
+    }
+
+    /**
+     * Тестирование соединения с iiko и вывод сырых данных
+     *
+     * Использование:
+     *   php yii sync-iiko/test
+     *   php yii sync-iiko/test products
+     *   php yii sync-iiko/test departments
+     *
+     * @param string $endpoint Эндпоинт для тестирования (products, departments, suppliers, stores, groups)
+     * @return int
+     */
+    public function actionTest($endpoint = 'products')
+    {
+        $this->stdout("\n");
+        $this->stdout("╔══════════════════════════════════════════════════════════════╗\n", Console::FG_CYAN);
+        $this->stdout("║           ТЕСТ СОЕДИНЕНИЯ С IIKO                             ║\n", Console::FG_CYAN);
+        $this->stdout("╚══════════════════════════════════════════════════════════════╝\n", Console::FG_CYAN);
+        $this->stdout("\n");
+
+        // Получаем настройки
+        $this->baseUrl = Settings::getValue("iiko-server");
+        $login = Settings::getValue("iiko-login");
+        $password = Settings::getValue("iiko-password");
+
+        $this->stdout("Настройки:\n", Console::FG_YELLOW, Console::BOLD);
+        $this->stdout("  iiko-server: {$this->baseUrl}\n");
+        $this->stdout("  iiko-login: {$login}\n");
+        $this->stdout("  iiko-password: " . (empty($password) ? "(пусто)" : str_repeat("*", strlen($password))) . "\n");
+        $this->stdout("\n");
+
+        if (empty($this->baseUrl) || empty($login) || empty($password)) {
+            $this->stderr("ОШИБКА: Не заполнены настройки iiko в таблице settings!\n", Console::FG_RED, Console::BOLD);
+            return ExitCode::UNSPECIFIED_ERROR;
+        }
+
+        // Авторизация
+        $this->stdout("1. Авторизация...\n", Console::FG_YELLOW);
+        $hash = sha1($password);
+        $authUrl = "{$this->baseUrl}auth?login={$login}&pass={$hash}";
+        $this->stdout("   URL: {$this->baseUrl}auth?login={$login}&pass=<hash>\n", Console::FG_GREY);
+
+        $token = $this->makeRequest($authUrl);
+
+        if (!$token) {
+            $this->stderr("   ОШИБКА: Пустой ответ при авторизации\n", Console::FG_RED);
+            return ExitCode::UNSPECIFIED_ERROR;
+        }
+
+        $this->stdout("   Ответ (первые 200 символов): ", Console::FG_GREY);
+        $this->stdout(substr($token, 0, 200) . "\n", Console::FG_WHITE);
+
+        if (strlen($token) > 100 || strpos($token, 'error') !== false || strpos($token, 'Error') !== false) {
+            $this->stderr("   ВНИМАНИЕ: Похоже на ошибку авторизации!\n", Console::FG_RED);
+            $this->stderr("   Полный ответ:\n{$token}\n", Console::FG_RED);
+            return ExitCode::UNSPECIFIED_ERROR;
+        }
+
+        $this->token = $token;
+        $this->stdout("   Токен получен (длина: " . strlen($token) . ")\n", Console::FG_GREEN);
+        $this->stdout("\n");
+
+        // Запрос данных
+        $endpoints = [
+            'products' => 'products',
+            'departments' => 'corporation/departments',
+            'suppliers' => 'suppliers',
+            'stores' => 'corporation/stores',
+            'groups' => 'corporation/groups',
+        ];
+
+        if (!isset($endpoints[$endpoint])) {
+            $this->stderr("Неизвестный endpoint: {$endpoint}\n", Console::FG_RED);
+            $this->stdout("Доступные: " . implode(", ", array_keys($endpoints)) . "\n");
+            return ExitCode::UNSPECIFIED_ERROR;
+        }
+
+        $url = "{$this->baseUrl}{$endpoints[$endpoint]}?key={$this->token}";
+        $this->stdout("2. Запрос данных ({$endpoint})...\n", Console::FG_YELLOW);
+        $this->stdout("   URL: {$this->baseUrl}{$endpoints[$endpoint]}?key=<token>\n", Console::FG_GREY);
+
+        $rawData = $this->makeRequest($url);
+
+        if (!$rawData) {
+            $this->stderr("   ОШИБКА: Пустой ответ\n", Console::FG_RED);
+            return ExitCode::UNSPECIFIED_ERROR;
+        }
+
+        $this->stdout("\n");
+        $this->stdout("3. Сырой ответ от iiko:\n", Console::FG_YELLOW);
+        $this->stdout("   Размер ответа: " . strlen($rawData) . " байт\n", Console::FG_GREY);
+        $this->stdout("   Тип: " . (strpos($rawData, '<?xml') !== false ? 'XML' : 'Другой') . "\n", Console::FG_GREY);
+        $this->stdout("\n");
+
+        // Показываем первые 2000 символов сырых данных
+        $this->stdout("   --- НАЧАЛО ОТВЕТА (первые 2000 символов) ---\n", Console::FG_CYAN);
+        $this->stdout(substr($rawData, 0, 2000) . "\n");
+        if (strlen($rawData) > 2000) {
+            $this->stdout("   ... (обрезано, всего " . strlen($rawData) . " байт)\n", Console::FG_GREY);
+        }
+        $this->stdout("   --- КОНЕЦ ОТВЕТА ---\n", Console::FG_CYAN);
+
+        // Парсим XML
+        $this->stdout("\n");
+        $this->stdout("4. Парсинг XML...\n", Console::FG_YELLOW);
+
+        $data = $this->xmlToArray($rawData);
+
+        if (empty($data)) {
+            $this->stderr("   ОШИБКА: Не удалось распарсить XML\n", Console::FG_RED);
+            return ExitCode::UNSPECIFIED_ERROR;
+        }
+
+        $this->stdout("   Ключи в ответе: " . implode(", ", array_keys($data)) . "\n", Console::FG_GREEN);
+
+        // Подсчитываем количество элементов
+        $keyMap = [
+            'products' => 'productDto',
+            'departments' => 'corporateItemDto',
+            'suppliers' => 'employee',
+            'stores' => 'corporateItemDto',
+            'groups' => 'groupDto',
+        ];
+
+        $expectedKey = $keyMap[$endpoint];
+        if (isset($data[$expectedKey])) {
+            $count = is_array($data[$expectedKey]) ? count($data[$expectedKey]) : 0;
+            $this->stdout("   Количество элементов в '{$expectedKey}': {$count}\n", Console::FG_GREEN);
+
+            if ($count > 0 && $this->verbose) {
+                $this->stdout("\n   Пример первого элемента:\n", Console::FG_YELLOW);
+                $firstItem = is_array($data[$expectedKey][0] ?? null) ? $data[$expectedKey][0] : $data[$expectedKey];
+                $this->stdout("   " . Json::encode($firstItem, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) . "\n");
+            }
+        } else {
+            $this->stderr("   ВНИМАНИЕ: Ключ '{$expectedKey}' не найден в ответе!\n", Console::FG_RED);
+            $this->stdout("   Доступные ключи: " . implode(", ", array_keys($data)) . "\n", Console::FG_YELLOW);
+
+            // Показываем структуру данных
+            $this->stdout("\n   Структура ответа:\n", Console::FG_YELLOW);
+            $this->stdout("   " . Json::encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) . "\n");
+        }
+
+        $this->stdout("\n");
+        return ExitCode::OK;
+    }
+
+    /**
+     * HTTP запрос
+     * @param string $url
+     * @return string|false
+     */
+    private function makeRequest($url)
+    {
+        $arrContextOptions = [
+            "ssl" => [
+                "verify_peer" => false,
+                "verify_peer_name" => false,
+            ],
+        ];
+
+        $result = @file_get_contents($url, false, stream_context_create($arrContextOptions));
+
+        if ($result === false) {
+            $error = error_get_last();
+            $this->stderr("   HTTP ошибка: " . ($error['message'] ?? 'неизвестная ошибка') . "\n", Console::FG_RED);
+        }
+
+        return $result;
+    }
+
+    /**
+     * Конвертация XML в массив
+     * @param string $xml
+     * @return array|null
+     */
+    private function xmlToArray($xml)
+    {
+        $data = @simplexml_load_string($xml);
+        if ($data === false) {
+            return null;
+        }
+        $json = Json::encode($data);
+        return Json::decode($json, true);
     }
 }
