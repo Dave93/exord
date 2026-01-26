@@ -444,19 +444,25 @@ class Iiko extends Model
                 continue;
             }
 
+            // Нормализуем: если один документ - оборачиваем в массив
+            $documents = isset($data['document']['id']) ? [$data['document']] : $data['document'];
+
             $sql = "update products set price=:p,priceSyncDate=:d where id=:id and priceSyncDate<:d and productType!='PREPARED'";
-            foreach ($data['document'] as $row) {
-                $status = (string)$row['status'];
-                $date = (string)$row['incomingDate'];
-                if ($status != 'PROCESSED') {
+            foreach ($documents as $row) {
+                $status = (string)($row['status'] ?? '');
+                $date = (string)($row['incomingDate'] ?? '');
+                if ($status != 'PROCESSED' || empty($date)) {
                     continue;
                 }
                 $date = date("Y-m-d H:i:s", strtotime($date));
+                if (empty($row['items']['item'])) {
+                    continue;
+                }
                 if (isset($row['items']['item'][0])) {
                     foreach ($row['items']['item'] as $item) {
-                        $price = (double)$item['price'];
-                        $product = (string)$item['product'];
-                        $store = (string)$item['store'];
+                        $price = (double)($item['price'] ?? 0);
+                        $product = (string)($item['product'] ?? '');
+                        $store = (string)($item['store'] ?? '');
                         if ($store != 'aafd23ee-e90f-492d-b187-98a80ea1f568')
                             continue;
                         Yii::$app->db->createCommand($sql)
@@ -467,9 +473,9 @@ class Iiko extends Model
                     }
                 } else {
                     $item = $row['items']['item'];
-                    $price = (double)$item['price'];
-                    $product = (string)$item['product'];
-                    $store = (string)$item['store'];
+                    $price = (double)($item['price'] ?? 0);
+                    $product = (string)($item['product'] ?? '');
+                    $store = (string)($item['store'] ?? '');
                     if ($store == 'aafd23ee-e90f-492d-b187-98a80ea1f568')
                         Yii::$app->db->createCommand($sql)
                             ->bindValue(":id", $product, PDO::PARAM_STR)
