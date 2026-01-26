@@ -370,37 +370,34 @@ class SyncIikoController extends Controller
      */
     private function makeRequest($url, $verbose = false)
     {
+        // Сохраняем данные в буфер по мере поступления
+        $buffer = '';
+
         $ch = curl_init();
         curl_setopt_array($ch, [
             CURLOPT_URL => $url,
-            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_RETURNTRANSFER => false, // не ждём завершения
             CURLOPT_SSL_VERIFYHOST => 0,
             CURLOPT_SSL_VERIFYPEER => 0,
-            CURLOPT_TIMEOUT => 0,            // без лимита
-            CURLOPT_CONNECTTIMEOUT => 60,    // 60 сек на подключение
+            CURLOPT_TIMEOUT => 120,          // 2 минуты макс
+            CURLOPT_CONNECTTIMEOUT => 60,
             CURLOPT_FOLLOWLOCATION => true,
-            CURLOPT_LOW_SPEED_LIMIT => 100,  // минимум 100 байт/сек
-            CURLOPT_LOW_SPEED_TIME => 60,    // в течение 60 сек
             CURLOPT_HTTPHEADER => [
                 'Content-Type: application/xml',
-                'Expect:',  // отключаем Expect: 100-continue
+                'Connection: close',
+                'Expect:',
             ],
+            // Записываем данные по мере поступления
+            CURLOPT_WRITEFUNCTION => function($ch, $data) use (&$buffer, $verbose) {
+                $buffer .= $data;
+                if ($verbose) {
+                    echo "\r   Загружено: " . strlen($buffer) . " байт...   ";
+                }
+                return strlen($data);
+            },
         ]);
 
-        if ($verbose) {
-            curl_setopt($ch, CURLOPT_NOPROGRESS, false);
-            curl_setopt($ch, CURLOPT_PROGRESSFUNCTION, function($resource, $downloadSize, $downloaded, $uploadSize, $uploaded) {
-                if ($downloadSize > 0) {
-                    $percent = round($downloaded / $downloadSize * 100);
-                    echo "\r   Загрузка: {$downloaded} / {$downloadSize} байт ({$percent}%)   ";
-                } else {
-                    echo "\r   Загружено: {$downloaded} байт...   ";
-                }
-                return 0;
-            });
-        }
-
-        $result = curl_exec($ch);
+        curl_exec($ch);
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         $error = curl_error($ch);
         $errno = curl_errno($ch);
@@ -409,23 +406,24 @@ class SyncIikoController extends Controller
 
         if ($verbose) {
             echo "\n";
+            $this->stdout("   Время: " . round($totalTime, 2) . " сек, получено: " . strlen($buffer) . " байт\n");
         }
 
-        if ($errno) {
+        if ($errno && strlen($buffer) == 0) {
             $this->stderr("   cURL ошибка [{$errno}]: {$error}\n", Console::FG_RED);
-            $this->stderr("   Время: {$totalTime} сек, получено: " . strlen($result) . " байт\n", Console::FG_RED);
             return false;
         }
 
-        if ($httpCode !== 200) {
+        // Даже при таймауте возвращаем полученные данные
+        if ($errno && strlen($buffer) > 0) {
+            $this->stdout("   ВНИМАНИЕ: таймаут, но данные частично получены ({$errno}: {$error})\n", Console::FG_YELLOW);
+        }
+
+        if ($httpCode !== 200 && $httpCode !== 0) {
             $this->stderr("   HTTP код: {$httpCode}\n", Console::FG_RED);
         }
 
-        if ($verbose) {
-            $this->stdout("   Время загрузки: " . round($totalTime, 2) . " сек\n", Console::FG_GREEN);
-        }
-
-        return $result;
+        return $buffer;
     }
 
     /**
@@ -484,6 +482,13 @@ class SyncIikoController extends Controller
         $rawXml = $this->makeRequest($url, true);
 
         $this->stdout("Размер ответа: " . strlen($rawXml) . " байт\n");
+
+        // Показываем последние 500 байт чтобы увидеть где обрезалось
+        if (strlen($rawXml) > 0) {
+            $this->stdout("\nПоследние 500 байт ответа:\n", Console::FG_YELLOW);
+            $this->stdout("...[обрезано]..." . substr($rawXml, -500) . "\n", Console::FG_CYAN);
+            $this->stdout("\n");
+        }
 
         // Парсим XML напрямую
         libxml_use_internal_errors(true);
