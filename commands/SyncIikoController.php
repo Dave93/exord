@@ -393,11 +393,116 @@ class SyncIikoController extends Controller
      */
     private function xmlToArray($xml)
     {
-        $data = @simplexml_load_string($xml);
+        libxml_use_internal_errors(true);
+        $data = simplexml_load_string($xml);
+
         if ($data === false) {
+            $this->stderr("   Ошибки XML парсинга:\n", Console::FG_RED);
+            foreach (libxml_get_errors() as $error) {
+                $this->stderr("   - Строка {$error->line}: {$error->message}", Console::FG_RED);
+            }
+            libxml_clear_errors();
             return null;
         }
+
         $json = Json::encode($data);
         return Json::decode($json, true);
+    }
+
+    /**
+     * Тест парсинга с выводом структуры
+     *
+     * php yii sync-iiko/debug
+     *
+     * @return int
+     */
+    public function actionDebug()
+    {
+        $this->stdout("\n=== ДЕБАГ ПАРСИНГА ===\n\n", Console::FG_CYAN);
+
+        // Получаем настройки и авторизуемся
+        $this->baseUrl = Settings::getValue("iiko-server");
+        $login = Settings::getValue("iiko-login");
+        $password = Settings::getValue("iiko-password");
+
+        $hash = sha1($password);
+        $authUrl = "{$this->baseUrl}auth?login={$login}&pass={$hash}";
+        $this->token = $this->makeRequest($authUrl);
+
+        if (empty($this->token) || strlen($this->token) > 50) {
+            $this->stderr("Ошибка авторизации\n", Console::FG_RED);
+            return ExitCode::UNSPECIFIED_ERROR;
+        }
+
+        $this->stdout("Токен: OK\n", Console::FG_GREEN);
+
+        // Запрос products
+        $url = "{$this->baseUrl}products?key={$this->token}";
+        $rawXml = $this->makeRequest($url);
+
+        $this->stdout("Размер ответа: " . strlen($rawXml) . " байт\n");
+
+        // Парсим XML напрямую
+        libxml_use_internal_errors(true);
+        $xml = simplexml_load_string($rawXml);
+
+        if ($xml === false) {
+            $this->stderr("XML не распарсился:\n", Console::FG_RED);
+            foreach (libxml_get_errors() as $error) {
+                $this->stderr("  - {$error->message}", Console::FG_RED);
+            }
+            return ExitCode::UNSPECIFIED_ERROR;
+        }
+
+        $this->stdout("XML распарсился успешно!\n", Console::FG_GREEN);
+        $this->stdout("Корневой элемент: " . $xml->getName() . "\n", Console::FG_YELLOW);
+        $this->stdout("Количество дочерних: " . count($xml->children()) . "\n", Console::FG_YELLOW);
+
+        // Показываем имена дочерних элементов
+        $childNames = [];
+        foreach ($xml->children() as $child) {
+            $name = $child->getName();
+            if (!isset($childNames[$name])) {
+                $childNames[$name] = 0;
+            }
+            $childNames[$name]++;
+        }
+
+        $this->stdout("Дочерние элементы:\n", Console::FG_YELLOW);
+        foreach ($childNames as $name => $count) {
+            $this->stdout("  - {$name}: {$count} шт.\n");
+        }
+
+        // Конвертируем в JSON/array
+        $json = json_encode($xml);
+        $array = json_decode($json, true);
+
+        $this->stdout("\nСтруктура после конвертации в массив:\n", Console::FG_YELLOW);
+        $this->stdout("Ключи: " . implode(", ", array_keys($array)) . "\n");
+
+        // Проверяем ключ productDto
+        if (isset($array['productDto'])) {
+            $count = count($array['productDto']);
+            $this->stdout("productDto найден, элементов: {$count}\n", Console::FG_GREEN);
+
+            // Фильтруем по типу GOODS/PREPARED
+            $goods = 0;
+            $prepared = 0;
+            $other = 0;
+            foreach ($array['productDto'] as $item) {
+                $type = $item['productType'] ?? '';
+                if ($type === 'GOODS') $goods++;
+                elseif ($type === 'PREPARED') $prepared++;
+                else $other++;
+            }
+            $this->stdout("  - GOODS: {$goods}\n");
+            $this->stdout("  - PREPARED: {$prepared}\n");
+            $this->stdout("  - Другие (пропускаются): {$other}\n");
+        } else {
+            $this->stderr("productDto НЕ найден!\n", Console::FG_RED);
+        }
+
+        $this->stdout("\n");
+        return ExitCode::OK;
     }
 }
