@@ -365,9 +365,10 @@ class SyncIikoController extends Controller
     /**
      * HTTP запрос через cURL (более надёжный)
      * @param string $url
+     * @param bool $verbose показывать прогресс
      * @return string|false
      */
-    private function makeRequest($url)
+    private function makeRequest($url, $verbose = false)
     {
         $ch = curl_init();
         curl_setopt_array($ch, [
@@ -375,27 +376,53 @@ class SyncIikoController extends Controller
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_SSL_VERIFYHOST => 0,
             CURLOPT_SSL_VERIFYPEER => 0,
-            CURLOPT_TIMEOUT => 300,          // 5 минут таймаут
-            CURLOPT_CONNECTTIMEOUT => 30,    // 30 сек на подключение
+            CURLOPT_TIMEOUT => 0,            // без лимита
+            CURLOPT_CONNECTTIMEOUT => 60,    // 60 сек на подключение
             CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_LOW_SPEED_LIMIT => 100,  // минимум 100 байт/сек
+            CURLOPT_LOW_SPEED_TIME => 60,    // в течение 60 сек
             CURLOPT_HTTPHEADER => [
                 'Content-Type: application/xml',
+                'Expect:',  // отключаем Expect: 100-continue
             ],
         ]);
+
+        if ($verbose) {
+            curl_setopt($ch, CURLOPT_NOPROGRESS, false);
+            curl_setopt($ch, CURLOPT_PROGRESSFUNCTION, function($resource, $downloadSize, $downloaded, $uploadSize, $uploaded) {
+                if ($downloadSize > 0) {
+                    $percent = round($downloaded / $downloadSize * 100);
+                    echo "\r   Загрузка: {$downloaded} / {$downloadSize} байт ({$percent}%)   ";
+                } else {
+                    echo "\r   Загружено: {$downloaded} байт...   ";
+                }
+                return 0;
+            });
+        }
 
         $result = curl_exec($ch);
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         $error = curl_error($ch);
         $errno = curl_errno($ch);
+        $totalTime = curl_getinfo($ch, CURLINFO_TOTAL_TIME);
         curl_close($ch);
+
+        if ($verbose) {
+            echo "\n";
+        }
 
         if ($errno) {
             $this->stderr("   cURL ошибка [{$errno}]: {$error}\n", Console::FG_RED);
+            $this->stderr("   Время: {$totalTime} сек, получено: " . strlen($result) . " байт\n", Console::FG_RED);
             return false;
         }
 
         if ($httpCode !== 200) {
             $this->stderr("   HTTP код: {$httpCode}\n", Console::FG_RED);
+        }
+
+        if ($verbose) {
+            $this->stdout("   Время загрузки: " . round($totalTime, 2) . " сек\n", Console::FG_GREEN);
         }
 
         return $result;
@@ -453,7 +480,8 @@ class SyncIikoController extends Controller
 
         // Запрос products
         $url = "{$this->baseUrl}products?key={$this->token}";
-        $rawXml = $this->makeRequest($url);
+        $this->stdout("Загрузка products...\n", Console::FG_YELLOW);
+        $rawXml = $this->makeRequest($url, true);
 
         $this->stdout("Размер ответа: " . strlen($rawXml) . " байт\n");
 
