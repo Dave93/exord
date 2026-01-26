@@ -437,8 +437,13 @@ class Iiko extends Model
         $suppliers = Yii::$app->db->createCommand('select id from suppliers')->queryColumn();
         foreach ($suppliers as $supplier) {
             $url = $this->baseUrl . 'documents/export/incomingInvoice?key=' . $this->token . '&from=' . $start . '&to=' . $end . '&supplierId=' . $supplier;
-            $r = file_get_contents($url);
+            $r = $this->get($url);
             $data = $this->xmlToArray($r);
+
+            if (empty($data['document'])) {
+                continue;
+            }
+
             $sql = "update products set price=:p,priceSyncDate=:d where id=:id and priceSyncDate<:d and productType!='PREPARED'";
             foreach ($data['document'] as $row) {
                 $status = (string)$row['status'];
