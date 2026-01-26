@@ -194,10 +194,10 @@ class SyncIikoController extends Controller
     {
         $paddedTable = str_pad($table, 15);
         if ($count == 0) {
-            $this->stdout("  {$paddedTable}: ", Console::FG_WHITE);
+            $this->stdout("  {$paddedTable}: ", Console::BOLD);
             $this->stdout("{$count} (ПУСТО!)\n", Console::FG_RED, Console::BOLD);
         } else {
-            $this->stdout("  {$paddedTable}: {$count}\n", Console::FG_WHITE);
+            $this->stdout("  {$paddedTable}: {$count}\n", Console::BOLD);
         }
     }
 
@@ -255,7 +255,7 @@ class SyncIikoController extends Controller
         $this->stdout("1. Авторизация...\n", Console::FG_YELLOW);
         $hash = sha1($password);
         $authUrl = "{$this->baseUrl}auth?login={$login}&pass={$hash}";
-        $this->stdout("   URL: {$this->baseUrl}auth?login={$login}&pass=<hash>\n", Console::FG_GREY);
+        $this->stdout("   URL: {$this->baseUrl}auth?login={$login}&pass=<hash>\n");
 
         $token = $this->makeRequest($authUrl);
 
@@ -264,8 +264,8 @@ class SyncIikoController extends Controller
             return ExitCode::UNSPECIFIED_ERROR;
         }
 
-        $this->stdout("   Ответ (первые 200 символов): ", Console::FG_GREY);
-        $this->stdout(substr($token, 0, 200) . "\n", Console::FG_WHITE);
+        $this->stdout("   Ответ (первые 200 символов): ", Console::FG_PURPLE);
+        $this->stdout(substr($token, 0, 200) . "\n", Console::BOLD);
 
         if (strlen($token) > 100 || strpos($token, 'error') !== false || strpos($token, 'Error') !== false) {
             $this->stderr("   ВНИМАНИЕ: Похоже на ошибку авторизации!\n", Console::FG_RED);
@@ -294,7 +294,7 @@ class SyncIikoController extends Controller
 
         $url = "{$this->baseUrl}{$endpoints[$endpoint]}?key={$this->token}";
         $this->stdout("2. Запрос данных ({$endpoint})...\n", Console::FG_YELLOW);
-        $this->stdout("   URL: {$this->baseUrl}{$endpoints[$endpoint]}?key=<token>\n", Console::FG_GREY);
+        $this->stdout("   URL: {$this->baseUrl}{$endpoints[$endpoint]}?key=<token>\n", Console::FG_PURPLE);
 
         $rawData = $this->makeRequest($url);
 
@@ -305,15 +305,15 @@ class SyncIikoController extends Controller
 
         $this->stdout("\n");
         $this->stdout("3. Сырой ответ от iiko:\n", Console::FG_YELLOW);
-        $this->stdout("   Размер ответа: " . strlen($rawData) . " байт\n", Console::FG_GREY);
-        $this->stdout("   Тип: " . (strpos($rawData, '<?xml') !== false ? 'XML' : 'Другой') . "\n", Console::FG_GREY);
+        $this->stdout("   Размер ответа: " . strlen($rawData) . " байт\n", Console::FG_PURPLE);
+        $this->stdout("   Тип: " . (strpos($rawData, '<?xml') !== false ? 'XML' : 'Другой') . "\n", Console::FG_PURPLE);
         $this->stdout("\n");
 
         // Показываем первые 2000 символов сырых данных
         $this->stdout("   --- НАЧАЛО ОТВЕТА (первые 2000 символов) ---\n", Console::FG_CYAN);
         $this->stdout(substr($rawData, 0, 2000) . "\n");
         if (strlen($rawData) > 2000) {
-            $this->stdout("   ... (обрезано, всего " . strlen($rawData) . " байт)\n", Console::FG_GREY);
+            $this->stdout("   ... (обрезано, всего " . strlen($rawData) . " байт)\n", Console::FG_PURPLE);
         }
         $this->stdout("   --- КОНЕЦ ОТВЕТА ---\n", Console::FG_CYAN);
 
