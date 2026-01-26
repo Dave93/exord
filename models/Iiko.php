@@ -144,13 +144,18 @@ class Iiko extends Model
     {
         $data = $this->getData("corporation/departments");
 
+        if (empty($data['corporateItemDto'])) {
+            Yii::warning("Нет данных departments от iiko", 'iiko');
+            return true;
+        }
+
         Departments::deleteAll();
         foreach ($data['corporateItemDto'] as $row) {
             $model = new Departments();
-            $model->id = (string)$row['id'];
-            $model->parentId = (string)$row['parentId'];
-            $model->name = (string)$row['name'];
-            $model->type = (string)$row['type'];
+            $model->id = (string)($row['id'] ?? '');
+            $model->parentId = (string)($row['parentId'] ?? '');
+            $model->name = (string)($row['name'] ?? '');
+            $model->type = (string)($row['type'] ?? '');
             $model->syncDate = date("Y-m-d H:i:s");
             if (!$model->save()) {
                 return $model->firstErrors;
@@ -162,13 +167,19 @@ class Iiko extends Model
     public function stores()
     {
         $data = $this->getData("corporation/stores");
+
+        if (empty($data['corporateItemDto'])) {
+            Yii::warning("Нет данных stores от iiko", 'iiko');
+            return true;
+        }
+
         Stores::deleteAll();
         foreach ($data['corporateItemDto'] as $row) {
             $model = new Stores();
-            $model->id = (string)$row['id'];
-            $model->parentId = (string)$row['parentId'];
-            $model->name = (string)$row['name'];
-            $model->type = (string)$row['type'];
+            $model->id = (string)($row['id'] ?? '');
+            $model->parentId = (string)($row['parentId'] ?? '');
+            $model->name = (string)($row['name'] ?? '');
+            $model->type = (string)($row['type'] ?? '');
             $model->syncDate = date("Y-m-d H:i:s");
             if (!$model->save()) {
                 return $model->firstErrors;
@@ -181,22 +192,31 @@ class Iiko extends Model
     {
         $gList = [];
         $data = $this->getData("corporation/groups");
+
+        if (empty($data['groupDto'])) {
+            Yii::warning("Нет данных groups от iiko", 'iiko');
+            return true;
+        }
+
         foreach ($data['groupDto'] as $row) {
-            $id = (string)$row['id'];
+            $id = (string)($row['id'] ?? '');
+            if (empty($id)) continue;
             $gList[] = $id;
             $model = Groups::findOne($id);
             if ($model == null) {
                 $model = new Groups();
-                $model->id = (string)$row['id'];
+                $model->id = $id;
             }
-            $model->name = (string)$row['name'];
-            $model->departmentId = (string)$row['departmentId'];
+            $model->name = (string)($row['name'] ?? '');
+            $model->departmentId = (string)($row['departmentId'] ?? '');
             $model->syncDate = date("Y-m-d H:i:s");
             if (!$model->save()) {
                 return $model->firstErrors;
             }
         }
-        Groups::deleteAll(['not in', 'id', $gList]);
+        if (!empty($gList)) {
+            Groups::deleteAll(['not in', 'id', $gList]);
+        }
         return true;
     }
 
@@ -204,11 +224,20 @@ class Iiko extends Model
     {
         $list = [];
         $data = $this->getData("products");
+
+        if (empty($data['productDto'])) {
+            Yii::warning("Нет данных products от iiko", 'iiko');
+            return true;
+        }
+
         foreach ($data['productDto'] as $row) {
-            $id = (string)$row['id'];
-            $type = (string)$row['productType'];
+            $id = (string)($row['id'] ?? '');
+            if (empty($id)) continue;
+
+            $type = (string)($row['productType'] ?? '');
             if (!in_array($type, ['GOODS', 'PREPARED', '']))
                 continue;
+
             $model = Products::findOne($id);
             $list[] = $id;
 
@@ -216,21 +245,21 @@ class Iiko extends Model
                 $model = new Products();
                 $model->id = $id;
             }
-            if (empty($row['parentId']))
-                $row['parentId'] = 0;
-            $model->parentId = (string)$row['parentId'];
-            $model->name = trim((string)$row['name']);
-            $model->num = $row['num'];
-            $model->code = (int)$row['code'];
+            $model->parentId = (string)($row['parentId'] ?? '0');
+            $model->name = trim((string)($row['name'] ?? ''));
+            $model->num = $row['num'] ?? '';
+            $model->code = (int)($row['code'] ?? 0);
             $model->productType = $type;
-            $model->cookingPlaceType = (string)$row['cookingPlaceType'];
-            $model->mainUnit = (string)$row['mainUnit'];
+            $model->cookingPlaceType = (string)($row['cookingPlaceType'] ?? '');
+            $model->mainUnit = (string)($row['mainUnit'] ?? '');
             $model->syncDate = date("Y-m-d H:i:s");
             if (!$model->save()) {
                 return $model->firstErrors;
             }
         }
-        Products::deleteAll(['not in', 'id', $list]);
+        if (!empty($list)) {
+            Products::deleteAll(['not in', 'id', $list]);
+        }
         return true;
     }
 
@@ -281,25 +310,33 @@ class Iiko extends Model
     {
         $list = [];
         $data = $this->getData("suppliers");
+
+        if (empty($data['employee'])) {
+            Yii::warning("Нет данных suppliers от iiko", 'iiko');
+            return true;
+        }
+
         foreach ($data['employee'] as $row) {
-            $id = (string)$row['id'];
+            $id = (string)($row['id'] ?? '');
+            if (empty($id)) continue;
             $list[] = $id;
             $model = Suppliers::findOne($id);
             if ($model == null) {
                 $model = new Suppliers();
                 $model->id = $id;
             }
-            $model->name = (string)$row['name'];
-            $model->deleted = ((string)$row['deleted'] == "true") ? 1 : 0;
-            $model->supplier = ((string)$row['supplier'] == "true") ? 1 : 0;
-            $model->employee = ((string)$row['employee'] == "true") ? 1 : 0;
-//            $model->client = ((string)$row->client == "true") ? 1 : 0;
+            $model->name = (string)($row['name'] ?? '');
+            $model->deleted = ((string)($row['deleted'] ?? '') == "true") ? 1 : 0;
+            $model->supplier = ((string)($row['supplier'] ?? '') == "true") ? 1 : 0;
+            $model->employee = ((string)($row['employee'] ?? '') == "true") ? 1 : 0;
             $model->syncDate = date("Y-m-d H:i:s");
             if (!$model->save()) {
                 return $model->firstErrors;
             }
         }
-        Suppliers::deleteAll(['not in', 'id', $list]);
+        if (!empty($list)) {
+            Suppliers::deleteAll(['not in', 'id', $list]);
+        }
         return true;
     }
 
