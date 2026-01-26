@@ -99,18 +99,45 @@ class Iiko extends Model
 
     private function getData($url)
     {
-        $arrContextOptions = array(
-            "ssl" => array(
-                "verify_peer" => false,
-                "verify_peer_name" => false,
-            ),
-        );
-        $data = file_get_contents("{$this->baseUrl}{$url}?key={$this->token}", false, stream_context_create($arrContextOptions));
-        if (empty($data)) {
-//            $this->auth();
-            $data = file_get_contents("{$this->baseUrl}{$url}?key={$this->token}", false, stream_context_create($arrContextOptions));
+        $fullUrl = "{$this->baseUrl}{$url}?key={$this->token}";
+        Yii::info("Запрос к iiko: {$this->baseUrl}{$url}", 'iiko');
+
+        $ch = curl_init();
+        curl_setopt_array($ch, [
+            CURLOPT_URL => $fullUrl,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_SSL_VERIFYHOST => 0,
+            CURLOPT_SSL_VERIFYPEER => 0,
+            CURLOPT_TIMEOUT => 1800,         // 30 минут макс
+            CURLOPT_CONNECTTIMEOUT => 60,    // 60 сек на подключение
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_HTTPHEADER => [
+                'Content-Type: application/xml',
+                'Expect:',
+            ],
+        ]);
+
+        $data = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $error = curl_error($ch);
+        $errno = curl_errno($ch);
+        $totalTime = curl_getinfo($ch, CURLINFO_TOTAL_TIME);
+        $downloadSize = curl_getinfo($ch, CURLINFO_SIZE_DOWNLOAD);
+        curl_close($ch);
+
+        Yii::info("Ответ iiko: код={$httpCode}, размер={$downloadSize} байт, время={$totalTime} сек", 'iiko');
+
+        if ($errno) {
+            Yii::error("cURL ошибка [{$errno}]: {$error}", 'iiko');
+            return [];
         }
-        return $data = $this->xmlToArray($data);
+
+        if (empty($data)) {
+            Yii::warning("Пустой ответ от iiko для {$url}", 'iiko');
+            return [];
+        }
+
+        return $this->xmlToArray($data);
     }
 
     public function departments()
