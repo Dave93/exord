@@ -363,24 +363,39 @@ class SyncIikoController extends Controller
     }
 
     /**
-     * HTTP запрос
+     * HTTP запрос через cURL (более надёжный)
      * @param string $url
      * @return string|false
      */
     private function makeRequest($url)
     {
-        $arrContextOptions = [
-            "ssl" => [
-                "verify_peer" => false,
-                "verify_peer_name" => false,
+        $ch = curl_init();
+        curl_setopt_array($ch, [
+            CURLOPT_URL => $url,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_SSL_VERIFYHOST => 0,
+            CURLOPT_SSL_VERIFYPEER => 0,
+            CURLOPT_TIMEOUT => 300,          // 5 минут таймаут
+            CURLOPT_CONNECTTIMEOUT => 30,    // 30 сек на подключение
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_HTTPHEADER => [
+                'Content-Type: application/xml',
             ],
-        ];
+        ]);
 
-        $result = @file_get_contents($url, false, stream_context_create($arrContextOptions));
+        $result = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $error = curl_error($ch);
+        $errno = curl_errno($ch);
+        curl_close($ch);
 
-        if ($result === false) {
-            $error = error_get_last();
-            $this->stderr("   HTTP ошибка: " . ($error['message'] ?? 'неизвестная ошибка') . "\n", Console::FG_RED);
+        if ($errno) {
+            $this->stderr("   cURL ошибка [{$errno}]: {$error}\n", Console::FG_RED);
+            return false;
+        }
+
+        if ($httpCode !== 200) {
+            $this->stderr("   HTTP код: {$httpCode}\n", Console::FG_RED);
         }
 
         return $result;
