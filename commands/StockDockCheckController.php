@@ -15,10 +15,11 @@ use yii\helpers\ArrayHelper;
 class StockDockCheckController extends Controller
 {
     public $orderId;
+    public $useOrderDate = false;
 
     public function options($actionID)
     {
-        return ['orderId'];
+        return ['orderId', 'useOrderDate'];
     }
 
     public function actionCheck() {
@@ -31,7 +32,8 @@ class StockDockCheckController extends Controller
                 $iiko = new Iiko();
                 $iiko->auth();
 //echo '<pre>'; print_r($model); echo '</pre>';
-                $outDoc = $iiko->supplierOutStockDoc($model, true);
+                $customDate = $this->useOrderDate ? $model->date : null;
+                $outDoc = $iiko->supplierOutStockDoc($model, true, $customDate);
                 if (!$outDoc) {
                     echo '<pre>'; print_r($outDoc); echo '</pre>';
                 }
