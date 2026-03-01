@@ -13,6 +13,9 @@ echo Yii::$app->user->identity->id;
         <?= Html::a('Заказы', ['orders/customer-orders'], ['class' => 'nav-link']) ?>
     </li>
 
+    <li class="<?= Dashboard::isNavActive('meal-orders') ? 'active' : '' ?>">
+        <?= Html::a('Заказ блюд', ['meal-orders/customer-orders']) ?>
+    </li>
     <li class="<?= Dashboard::isNavActive('oil-inventory', 'index') ? 'active' : '' ?>">
         <?= Html::a('Масло', ['oil-inventory/index']) ?>
     </li>

@@ -17,6 +17,9 @@ use yii\helpers\Html;
     <li class="<?= Dashboard::isNavActive('market-orders', 'stock') ? 'active' : '' ?>">
         <?= Html::a('Заказы на базар', ['market-orders/stock'], ['class' => 'nav-link']) ?>
     </li>
+    <li class="<?= Dashboard::isNavActive('meal-orders') ? 'active' : '' ?>">
+        <?= Html::a('Заказы блюд', ['meal-orders/index']) ?>
+    </li>
     <li class="<?= Dashboard::isNavActive('invoice', 'index') ? 'active' : '' ?>">
         <?= Html::a('Накадная', ['invoice/index']) ?>
     </li>
@@ -57,6 +60,7 @@ use yii\helpers\Html;
             <li><?= Html::a('Настройка наличия', ['availability/index']) ?></li>
             <li><?= Html::a('Iiko Открытие заказы', ['pending-deliveries/index']) ?></li>
             <li><?= Html::a('Ограничения по времени', ['product-time-limitation/index']) ?></li>
+            <li><?= Html::a('Блюда', ['dishes/index']) ?></li>
         </ul>
     </li>
     <li>
