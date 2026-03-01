@@ -10,6 +10,7 @@ use app\models\MealOrderSearch;
 use app\models\User;
 use Yii;
 use yii\data\ActiveDataProvider;
+use yii\db\Query;
 use yii\filters\AccessControl;
 use yii\filters\VerbFilter;
 use yii\web\Controller;
@@ -28,7 +29,7 @@ class MealOrdersController extends Controller
                 'only' => ['*'],
                 'rules' => [
                     [
-                        'actions' => ['index', 'view', 'delete', 'close', 'return-back', 'return-to-new', 'send', 'restore-item'],
+                        'actions' => ['index', 'stock', 'view', 'delete', 'close', 'return-back', 'return-to-new', 'send', 'restore-item'],
                         'allow' => true,
                         'roles' => [
                             User::ROLE_ADMIN,
@@ -47,7 +48,7 @@ class MealOrdersController extends Controller
                         ],
                     ],
                     [
-                        'actions' => ['index', 'view', 'send', 'close'],
+                        'actions' => ['index', 'stock', 'view', 'send', 'close'],
                         'allow' => true,
                         'roles' => [
                             User::ROLE_STOCK,
@@ -62,6 +63,59 @@ class MealOrdersController extends Controller
                 ],
             ],
         ];
+    }
+
+    public function actionStock($tab = null)
+    {
+        $date = date("Y-m-d");
+
+        $query = new Query();
+        $orders = $query->select("stores.id as storeId, stores.name, meal_orders.id, meal_orders.date, meal_orders.storeId, meal_orders.comment, meal_orders.addDate, meal_orders.state, meal_orders.userId")
+            ->from("meal_orders")
+            ->leftJoin("stores", "stores.id=meal_orders.storeId")
+            ->where("meal_orders.date=:date and meal_orders.deleted_at is null", [":date" => $date])
+            ->orderBy("stores.name")
+            ->all();
+
+        if (Yii::$app->request->isPost) {
+            $orderId = Yii::$app->request->post("orderId");
+            $isSend = Yii::$app->request->post("send");
+            $isDelete = Yii::$app->request->post("delete");
+            $isClose = Yii::$app->request->post("close");
+            $comment = Yii::$app->request->post("comment");
+
+            $model = MealOrders::findOne(['id' => $orderId]);
+
+            if ($isDelete == 'Y' && Yii::$app->user->identity->role == User::ROLE_ADMIN) {
+                $model->deleted_at = date("Y-m-d H:i:s");
+                $model->deleted_by = Yii::$app->user->id;
+                $model->save(false);
+                return $this->redirect(['meal-orders/stock']);
+            }
+
+            if ($comment !== null) {
+                $model->comment = $comment;
+            }
+
+            if ($isSend == 'Y') {
+                $model->state = 1;
+                $model->is_locked = 1;
+            }
+
+            if ($isClose == 'Y') {
+                $model->state = 2;
+            }
+
+            $model->save(false);
+
+            return $this->redirect(['meal-orders/stock', 'tab' => $orderId]);
+        }
+
+        return $this->render('stock', [
+            'date' => $date,
+            'orders' => $orders,
+            'orderId' => $tab,
+        ]);
     }
 
     public function actionIndex($start = null, $end = null)
