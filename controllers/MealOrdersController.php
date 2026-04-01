@@ -7,6 +7,7 @@ use app\models\Dishes;
 use app\models\MealOrderItems;
 use app\models\MealOrders;
 use app\models\MealOrderSearch;
+use app\models\TelegramBot;
 use app\models\User;
 use Yii;
 use yii\data\ActiveDataProvider;
@@ -108,6 +109,37 @@ class MealOrdersController extends Controller
 
             $model->save(false);
 
+            // Уведомление в Telegram
+            try {
+                $bot = new TelegramBot();
+                if ($isSend == 'Y') {
+                    $d = date('d.m.Y', strtotime($model->date));
+                    $text = "Поступил новый заказ блюд: <b>#{$model->id}</b>\nЗаказчик: {$model->user->username}\nДата: {$d}";
+
+                    $content = $this->renderPartial('preview-invoice', [
+                        'model' => $model
+                    ]);
+
+                    $webroot = Yii::getAlias('@webroot');
+                    $pdf = new \kartik\mpdf\Pdf([
+                        'mode' => \kartik\mpdf\Pdf::MODE_UTF8,
+                        'content' => $content,
+                    ]);
+                    $filePath = '/uploads/meal_' . sha1($model->id) . '.pdf';
+                    $pdf->output($content, $webroot . $filePath, 'F');
+
+                    $message = $bot->sendDocument(-1003773200982, 'https://les.iiko.uz' . $filePath);
+                    $bot->sendMessage(-1003773200982, $text, 'HTML', false, $message['result']['message_id']);
+                }
+                if ($isClose == 'Y') {
+                    $d = date('d.m.Y H:i');
+                    $text = "Заказ блюд закрыт: <b>#{$model->id}</b>\nЗаказчик: {$model->user->username}\nДата: {$d}";
+                    $bot->sendMessage(-1003773200982, $text, 'HTML');
+                }
+            } catch (\Exception $e) {
+                Yii::error('Ошибка отправки в Telegram: ' . $e->getMessage(), 'telegram');
+            }
+
             return $this->redirect(['meal-orders/stock', 'tab' => $orderId]);
         }
 
@@ -175,6 +207,30 @@ class MealOrdersController extends Controller
                     $item->quantity = $quantity;
                     $item->userId = Yii::$app->user->id;
                     $item->save();
+                }
+
+                // Отправка уведомления в Telegram (PDF + текст)
+                $d = date('d.m.Y', strtotime($model->date));
+                $text = "Поступил новый заказ блюд: <b>#{$model->id}</b>\nЗаказчик: {$model->user->username}\nДата: {$d}";
+
+                $content = $this->renderPartial('preview-invoice', [
+                    'model' => $model
+                ]);
+
+                $webroot = Yii::getAlias('@webroot');
+                $pdf = new \kartik\mpdf\Pdf([
+                    'mode' => \kartik\mpdf\Pdf::MODE_UTF8,
+                    'content' => $content,
+                ]);
+                $filePath = '/uploads/meal_' . sha1($model->id) . '.pdf';
+                $pdf->output($content, $webroot . $filePath, 'F');
+
+                try {
+                    $bot = new TelegramBot();
+                    $message = $bot->sendDocument(-1003773200982, 'https://les.iiko.uz' . $filePath);
+                    $bot->sendMessage(-1003773200982, $text, 'HTML', false, $message['result']['message_id']);
+                } catch (\Exception $e) {
+                    Yii::error('Ошибка отправки в Telegram: ' . $e->getMessage(), 'telegram');
                 }
 
                 return $this->redirect(['view', 'id' => $model->id]);
@@ -308,6 +364,15 @@ class MealOrdersController extends Controller
 
         $model->state = 2;
         $model->save(false);
+
+        $d = date('d.m.Y H:i');
+        $text = "Заказ блюд закрыт: <b>#{$model->id}</b>\nЗаказчик: {$model->user->username}\nДата: {$d}";
+        try {
+            $bot = new TelegramBot();
+            $bot->sendMessage(-1003773200982, $text, 'HTML');
+        } catch (\Exception $e) {
+            Yii::error('Ошибка отправки в Telegram: ' . $e->getMessage(), 'telegram');
+        }
 
         Yii::$app->session->setFlash('success', 'Заказ блюд #' . $model->id . ' закрыт.');
         return $this->redirect(['index']);
