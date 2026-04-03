@@ -185,15 +185,37 @@ class MealOrdersController extends Controller
 
     public function actionCreate()
     {
+        $tz = new \DateTimeZone('Asia/Tashkent');
+        $now = new \DateTime('now', $tz);
+        $currentHour = (int)$now->format('H');
+
+        // Ограничение по времени: заказывать можно только с 10:00 до 15:00
+        if ($currentHour < 10 || $currentHour >= 15) {
+            Yii::$app->session->setFlash('error', 'Заказ блюд доступен только с 10:00 до 15:00.');
+            return $this->redirect(['customer-orders']);
+        }
+
+        // Проверка: нельзя заказывать дважды в один день
+        $today = $now->format('Y-m-d');
+        $existingOrder = MealOrders::find()
+            ->where(['userId' => Yii::$app->user->id, 'date' => $today])
+            ->andWhere(['deleted_at' => null])
+            ->one();
+
+        if ($existingOrder !== null) {
+            Yii::$app->session->setFlash('error', 'Вы уже создали заказ блюд на сегодня (заказ #' . $existingOrder->id . ').');
+            return $this->redirect(['customer-orders']);
+        }
+
         $model = new MealOrders();
-        $model->date = date("Y-m-d");
+        $model->date = $today;
         $model->storeId = Yii::$app->user->identity->store_id;
         $model->userId = Yii::$app->user->id;
 
         if (Yii::$app->request->isPost) {
             $model->load(Yii::$app->request->post());
             $items = Yii::$app->request->post("Items");
-            $model->addDate = date("Y-m-d H:i:s");
+            $model->addDate = $now->format("Y-m-d H:i:s");
             $model->state = 0;
 
             if (!empty($items) && $model->save()) {
