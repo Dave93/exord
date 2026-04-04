@@ -74,7 +74,13 @@ class MealOrdersController extends Controller
         $orders = $query->select("stores.id as storeId, stores.name, meal_orders.id, meal_orders.date, meal_orders.storeId, meal_orders.comment, meal_orders.addDate, meal_orders.state, meal_orders.userId")
             ->from("meal_orders")
             ->leftJoin("stores", "stores.id=meal_orders.storeId")
-            ->where("meal_orders.date=:date and meal_orders.deleted_at is null", [":date" => $date])
+            ->where(['and',
+                'meal_orders.deleted_at is null',
+                ['or',
+                    ['meal_orders.date' => $date],
+                    ['meal_orders.state' => 0],
+                ],
+            ])
             ->orderBy("stores.name")
             ->all();
 
