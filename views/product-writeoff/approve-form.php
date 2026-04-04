@@ -114,3 +114,28 @@ $this->params['breadcrumbs'][] = 'Подтверждение';
         <?php ActiveForm::end(); ?>
     </div>
 </div>
+
+<?php
+$this->registerJs(<<<JS
+$('form').on('submit', function() {
+    var btn = $(this).find('button[type="submit"], input[type="submit"]');
+    if (btn.data('submitted')) return false;
+    btn.data('submitted', true);
+    btn.prop('disabled', true);
+    btn.html('<span class="glyphicon glyphicon-refresh spinning"></span> Обработка...');
+});
+JS
+);
+
+$this->registerCss(<<<CSS
+.spinning {
+    animation: spin 1s linear infinite;
+    display: inline-block;
+}
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+CSS
+);
+?>
