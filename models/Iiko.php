@@ -32,9 +32,12 @@ class Iiko extends Model
     public function auth()
     {
         Yii::info("Авторизация в iiko: baseUrl={$this->baseUrl}, login={$this->login}", 'iiko');
+        Yii::info("DEBUG iiko auth: password длина: " . strlen($this->password) . ", первые 10: " . substr($this->password, 0, 10), 'iiko');
 
         $hash = sha1($this->password);
+        Yii::info("DEBUG iiko auth: sha1(password) = {$hash}", 'iiko');
         $authUrl = "{$this->baseUrl}auth?login={$this->login}&pass={$hash}";
+        Yii::info("DEBUG iiko auth: URL = {$authUrl}", 'iiko');
 
         $ch = curl_init();
         curl_setopt_array($ch, [
@@ -49,6 +52,8 @@ class Iiko extends Model
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         $curlError = curl_error($ch);
         curl_close($ch);
+
+        Yii::info("DEBUG iiko auth: HTTP code = {$httpCode}, ответ = " . var_export($token, true), 'iiko');
 
         if ($token === false || $httpCode !== 200) {
             Yii::error("Ошибка авторизации в iiko: HTTP {$httpCode}, curl error: {$curlError}, ответ: " . substr($token ?: '', 0, 200), 'iiko');
