@@ -195,6 +195,13 @@ $returnUrl = Yii::$app->request->url;
                     'class' => 'yii\grid\ActionColumn',
                     'template' => '{view} {approve} {delete}',
                     'buttons' => [
+                        'view' => function ($url, $model, $key) use ($returnUrl) {
+                            return Html::a(
+                                '<span class="glyphicon glyphicon-eye-open"></span>',
+                                ['view', 'id' => $model->id, 'returnUrl' => $returnUrl],
+                                ['title' => 'Просмотр']
+                            );
+                        },
                         'approve' => function ($url, $model, $key) use ($returnUrl) {
                             if ($model->status === ProductWriteoff::STATUS_NEW) {
                                 return Html::a(
