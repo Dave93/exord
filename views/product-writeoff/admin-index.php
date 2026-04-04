@@ -17,6 +17,7 @@ $this->params['breadcrumbs'][] = $this->title;
 
 // Получаем список магазинов для фильтра
 $stores = ArrayHelper::map(Stores::find()->all(), 'id', 'name');
+$returnUrl = Yii::$app->request->url;
 ?>
 <div class="card">
     <div class="header clearfix">
@@ -126,8 +127,8 @@ $stores = ArrayHelper::map(Stores::find()->all(), 'id', 'name');
                 [
                     'attribute' => 'id',
                     'format' => 'html',
-                    'value' => function ($model) {
-                        return Html::a($model->id, ['view', 'id' => $model->id]);
+                    'value' => function ($model) use ($returnUrl) {
+                        return Html::a($model->id, ['view', 'id' => $model->id, 'returnUrl' => $returnUrl]);
                     },
                     'contentOptions' => [
                         'width' => 60,
@@ -194,11 +195,11 @@ $stores = ArrayHelper::map(Stores::find()->all(), 'id', 'name');
                     'class' => 'yii\grid\ActionColumn',
                     'template' => '{view} {approve} {delete}',
                     'buttons' => [
-                        'approve' => function ($url, $model, $key) {
+                        'approve' => function ($url, $model, $key) use ($returnUrl) {
                             if ($model->status === ProductWriteoff::STATUS_NEW) {
                                 return Html::a(
                                     '<span class="glyphicon glyphicon-ok"></span>',
-                                    ['approve-form', 'id' => $model->id],
+                                    ['approve-form', 'id' => $model->id, 'returnUrl' => $returnUrl],
                                     ['title' => 'Утвердить списание']
                                 );
                             }

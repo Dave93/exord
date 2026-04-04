@@ -24,7 +24,7 @@ $isAdmin = in_array(Yii::$app->user->identity->role, [User::ROLE_ADMIN, User::RO
             <?php if ($model->canEdit()): ?>
                 <?= Html::a('Редактировать', ['update', 'id' => $model->id], ['class' => 'btn btn-primary btn-fill']) ?>
             <?php endif; ?>
-            <?= Html::a('Назад к списку', [$isAdmin ? 'admin-index' : 'index'], ['class' => 'btn btn-default']) ?>
+            <?= Html::a('Назад к списку', Yii::$app->request->get('returnUrl', Yii::$app->urlManager->createUrl([$isAdmin ? 'product-writeoff/admin-index' : 'product-writeoff/index'])), ['class' => 'btn btn-default']) ?>
         </p>
     </div>
     <hr>

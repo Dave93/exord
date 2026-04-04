@@ -17,8 +17,9 @@ $this->params['breadcrumbs'][] = 'Подтверждение';
     <div class="header clearfix">
         <h2 class="pull-left title"><?= Html::encode($this->title) ?></h2>
         <p class="pull-right">
-            <?= Html::a('Назад к списанию', ['view', 'id' => $model->id], ['class' => 'btn btn-default']) ?>
-            <?= Html::a('К списку', ['admin-index'], ['class' => 'btn btn-default']) ?>
+<?php $returnUrl = Yii::$app->request->get('returnUrl'); ?>
+            <?= Html::a('Назад к списанию', ['view', 'id' => $model->id, 'returnUrl' => $returnUrl], ['class' => 'btn btn-default']) ?>
+            <?= Html::a('К списку', $returnUrl ?: Yii::$app->urlManager->createUrl(['product-writeoff/admin-index']), ['class' => 'btn btn-default']) ?>
         </p>
     </div>
     <hr>
@@ -107,7 +108,7 @@ $this->params['breadcrumbs'][] = 'Подтверждение';
                         'confirm' => 'Вы уверены, что хотите утвердить это списание с указанными количествами?',
                     ],
                 ]) ?>
-                <?= Html::a('Отмена', ['admin-index'], ['class' => 'btn btn-default']) ?>
+                <?= Html::a('Отмена', $returnUrl ?: Yii::$app->urlManager->createUrl(['product-writeoff/admin-index']), ['class' => 'btn btn-default']) ?>
             </div>
         </div>
 
