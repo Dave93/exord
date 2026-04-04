@@ -1003,7 +1003,7 @@ class Iiko extends Model
         Yii::info("Итого позиций для отправки в iiko: " . count($itemsArray), 'iiko');
 
         // Формируем данные для запроса
-        $number = "wo-{$model->id}";
+        $number = "{$model->id}";
         $data = [
             'documentNumber' => $number,
             'dateIncoming' => $model->created_at ? date('Y-m-d\TH:i', strtotime($model->created_at)) : date('Y-m-d\TH:i'),
@@ -1160,7 +1160,7 @@ class Iiko extends Model
             }
 
             // Формируем данные для запроса
-            $number = "tr-{$model->id}-{$sourceStoreId}";
+            $number = "{$model->id}-{$sourceStoreId}";
             $data = [
                 'documentNumber' => $number,
                 'dateIncoming' => $model->created_at ? date('Y-m-d\TH:i', strtotime($model->created_at)) : date('Y-m-d\TH:i'),
