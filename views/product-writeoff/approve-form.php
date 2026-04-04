@@ -117,12 +117,13 @@ $this->params['breadcrumbs'][] = 'Подтверждение';
 
 <?php
 $this->registerJs(<<<JS
-$('form').on('submit', function() {
+$('form').on('beforeSubmit', function() {
     var btn = $(this).find('button[type="submit"], input[type="submit"]');
     if (btn.data('submitted')) return false;
     btn.data('submitted', true);
     btn.prop('disabled', true);
     btn.html('<span class="glyphicon glyphicon-refresh spinning"></span> Обработка...');
+    return true;
 });
 JS
 );
