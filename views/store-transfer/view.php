@@ -174,7 +174,7 @@ $isAdmin = in_array(Yii::$app->user->identity->role, [User::ROLE_ADMIN, User::RO
 
                 <?php if ($isAdmin && $model->status === StoreTransfer::STATUS_NEW): ?>
                     <?= Html::a('Взять в работу', ['set-in-progress', 'id' => $model->id], [
-                        'class' => 'btn btn-warning btn-fill',
+                        'class' => 'btn btn-warning btn-fill btn-approve',
                         'data' => ['method' => 'post'],
                     ]) ?>
                 <?php endif; ?>
@@ -183,7 +183,10 @@ $isAdmin = in_array(Yii::$app->user->identity->role, [User::ROLE_ADMIN, User::RO
                     <?= Html::a(
                         '<span class="glyphicon glyphicon-check"></span> Утвердить заявку',
                         ['admin-approve', 'id' => $model->id],
-                        ['class' => 'btn btn-success btn-fill']
+                        [
+                            'class' => 'btn btn-success btn-fill btn-approve',
+                            'data' => ['method' => 'post'],
+                        ]
                     ) ?>
                 <?php endif; ?>
 
@@ -191,3 +194,31 @@ $isAdmin = in_array(Yii::$app->user->identity->role, [User::ROLE_ADMIN, User::RO
         </div>
     </div>
 </div>
+
+<?php
+$this->registerJs(<<<JS
+$(document).on('click', '.btn-approve', function(e) {
+    var btn = $(this);
+    if (btn.prop('disabled')) {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        return false;
+    }
+    btn.prop('disabled', true);
+    btn.css('pointer-events', 'none');
+    btn.html('<span class="glyphicon glyphicon-refresh spinning"></span> Обработка...');
+});
+JS
+);
+
+$this->registerCss(<<<CSS
+.spinning {
+    animation: spin 1s linear infinite;
+}
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+CSS
+);
+?>
