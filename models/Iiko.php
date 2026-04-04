@@ -32,6 +32,7 @@ class Iiko extends Model
     public function auth()
     {
         Yii::info("Авторизация в iiko: baseUrl={$this->baseUrl}, login={$this->login}", 'iiko');
+        Yii::info("DEBUG iiko auth: password из Settings (первые 10 символов): " . substr($this->password, 0, 10) . ", длина: " . strlen($this->password), 'iiko');
 
         $arrContextOptions = array(
             "ssl" => array(
@@ -40,9 +41,14 @@ class Iiko extends Model
             ),
         );
         $hash = sha1($this->password);
+        Yii::info("DEBUG iiko auth: sha1(password) = {$hash}", 'iiko');
         $authUrl = "{$this->baseUrl}auth?login={$this->login}&pass={$hash}";
+        Yii::info("DEBUG iiko auth: URL = {$authUrl}", 'iiko');
 
         $token = @file_get_contents($authUrl, false, stream_context_create($arrContextOptions));
+
+        Yii::info("DEBUG iiko auth: ответ file_get_contents = " . var_export($token, true), 'iiko');
+        Yii::info("DEBUG iiko auth: \$http_response_header = " . var_export($http_response_header ?? null, true), 'iiko');
 
         if (!$token) {
             $error = error_get_last();
