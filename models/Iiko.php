@@ -32,28 +32,26 @@ class Iiko extends Model
     public function auth()
     {
         Yii::info("Авторизация в iiko: baseUrl={$this->baseUrl}, login={$this->login}", 'iiko');
-        Yii::info("DEBUG iiko auth: password из Settings (первые 10 символов): " . substr($this->password, 0, 10) . ", длина: " . strlen($this->password), 'iiko');
 
-        $arrContextOptions = array(
-            "ssl" => array(
-                "verify_peer" => false,
-                "verify_peer_name" => false,
-            ),
-        );
         $hash = sha1($this->password);
-        Yii::info("DEBUG iiko auth: sha1(password) = {$hash}", 'iiko');
         $authUrl = "{$this->baseUrl}auth?login={$this->login}&pass={$hash}";
-        Yii::info("DEBUG iiko auth: URL = {$authUrl}", 'iiko');
 
-        $token = @file_get_contents($authUrl, false, stream_context_create($arrContextOptions));
+        $ch = curl_init();
+        curl_setopt_array($ch, [
+            CURLOPT_URL => $authUrl,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_SSL_VERIFYPEER => false,
+            CURLOPT_SSL_VERIFYHOST => false,
+            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+            CURLOPT_TIMEOUT => 30,
+        ]);
+        $token = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $curlError = curl_error($ch);
+        curl_close($ch);
 
-        Yii::info("DEBUG iiko auth: ответ file_get_contents = " . var_export($token, true), 'iiko');
-        Yii::info("DEBUG iiko auth: \$http_response_header = " . var_export($http_response_header ?? null, true), 'iiko');
-
-        if (!$token) {
-            $error = error_get_last();
-            Yii::error("Ошибка авторизации в iiko: " . ($error['message'] ?? 'пустой ответ'), 'iiko');
-            Yii::error("URL авторизации: {$this->baseUrl}auth?login={$this->login}", 'iiko');
+        if ($token === false || $httpCode !== 200) {
+            Yii::error("Ошибка авторизации в iiko: HTTP {$httpCode}, curl error: {$curlError}, ответ: " . substr($token ?: '', 0, 200), 'iiko');
             return false;
         }
 
