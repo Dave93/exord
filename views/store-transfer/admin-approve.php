@@ -263,9 +263,10 @@ JS
                         '<span class="glyphicon glyphicon-ok"></span> Утвердить и завершить заявку',
                         ['class' => 'btn btn-success btn-fill btn-lg']
                     ) ?>
+<?php $returnUrl = Yii::$app->request->get('returnUrl'); ?>
                     <?= Html::a(
                         '<span class="glyphicon glyphicon-arrow-left"></span> Назад к просмотру',
-                        ['view', 'id' => $model->id],
+                        ['view', 'id' => $model->id, 'returnUrl' => $returnUrl],
                         ['class' => 'btn btn-default']
                     ) ?>
                 </div>

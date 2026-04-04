@@ -11,6 +11,7 @@ use kartik\date\DatePicker;
 
 $this->title = 'Управление внутренними перемещениями';
 $this->params['breadcrumbs'][] = $this->title;
+$returnUrl = Yii::$app->request->url;
 ?>
 
 <div class="card">
@@ -112,15 +113,15 @@ $this->params['breadcrumbs'][] = $this->title;
                     'class' => 'yii\grid\ActionColumn',
                     'template' => '{view} {approve}',
                     'buttons' => [
-                        'view' => function ($url, $model) {
-                            return Html::a('<span class="glyphicon glyphicon-eye-open"></span>', $url, [
+                        'view' => function ($url, $model) use ($returnUrl) {
+                            return Html::a('<span class="glyphicon glyphicon-eye-open"></span>', ['view', 'id' => $model->id, 'returnUrl' => $returnUrl], [
                                 'title' => 'Просмотр',
                                 'class' => 'btn btn-info btn-sm',
                             ]);
                         },
-                        'approve' => function ($url, $model) {
+                        'approve' => function ($url, $model) use ($returnUrl) {
                             if (in_array($model->status, [StoreTransfer::STATUS_NEW, StoreTransfer::STATUS_IN_PROGRESS])) {
-                                return Html::a('<span class="glyphicon glyphicon-check"></span>', ['admin-approve', 'id' => $model->id], [
+                                return Html::a('<span class="glyphicon glyphicon-check"></span>', ['admin-approve', 'id' => $model->id, 'returnUrl' => $returnUrl], [
                                     'title' => 'Утвердить',
                                     'class' => 'btn btn-success btn-sm',
                                 ]);
