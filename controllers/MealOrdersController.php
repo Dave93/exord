@@ -196,10 +196,11 @@ class MealOrdersController extends Controller
         $currentHour = (int)$now->format('H');
 
         // Ограничение по времени: заказывать можно только с 10:00 до 15:00
-        if ($currentHour < 10 || $currentHour >= 15) {
-            Yii::$app->session->setFlash('error', 'Заказ блюд доступен только с 10:00 до 15:00.');
-            return $this->redirect(['customer-orders']);
-        }
+        // Временно отключено
+        // if ($currentHour < 10 || $currentHour >= 15) {
+        //     Yii::$app->session->setFlash('error', 'Заказ блюд доступен только с 10:00 до 15:00.');
+        //     return $this->redirect(['customer-orders']);
+        // }
 
         // Проверка: нельзя заказывать дважды в один день
         $today = $now->format('Y-m-d');
