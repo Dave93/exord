@@ -87,7 +87,10 @@ class CheckMissingInvoicesController extends Controller
         }
 
         $this->stdout("Получение расходных накладных из iiko...\n");
-        $outgoingDocsData = $iiko->getOutgoingDocs($fromDate, $toDate);
+        // Расширяем диапазон поиска накладных на 7 дней вперёд,
+        // т.к. накладные могут быть созданы позже даты заказа (например, заказ 31 марта, накладная 1 апреля)
+        $extendedToDate = date('Y-m-d', strtotime($toDate . ' +7 days'));
+        $outgoingDocsData = $iiko->getOutgoingDocs($fromDate, $extendedToDate);
 
         // Извлекаем ID заказов из накладных
         $invoiceOrderIds = [];
