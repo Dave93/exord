@@ -195,9 +195,9 @@ class MealOrdersController extends Controller
         $now = new \DateTime('now', $tz);
         $currentHour = (int)$now->format('H');
 
-        // Ограничение по времени: заказывать можно только с 10:00 до 15:00
-        if ($currentHour < 10 || $currentHour >= 15) {
-            Yii::$app->session->setFlash('error', 'Заказ блюд доступен только с 10:00 до 15:00.');
+        // Ограничение по времени: заказывать можно только с 08:00 до 17:00
+        if ($currentHour < 8 || $currentHour >= 17) {
+            Yii::$app->session->setFlash('error', 'Заказ блюд доступен только с 08:00 до 17:00.');
             return $this->redirect(['customer-orders']);
         }
 
@@ -219,6 +219,16 @@ class MealOrdersController extends Controller
         $model->userId = Yii::$app->user->id;
 
         if (Yii::$app->request->isPost) {
+            // Повторная проверка на дубликат перед сохранением (защита от двух вкладок)
+            $duplicateOrder = MealOrders::find()
+                ->where(['userId' => Yii::$app->user->id, 'date' => $today])
+                ->andWhere(['deleted_at' => null])
+                ->one();
+            if ($duplicateOrder !== null) {
+                Yii::$app->session->setFlash('error', 'Вы уже создали заказ блюд на сегодня (заказ #' . $duplicateOrder->id . ').');
+                return $this->redirect(['customer-orders']);
+            }
+
             $model->load(Yii::$app->request->post());
             $items = Yii::$app->request->post("Items");
             $model->addDate = $now->format("Y-m-d H:i:s");
@@ -287,6 +297,15 @@ class MealOrdersController extends Controller
 
         if ($model->state != 0 || $model->is_locked) {
             Yii::$app->session->setFlash('error', 'Этот заказ нельзя редактировать.');
+            return $this->redirect(['view', 'id' => $model->id]);
+        }
+
+        // Ограничение по времени: редактировать можно только с 08:00 до 17:00
+        $tz = new \DateTimeZone('Asia/Tashkent');
+        $now = new \DateTime('now', $tz);
+        $currentHour = (int)$now->format('H');
+        if ($currentHour < 8 || $currentHour >= 17) {
+            Yii::$app->session->setFlash('error', 'Редактирование заказа доступно только с 08:00 до 17:00.');
             return $this->redirect(['view', 'id' => $model->id]);
         }
 
