@@ -123,32 +123,6 @@ class MealOrdersController extends Controller
 
             $model->save(false);
 
-            // Уведомление в Telegram
-            try {
-                if ($isSend == 'Y') {
-                    $bot = new TelegramBot();
-                    $d = date('d.m.Y', strtotime($model->date));
-                    $text = "Поступил новый заказ блюд: <b>#{$model->id}</b>\nЗаказчик: {$model->user->username}\nДата: {$d}";
-
-                    $content = $this->renderPartial('preview-invoice', [
-                        'model' => $model
-                    ]);
-
-                    $webroot = Yii::getAlias('@webroot');
-                    $pdf = new \kartik\mpdf\Pdf([
-                        'mode' => \kartik\mpdf\Pdf::MODE_UTF8,
-                        'content' => $content,
-                    ]);
-                    $filePath = '/uploads/meal_' . sha1($model->id) . '.pdf';
-                    $pdf->output($content, $webroot . $filePath, 'F');
-
-                    $message = $bot->sendDocument(-1003773200982, 'https://les.iiko.uz' . $filePath);
-                    $bot->sendMessage(-1003773200982, $text, 'HTML', false, $message['result']['message_id']);
-                }
-            } catch (\Exception $e) {
-                Yii::error('Ошибка отправки в Telegram: ' . $e->getMessage(), 'telegram');
-            }
-
             return $this->redirect(['meal-orders/stock', 'tab' => $orderId]);
         }
 
