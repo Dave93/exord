@@ -19,9 +19,6 @@ $stateLabel = isset(MealOrders::$states[$order['state']]) ? MealOrders::$states[
         <?php if (in_array(Yii::$app->user->identity->role, [User::ROLE_ADMIN, User::ROLE_STOCK]) && $order['state'] == 0): ?>
             <?= Html::submitButton("Отправить", ['class' => 'btn btn-success btn-fill', 'name' => 'send', 'value' => 'Y']) ?>
         <?php endif; ?>
-        <?php if (in_array(Yii::$app->user->identity->role, [User::ROLE_ADMIN, User::ROLE_STOCK]) && $order['state'] != 2): ?>
-            <?= Html::submitButton("Закрыть заказ", ['class' => 'btn btn-warning btn-fill', 'name' => 'close', 'value' => 'Y', 'data-confirm' => 'Вы действительно хотите закрыть заказ блюд #' . $order['id'] . '?']) ?>
-        <?php endif; ?>
     </div>
     <input type="hidden" name="orderId" value="<?= $order['id'] ?>">
 

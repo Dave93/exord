@@ -174,7 +174,11 @@ class MealOrdersController extends Controller
         }
 
         $searchModel = new MealOrderSearch();
-        $dataProvider = $searchModel->search(Yii::$app->request->queryParams, false, $start, $end);
+        $state = null;
+        if (Yii::$app->user->identity->role == User::ROLE_DISH_COOK) {
+            $state = 1;
+        }
+        $dataProvider = $searchModel->search(Yii::$app->request->queryParams, false, $start, $end, $state);
 
         return $this->render('index', [
             'searchModel' => $searchModel,
