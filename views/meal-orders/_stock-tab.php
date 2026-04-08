@@ -16,7 +16,7 @@ $stateLabel = isset(MealOrders::$states[$order['state']]) ? MealOrders::$states[
 <div class="tab-pane <?= $active ?>" id="st-<?= $order['id'] ?>">
     <?php $form = ActiveForm::begin(); ?>
     <div class="flex justify-between">
-        <?php if (in_array(Yii::$app->user->identity->role, [User::ROLE_ADMIN, User::ROLE_STOCK]) && $order['state'] == 0): ?>
+        <?php if (in_array(Yii::$app->user->identity->role, [User::ROLE_ADMIN, User::ROLE_STOCK, User::ROLE_DISH_COOK]) && $order['state'] == 0): ?>
             <?= Html::submitButton("Отправить", ['class' => 'btn btn-success btn-fill', 'name' => 'send', 'value' => 'Y']) ?>
         <?php endif; ?>
     </div>
