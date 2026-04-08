@@ -50,7 +50,7 @@ class MealOrdersController extends Controller
                         ],
                     ],
                     [
-                        'actions' => ['index', 'view'],
+                        'actions' => ['index', 'stock', 'view'],
                         'allow' => true,
                         'roles' => [
                             User::ROLE_DISH_COOK,
