@@ -27,7 +27,7 @@ $list = "";
 $content = "";
 
 $priceClass = '';
-if (!Yii::$app->user->identity->showPrice) {
+if (!Yii::$app->user->identity->canSeePrice()) {
     $priceClass = 'hidden';
 }
 

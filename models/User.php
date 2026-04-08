@@ -54,6 +54,7 @@ class User extends ActiveRecord implements IdentityInterface
 
     const ROLE_OFFICE = 8;
     const ROLE_OFFICE_MANAGER = 10;
+    const ROLE_DISH_COOK = 11;
 
     public static $roles = [
         1 => 'Администратор',
@@ -65,7 +66,8 @@ class User extends ActiveRecord implements IdentityInterface
         7 => 'Кондитер',
         8 => 'Офис',
         9 => 'Этаж склада',
-        10 => 'Офис менеджер'
+        10 => 'Офис менеджер',
+        11 => 'Повар блюд'
     ];
 
     public static $states = [
@@ -135,6 +137,30 @@ class User extends ActiveRecord implements IdentityInterface
             'product_group_id' => 'Этаж товаров',
             'oil_tg_id' => 'Ид в ТГ'
         ];
+    }
+
+    /**
+     * Роли, которым запрещено видеть цены
+     */
+    const ROLES_NO_PRICE = [
+        self::ROLE_COOK,
+        self::ROLE_BARMEN,
+        self::ROLE_PASTRY,
+        self::ROLE_STOCK,
+        self::ROLE_ETAJ,
+        self::ROLE_DISH_COOK,
+    ];
+
+    /**
+     * Может ли пользователь видеть цены.
+     * Для поваров, бариста, кондитеров и складщиков цены скрыты принудительно.
+     */
+    public function canSeePrice()
+    {
+        if (in_array($this->role, self::ROLES_NO_PRICE)) {
+            return false;
+        }
+        return (bool) $this->showPrice;
     }
 
     /**

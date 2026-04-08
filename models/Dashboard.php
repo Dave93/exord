@@ -73,6 +73,10 @@ class Dashboard extends Model
             case User::ROLE_ETAJ:
                 $menu = Yii::$app->controller->renderPartial('//menu/etaj');
                 break;
+
+            case User::ROLE_DISH_COOK:
+                $menu = Yii::$app->controller->renderPartial('//menu/dish-cook');
+                break;
         }
         return $menu;
     }

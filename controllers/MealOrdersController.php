@@ -46,6 +46,14 @@ class MealOrdersController extends Controller
                             User::ROLE_PASTRY,
                             User::ROLE_MANAGER,
                             User::ROLE_ADMIN,
+                            User::ROLE_DISH_COOK,
+                        ],
+                    ],
+                    [
+                        'actions' => ['index', 'view'],
+                        'allow' => true,
+                        'roles' => [
+                            User::ROLE_DISH_COOK,
                         ],
                     ],
                     [
@@ -285,7 +293,7 @@ class MealOrdersController extends Controller
 
     public function actionUpdate($id)
     {
-        if (in_array(Yii::$app->user->identity->role, [User::ROLE_BARMEN, User::ROLE_COOK, User::ROLE_PASTRY, User::ROLE_MANAGER])) {
+        if (in_array(Yii::$app->user->identity->role, [User::ROLE_BARMEN, User::ROLE_COOK, User::ROLE_PASTRY, User::ROLE_MANAGER, User::ROLE_DISH_COOK])) {
             $model = MealOrders::findOne(['id' => $id, 'userId' => Yii::$app->user->id]);
         } else {
             $model = MealOrders::findOne($id);
