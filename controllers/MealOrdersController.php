@@ -301,28 +301,48 @@ class MealOrdersController extends Controller
             $items = Yii::$app->request->post("Items");
 
             if ($model->save()) {
-                // Soft delete старых позиций
-                $oldItems = MealOrderItems::findWithDeleted()
+                // Получить все существующие позиции (включая мягко удалённые)
+                $allExistingItems = MealOrderItems::findWithDeleted()
                     ->where(['mealOrderId' => $model->id])
+                    ->indexBy('dishId')
                     ->all();
-                foreach ($oldItems as $oldItem) {
-                    $oldItem->deleted_at = date('Y-m-d H:i:s');
-                    $oldItem->deleted_by = Yii::$app->user->id;
-                    $oldItem->save(false);
-                }
 
-                // Создать новые позиции
+                $submittedDishIds = [];
+
+                // Обновить или восстановить позиции из формы
                 if (!empty($items)) {
                     foreach ($items as $dishId => $quantity) {
                         if (empty($quantity) || $quantity <= 0) {
                             continue;
                         }
-                        $item = new MealOrderItems();
-                        $item->mealOrderId = $model->id;
-                        $item->dishId = $dishId;
-                        $item->quantity = $quantity;
-                        $item->userId = Yii::$app->user->id;
-                        $item->save();
+                        $submittedDishIds[] = $dishId;
+
+                        if (isset($allExistingItems[$dishId])) {
+                            // Запись уже существует — обновить/восстановить
+                            $item = $allExistingItems[$dishId];
+                            $item->quantity = $quantity;
+                            $item->userId = Yii::$app->user->id;
+                            $item->deleted_at = null;
+                            $item->deleted_by = null;
+                            $item->save(false);
+                        } else {
+                            // Новое блюдо — создать запись
+                            $item = new MealOrderItems();
+                            $item->mealOrderId = $model->id;
+                            $item->dishId = $dishId;
+                            $item->quantity = $quantity;
+                            $item->userId = Yii::$app->user->id;
+                            $item->save();
+                        }
+                    }
+                }
+
+                // Soft delete позиций, которых нет в новой версии заказа
+                foreach ($allExistingItems as $dishId => $existingItem) {
+                    if (!in_array($dishId, $submittedDishIds) && $existingItem->deleted_at === null) {
+                        $existingItem->deleted_at = date('Y-m-d H:i:s');
+                        $existingItem->deleted_by = Yii::$app->user->id;
+                        $existingItem->save(false);
                     }
                 }
 
