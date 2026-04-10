@@ -1160,7 +1160,7 @@ class Iiko extends Model
             }
 
             // Формируем данные для запроса
-            $number = "{$model->id}-{$sourceStoreId}";
+            $number = "{$model->id}";
             $data = [
                 'documentNumber' => $number,
                 'dateIncoming' => $model->created_at ? date('Y-m-d\TH:i', strtotime($model->created_at)) : date('Y-m-d\TH:i'),
