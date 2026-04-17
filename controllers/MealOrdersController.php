@@ -5,6 +5,7 @@ namespace app\controllers;
 use app\components\AccessRule;
 use app\models\Dishes;
 use app\models\MealOrderItems;
+use app\models\MealOrderItemsChangelog;
 use app\models\MealOrders;
 use app\models\MealOrderSearch;
 use app\models\TelegramBot;
@@ -226,6 +227,15 @@ class MealOrdersController extends Controller
                     $item->quantity = $quantity;
                     $item->userId = Yii::$app->user->id;
                     $item->save();
+
+                    MealOrderItemsChangelog::log(
+                        $model->id,
+                        $dishId,
+                        MealOrderItemsChangelog::ACTION_ADDED,
+                        null,
+                        $quantity,
+                        Yii::$app->user->id
+                    );
                 }
 
                 // Отправка уведомления в Telegram (PDF + текст)
@@ -320,11 +330,34 @@ class MealOrdersController extends Controller
                         if (isset($allExistingItems[$dishId])) {
                             // Запись уже существует — обновить/восстановить
                             $item = $allExistingItems[$dishId];
+                            $oldQuantity = $item->quantity;
+                            $wasDeleted = $item->deleted_at !== null;
+
                             $item->quantity = $quantity;
                             $item->userId = Yii::$app->user->id;
                             $item->deleted_at = null;
                             $item->deleted_by = null;
                             $item->save(false);
+
+                            if ($wasDeleted) {
+                                MealOrderItemsChangelog::log(
+                                    $model->id,
+                                    $dishId,
+                                    MealOrderItemsChangelog::ACTION_RESTORED,
+                                    null,
+                                    $quantity,
+                                    Yii::$app->user->id
+                                );
+                            } elseif ($oldQuantity != $quantity) {
+                                MealOrderItemsChangelog::log(
+                                    $model->id,
+                                    $dishId,
+                                    MealOrderItemsChangelog::ACTION_UPDATED,
+                                    $oldQuantity,
+                                    $quantity,
+                                    Yii::$app->user->id
+                                );
+                            }
                         } else {
                             // Новое блюдо — создать запись
                             $item = new MealOrderItems();
@@ -333,6 +366,15 @@ class MealOrdersController extends Controller
                             $item->quantity = $quantity;
                             $item->userId = Yii::$app->user->id;
                             $item->save();
+
+                            MealOrderItemsChangelog::log(
+                                $model->id,
+                                $dishId,
+                                MealOrderItemsChangelog::ACTION_ADDED,
+                                null,
+                                $quantity,
+                                Yii::$app->user->id
+                            );
                         }
                     }
                 }
@@ -340,9 +382,19 @@ class MealOrdersController extends Controller
                 // Soft delete позиций, которых нет в новой версии заказа
                 foreach ($allExistingItems as $dishId => $existingItem) {
                     if (!in_array($dishId, $submittedDishIds) && $existingItem->deleted_at === null) {
+                        $oldQuantity = $existingItem->quantity;
                         $existingItem->deleted_at = date('Y-m-d H:i:s');
                         $existingItem->deleted_by = Yii::$app->user->id;
                         $existingItem->save(false);
+
+                        MealOrderItemsChangelog::log(
+                            $model->id,
+                            $dishId,
+                            MealOrderItemsChangelog::ACTION_DELETED,
+                            $oldQuantity,
+                            null,
+                            Yii::$app->user->id
+                        );
                     }
                 }
 
@@ -382,10 +434,13 @@ class MealOrdersController extends Controller
             'pagination' => false,
         ]);
 
+        $changelog = MealOrderItemsChangelog::getMealOrderHistory($id);
+
         return $this->render('view', [
             'model' => $model,
             'dataProvider' => $dataProvider,
             'showDeleted' => $showDeleted,
+            'changelog' => $changelog,
         ]);
     }
 
@@ -475,6 +530,16 @@ class MealOrdersController extends Controller
 
         if ($item !== null) {
             $item->restore();
+
+            MealOrderItemsChangelog::log(
+                $mealOrderId,
+                $dishId,
+                MealOrderItemsChangelog::ACTION_RESTORED,
+                null,
+                $item->quantity,
+                Yii::$app->user->id
+            );
+
             Yii::$app->session->setFlash('success', 'Позиция восстановлена.');
         }
 

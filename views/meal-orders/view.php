@@ -9,6 +9,7 @@ use yii\grid\GridView;
 /* @var $model app\models\MealOrders */
 /* @var $dataProvider yii\data\ActiveDataProvider */
 /* @var $showDeleted int */
+/* @var $changelog app\models\MealOrderItemsChangelog[] */
 
 $this->title = "Заказ блюд #" . $model->id;
 $this->params['breadcrumbs'][] = $this->title;
@@ -183,6 +184,62 @@ $this->params['breadcrumbs'][] = $this->title;
                 ],
             ]); ?>
         </div>
+
+        <?php if (!empty($changelog) && in_array(Yii::$app->user->identity->role, [User::ROLE_ADMIN, User::ROLE_OFFICE])): ?>
+            <hr>
+            <h3 class="title">История изменений</h3>
+            <div class="table-responsive">
+                <table class="table table-hover table-striped">
+                    <thead>
+                        <tr>
+                            <th>Дата и время</th>
+                            <th>Блюдо</th>
+                            <th>Действие</th>
+                            <th class="text-center">Старое значение</th>
+                            <th class="text-center">Новое значение</th>
+                            <th>Пользователь</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($changelog as $change): ?>
+                            <tr>
+                                <td><?= Yii::$app->formatter->asDatetime($change->created_at, 'php:d.m.Y H:i:s') ?></td>
+                                <td><?= Html::encode($change->dish ? $change->dish->name : '-') ?></td>
+                                <td>
+                                    <?php
+                                    $badgeClass = 'badge-secondary';
+                                    switch ($change->action) {
+                                        case 'added':
+                                            $badgeClass = 'badge-success';
+                                            break;
+                                        case 'deleted':
+                                            $badgeClass = 'badge-danger';
+                                            break;
+                                        case 'updated':
+                                            $badgeClass = 'badge-warning';
+                                            break;
+                                        case 'restored':
+                                            $badgeClass = 'badge-info';
+                                            break;
+                                    }
+                                    ?>
+                                    <span class="badge <?= $badgeClass ?>" style="padding: 5px 10px; font-size: 12px;">
+                                        <?= Html::encode($change->getActionLabel()) ?>
+                                    </span>
+                                </td>
+                                <td class="text-center">
+                                    <?= $change->old_quantity !== null ? Yii::$app->formatter->asDecimal($change->old_quantity, 3) : '-' ?>
+                                </td>
+                                <td class="text-center">
+                                    <?= $change->new_quantity !== null ? Yii::$app->formatter->asDecimal($change->new_quantity, 3) : '-' ?>
+                                </td>
+                                <td><?= Html::encode($change->user ? $change->user->username : '-') ?></td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+        <?php endif; ?>
 
         <hr>
         <h3 class="title">Комментарий</h3>
