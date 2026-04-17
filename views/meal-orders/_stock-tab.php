@@ -38,7 +38,17 @@ $stateLabel = isset(MealOrders::$states[$order['state']]) ? MealOrders::$states[
                 <td><?= $i ?></td>
                 <td><?= $item->dish ? Html::encode($item->dish->name) : '-' ?></td>
                 <td><?= $item->dish ? Html::encode($item->dish->unit) : '-' ?></td>
-                <td class="text-center"><?= $item->quantity ?></td>
+                <td class="text-center">
+                    <?php if (Yii::$app->user->identity->role == User::ROLE_ADMIN): ?>
+                        <input type="number" step="0.001" min="0"
+                               name="Items[<?= $item->dishId ?>]"
+                               value="<?= $item->quantity ?>"
+                               class="form-control text-center"
+                               style="width: 110px; margin: 0 auto;">
+                    <?php else: ?>
+                        <?= $item->quantity ?>
+                    <?php endif; ?>
+                </td>
             </tr>
         <?php endforeach; ?>
         </tbody>

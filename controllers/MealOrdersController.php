@@ -113,6 +113,50 @@ class MealOrdersController extends Controller
                 $model->comment = $comment;
             }
 
+            // Админ может править количество и удалять позиции прямо из stock
+            if (Yii::$app->user->identity->role == User::ROLE_ADMIN && $model->state != 2) {
+                $postedItems = Yii::$app->request->post("Items");
+                if (is_array($postedItems)) {
+                    foreach ($postedItems as $dishId => $quantity) {
+                        $item = MealOrderItems::findOne([
+                            'mealOrderId' => $model->id,
+                            'dishId' => $dishId,
+                        ]);
+                        if ($item === null) {
+                            continue;
+                        }
+
+                        $oldQuantity = $item->quantity;
+                        $newQuantity = is_numeric($quantity) ? (float)$quantity : 0;
+
+                        if ($newQuantity <= 0) {
+                            $item->delete();
+                            MealOrderItemsChangelog::log(
+                                $model->id,
+                                $dishId,
+                                MealOrderItemsChangelog::ACTION_DELETED,
+                                $oldQuantity,
+                                null,
+                                Yii::$app->user->id
+                            );
+                        } elseif ((float)$oldQuantity != $newQuantity) {
+                            $item->quantity = $newQuantity;
+                            $item->userId = Yii::$app->user->id;
+                            $item->save(false);
+
+                            MealOrderItemsChangelog::log(
+                                $model->id,
+                                $dishId,
+                                MealOrderItemsChangelog::ACTION_UPDATED,
+                                $oldQuantity,
+                                $newQuantity,
+                                Yii::$app->user->id
+                            );
+                        }
+                    }
+                }
+            }
+
             if ($isSend == 'Y') {
                 $model->state = 1;
                 $model->is_locked = 1;
