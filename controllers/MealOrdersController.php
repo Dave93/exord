@@ -31,7 +31,7 @@ class MealOrdersController extends Controller
                 'only' => ['*'],
                 'rules' => [
                     [
-                        'actions' => ['index', 'stock', 'view', 'delete', 'close', 'return-back', 'return-to-new', 'send', 'restore-item'],
+                        'actions' => ['index', 'stock', 'view', 'delete', 'close', 'return-back', 'return-to-new', 'send', 'restore-item', 'get-changelog'],
                         'allow' => true,
                         'roles' => [
                             User::ROLE_ADMIN,
@@ -544,5 +544,23 @@ class MealOrdersController extends Controller
         }
 
         return $this->redirect(['view', 'id' => $mealOrderId, 'showDeleted' => 1]);
+    }
+
+    /**
+     * Получает историю изменений заказа блюд для отображения в модальном окне
+     * @param int $mealOrderId
+     * @return string
+     */
+    public function actionGetChangelog($mealOrderId)
+    {
+        $changelog = MealOrderItemsChangelog::find()
+            ->where(['mealOrderId' => $mealOrderId])
+            ->with(['dish', 'user'])
+            ->orderBy(['created_at' => SORT_DESC])
+            ->all();
+
+        return $this->renderPartial('_changelog', [
+            'changelog' => $changelog
+        ]);
     }
 }

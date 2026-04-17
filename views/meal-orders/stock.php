@@ -127,6 +127,28 @@ $js = <<<JS
                 printWindow.print();
             };
         });
+
+        // Обработчик открытия модального окна с историей изменений
+        $(document).on('click', '.show-changelog-modal', function(e) {
+            e.preventDefault();
+            var orderId = $(this).data('order-id');
+
+            $('#changelog-modal-body').html('<div class="text-center"><i class="fa fa-spinner fa-spin fa-3x"></i><p>Загрузка истории...</p></div>');
+
+            $('#changelog-modal').modal('show');
+
+            $.ajax({
+                url: '/meal-orders/get-changelog',
+                type: 'GET',
+                data: { mealOrderId: orderId },
+                success: function(response) {
+                    $('#changelog-modal-body').html(response);
+                },
+                error: function() {
+                    $('#changelog-modal-body').html('<div class="alert alert-danger">Ошибка при загрузке истории изменений</div>');
+                }
+            });
+        });
     });
 JS;
 $this->registerJs($js);
@@ -210,5 +232,25 @@ $this->registerJs($js);
         <?php else: ?>
             <div class="alert alert-danger">На сегодня не найдены заказы блюд</div>
         <?php endif; ?>
+    </div>
+</div>
+
+<!-- Модальное окно для истории изменений -->
+<div class="modal fade" id="changelog-modal" tabindex="-1" role="dialog" aria-labelledby="changelogModalLabel">
+    <div class="modal-dialog modal-lg" role="document" style="width: 90%; max-width: 1200px;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+                <h4 class="modal-title" id="changelogModalLabel">История изменений заказа блюд</h4>
+            </div>
+            <div class="modal-body" id="changelog-modal-body">
+                <!-- Содержимое будет загружено через AJAX -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-default" data-dismiss="modal">Закрыть</button>
+            </div>
+        </div>
     </div>
 </div>

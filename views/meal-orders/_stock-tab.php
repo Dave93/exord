@@ -52,6 +52,14 @@ $stateLabel = isset(MealOrders::$states[$order['state']]) ? MealOrders::$states[
         <?php if (Yii::$app->user->identity->role == User::ROLE_ADMIN): ?>
             <?= Html::submitButton("Удалить", ['class' => 'btn btn-danger btn-fill', 'name' => 'delete', 'value' => 'Y', 'data-confirm' => 'Вы действительно хотите удалить заказ блюд #' . $order['id'] . '?']) ?>
         <?php endif; ?>
+
+        <?php if (in_array(Yii::$app->user->identity->role, [User::ROLE_ADMIN, User::ROLE_OFFICE])): ?>
+            <?= Html::button('<i class="glyphicon glyphicon-time"></i> История изменений', [
+                'class' => 'btn btn-info btn-fill show-changelog-modal',
+                'data-order-id' => $order['id']
+            ]) ?>
+        <?php endif; ?>
+
         <div>
             <?= Html::submitButton("Сохранить", ['class' => 'btn btn-primary mr-5 btn-fill', 'name' => 'save', 'value' => 'Y']) ?>
         </div>
