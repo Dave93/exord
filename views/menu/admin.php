@@ -20,6 +20,9 @@ use yii\helpers\Html;
     <li class="<?= Dashboard::isNavActive('meal-orders', 'stock') ? 'active' : '' ?>">
         <?= Html::a('Заказы блюд', ['meal-orders/stock'], ['class' => 'nav-link']) ?>
     </li>
+    <li class="<?= Dashboard::isNavActive('orders', 'market-prices') ? 'active' : '' ?>">
+        <?= Html::a('Цены базара', ['orders/market-prices'], ['class' => 'nav-link']) ?>
+    </li>
     <li class="<?= Dashboard::isNavActive('invoice', 'index') ? 'active' : '' ?>">
         <?= Html::a('Накадная', ['invoice/index']) ?>
     </li>

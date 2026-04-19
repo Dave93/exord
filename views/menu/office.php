@@ -11,6 +11,9 @@ use yii\helpers\Html;
     <li class="<?= Dashboard::isNavActive('orders', 'index') ? 'active' : '' ?>">
         <?= Html::a('Заказы', ['orders/index']) ?>
     </li>
+    <li class="<?= Dashboard::isNavActive('orders', 'market-prices') ? 'active' : '' ?>">
+        <?= Html::a('Цены базара', ['orders/market-prices'], ['class' => 'nav-link']) ?>
+    </li>
     <li class="<?= Dashboard::isNavActive('invoice', 'office') ? 'active' : '' ?>">
         <?= Html::a('Приём накладных', ['invoice/office']) ?>
     </li>
