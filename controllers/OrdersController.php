@@ -52,11 +52,12 @@ class OrdersController extends Controller
                 'only' => ['*'],
                 'rules' => [
                     [
-                        'actions' => ['index', 'return', 'list', 'view', 'delete', 'close', 'try-again', 'return-back', 'return-to-new', 'restore-item', 'get-changelog'],
+                        'actions' => ['index', 'return', 'list', 'view', 'delete', 'close', 'try-again', 'return-back', 'return-to-new', 'restore-item', 'get-changelog', 'market-prices', 'market-prices-fill'],
                         'allow' => true,
                         'roles' => [
                             User::ROLE_ADMIN,
-                            User::ROLE_OFFICE
+                            User::ROLE_OFFICE,
+                            User::ROLE_OFFICE_MANAGER,
                         ],
                     ],
                     [
@@ -98,6 +99,7 @@ class OrdersController extends Controller
                 'class' => VerbFilter::className(),
                 'actions' => [
                     'close' => ['post'],
+                    'market-prices-fill' => ['get', 'post'],
                 ],
             ],
         ];
