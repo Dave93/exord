@@ -26,6 +26,7 @@ class OrderItemsChangelog extends \yii\db\ActiveRecord
     const ACTION_DELETED = 'deleted';
     const ACTION_UPDATED = 'updated';
     const ACTION_RESTORED = 'restored';
+    const ACTION_PRICE_UPDATED = 'price_updated';
 
     /**
      * {@inheritdoc}
@@ -43,11 +44,17 @@ class OrderItemsChangelog extends \yii\db\ActiveRecord
         return [
             [['orderId', 'productId', 'action', 'userId'], 'required'],
             [['orderId', 'userId'], 'integer'],
-            [['old_quantity', 'new_quantity'], 'number'],
+            [['old_quantity', 'new_quantity', 'old_price', 'new_price'], 'number'],
             [['created_at'], 'safe'],
             [['productId'], 'string', 'max' => 36],
             [['action'], 'string', 'max' => 20],
-            [['action'], 'in', 'range' => [self::ACTION_ADDED, self::ACTION_DELETED, self::ACTION_UPDATED, self::ACTION_RESTORED]],
+            [['action'], 'in', 'range' => [
+                self::ACTION_ADDED,
+                self::ACTION_DELETED,
+                self::ACTION_UPDATED,
+                self::ACTION_RESTORED,
+                self::ACTION_PRICE_UPDATED,
+            ]],
             [['orderId'], 'exist', 'skipOnError' => true, 'targetClass' => Orders::class, 'targetAttribute' => ['orderId' => 'id']],
             [['productId'], 'exist', 'skipOnError' => true, 'targetClass' => Products::class, 'targetAttribute' => ['productId' => 'id']],
             [['userId'], 'exist', 'skipOnError' => true, 'targetClass' => User::class, 'targetAttribute' => ['userId' => 'id']],
@@ -68,6 +75,8 @@ class OrderItemsChangelog extends \yii\db\ActiveRecord
             'new_quantity' => 'Новое количество',
             'userId' => 'Пользователь',
             'created_at' => 'Дата изменения',
+            'old_price' => 'Старая сумма',
+            'new_price' => 'Новая сумма',
         ];
     }
 
@@ -113,6 +122,7 @@ class OrderItemsChangelog extends \yii\db\ActiveRecord
             self::ACTION_DELETED => 'Удалено',
             self::ACTION_UPDATED => 'Изменено',
             self::ACTION_RESTORED => 'Восстановлено',
+            self::ACTION_PRICE_UPDATED => 'Изменена сумма базара',
         ];
 
         return $labels[$this->action] ?? $this->action;
@@ -141,6 +151,33 @@ class OrderItemsChangelog extends \yii\db\ActiveRecord
         $changelog->action = $action;
         $changelog->old_quantity = $oldQuantity;
         $changelog->new_quantity = $newQuantity;
+        $changelog->userId = $userId;
+
+        return $changelog->save();
+    }
+
+    /**
+     * Logs a change of market_total_price on an order item.
+     *
+     * @param int $orderId
+     * @param string $productId
+     * @param float|null $oldPrice
+     * @param float|null $newPrice
+     * @param int|null $userId
+     * @return bool
+     */
+    public static function logPriceChange($orderId, $productId, $oldPrice, $newPrice, $userId = null)
+    {
+        if ($userId === null) {
+            $userId = Yii::$app->user->id;
+        }
+
+        $changelog = new self();
+        $changelog->orderId = $orderId;
+        $changelog->productId = $productId;
+        $changelog->action = self::ACTION_PRICE_UPDATED;
+        $changelog->old_price = $oldPrice;
+        $changelog->new_price = $newPrice;
         $changelog->userId = $userId;
 
         return $changelog->save();
