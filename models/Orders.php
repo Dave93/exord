@@ -43,6 +43,7 @@ class Orders extends \yii\db\ActiveRecord
         1 => "Отправлен",
         2 => "Завершен",
         3 => "Проверка офисом",
+        4 => "Заполнение цен базара",
     ];
 
     /**
@@ -298,6 +299,27 @@ class Orders extends \yii\db\ActiveRecord
             return true;
         }
         return false;
+    }
+
+    /**
+     * Whether the order contains at least one item whose product belongs
+     * to a bazar (is_market = 1) product group. Used by actionClose to
+     * route the order into state 4 (Заполнение цен базара).
+     *
+     * @return bool
+     */
+    public function hasMarketItems()
+    {
+        return (new \yii\db\Query())
+            ->from('order_items oi')
+            ->innerJoin('product_groups_link pgl', 'pgl.productId = oi.productId')
+            ->innerJoin('product_groups pg', 'pg.id = pgl.productGroupId')
+            ->where([
+                'oi.orderId' => $this->id,
+                'pg.is_market' => 1,
+                'oi.deleted_at' => null,
+            ])
+            ->exists();
     }
 }
 
