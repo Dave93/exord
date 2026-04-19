@@ -885,6 +885,22 @@ class OrdersController extends Controller
         return $this->redirect(['orders/view', 'id' => $model->id]);
     }
 
+    /**
+     * List of orders waiting for bazar price fill (state = 4).
+     */
+    public function actionMarketPrices()
+    {
+        $searchModel = new OrderSearch();
+        $params = Yii::$app->request->queryParams;
+        $params['OrderSearch']['state'] = 4;
+        $dataProvider = $searchModel->search($params, false);
+
+        return $this->render('market-prices', [
+            'searchModel' => $searchModel,
+            'dataProvider' => $dataProvider,
+        ]);
+    }
+
     public function actionSend($id)
     {
         $model = Orders::findOne(['id' => $id]);
