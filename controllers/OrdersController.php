@@ -862,12 +862,17 @@ class OrdersController extends Controller
         }
 
         if ($in || $out) {
-            $model->state = 2;
+            $hasMarket = $model->hasMarketItems();
+            $model->state = $hasMarket ? 4 : 2;
             $model->save();
-            Yii::info("Заказ #{$id} успешно закрыт (state=2)", 'iiko');
+            Yii::info("Заказ #{$id} успешно закрыт (state={$model->state})", 'iiko');
 
             $d = date('d.m.Y H:i');
-            $text = "Заказ закрыть: <b>#{$model->id}</b>\nЗаказчик: {$model->user->username}\nДата: {$d}";
+            if ($hasMarket) {
+                $text = "Заказ ожидает заполнения цен базара: <b>#{$model->id}</b>\nЗаказчик: {$model->user->username}\nДата: {$d}";
+            } else {
+                $text = "Заказ закрыть: <b>#{$model->id}</b>\nЗаказчик: {$model->user->username}\nДата: {$d}";
+            }
             $bot = new TelegramBot();
             $bot->sendMessage(-1001879316029, $text, 'HTML');
         } else {
