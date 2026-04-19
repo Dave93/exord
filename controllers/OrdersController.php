@@ -901,6 +901,130 @@ class OrdersController extends Controller
         ]);
     }
 
+    /**
+     * Fill market totals for bazar items in a closed order (state = 4).
+     * POST action:
+     *   - 'save'   → store values, stay in state 4
+     *   - 'finish' → validate all bazar items filled, transition to state 2
+     */
+    public function actionMarketPricesFill($id)
+    {
+        $model = $this->findModel($id);
+
+        if ((int)$model->state !== 4) {
+            Yii::$app->session->setFlash('error', "Заказ #{$model->id} не находится в статусе «Заполнение цен базара».");
+            return $this->redirect(['orders/market-prices']);
+        }
+
+        $items = Orders::getOrderProducts($model->id, true);
+
+        if (Yii::$app->request->isPost) {
+            $action = Yii::$app->request->post('action', 'save');
+            $prices = Yii::$app->request->post('Prices', []);
+
+            $saved = $this->saveMarketPrices($model, $items, $prices);
+
+            if ($action === 'finish') {
+                $missing = $this->findUnfilledMarketItems($model->id);
+                if (!empty($missing)) {
+                    Yii::$app->session->setFlash(
+                        'error',
+                        'Не у всех базарных позиций заполнена сумма: ' . implode(', ', $missing)
+                    );
+                    return $this->redirect(['orders/market-prices-fill', 'id' => $model->id]);
+                }
+
+                $model->state = 2;
+                $model->save(false, ['state']);
+                Yii::info("Заказ #{$model->id}: цены базара заполнены, переход в state=2", 'market-prices');
+                Yii::$app->session->setFlash('success', 'Цены базара заполнены, заказ завершён.');
+                return $this->redirect(['orders/view', 'id' => $model->id]);
+            }
+
+            Yii::$app->session->setFlash('success', "Сохранено позиций: {$saved}");
+            return $this->redirect(['orders/market-prices-fill', 'id' => $model->id]);
+        }
+
+        return $this->render('market-prices-fill', [
+            'model' => $model,
+            'items' => $items,
+        ]);
+    }
+
+    /**
+     * Persists market_total_price values and logs changes.
+     * @return int number of items whose price was changed.
+     */
+    protected function saveMarketPrices(Orders $model, array $items, array $prices)
+    {
+        $changed = 0;
+        $itemsByProduct = [];
+        foreach ($items as $row) {
+            $itemsByProduct[$row['productId']] = $row;
+        }
+
+        foreach ($prices as $productId => $value) {
+            if (!isset($itemsByProduct[$productId])) {
+                continue;
+            }
+            $value = trim((string)$value);
+            if ($value === '') {
+                continue;
+            }
+            $newPrice = (float)$value;
+            if ($newPrice < 0) {
+                continue;
+            }
+
+            $oi = OrderItems::findOne(['orderId' => $model->id, 'productId' => $productId]);
+            if ($oi === null) {
+                continue;
+            }
+
+            $oldPrice = $oi->market_total_price !== null ? (float)$oi->market_total_price : null;
+            if ($oldPrice !== null && abs($oldPrice - $newPrice) < 0.005) {
+                continue;
+            }
+
+            $oi->market_total_price = $newPrice;
+            if ($oi->save(false, ['market_total_price'])) {
+                OrderItemsChangelog::logPriceChange($model->id, $productId, $oldPrice, $newPrice);
+                $changed++;
+            }
+        }
+
+        return $changed;
+    }
+
+    /**
+     * Returns human-readable identifiers of bazar items whose
+     * market_total_price is empty or zero.
+     *
+     * @param int $orderId
+     * @return string[] product names
+     */
+    protected function findUnfilledMarketItems($orderId)
+    {
+        $rows = (new Query())
+            ->select(['p.name'])
+            ->from('order_items oi')
+            ->innerJoin('products p', 'p.id = oi.productId')
+            ->innerJoin('product_groups_link pgl', 'pgl.productId = oi.productId')
+            ->innerJoin('product_groups pg', 'pg.id = pgl.productGroupId')
+            ->where([
+                'oi.orderId' => $orderId,
+                'pg.is_market' => 1,
+                'oi.deleted_at' => null,
+            ])
+            ->andWhere(['or',
+                ['oi.market_total_price' => null],
+                ['<=', 'oi.market_total_price', 0],
+            ])
+            ->all();
+
+        return array_map(function ($r) { return $r['name']; }, $rows);
+    }
+
     public function actionSend($id)
     {
         $model = Orders::findOne(['id' => $id]);
