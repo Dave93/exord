@@ -99,8 +99,7 @@ $this->params['breadcrumbs'][] = "#{$model->id}";
                 </table>
 
                 <div class="form-group">
-                    <button type="submit" name="action" value="save" class="btn btn-default btn-fill">Сохранить</button>
-                    <button type="submit" name="action" value="finish" class="btn btn-success btn-fill">Сохранить и завершить</button>
+                    <button type="submit" class="btn btn-success btn-fill">Сохранить</button>
                 </div>
             </form>
 

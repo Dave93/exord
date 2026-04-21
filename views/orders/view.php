@@ -22,7 +22,11 @@ $this->params['breadcrumbs'][] = $this->title;
             <?= Html::a('Назад', Yii::$app->request->referrer, ['class' => 'btn btn-primary btn-fill']) ?>
         </p>
     </div>
-<?php if ((int)$model->state === 4 && in_array(Yii::$app->user->identity->role, [User::ROLE_ADMIN, User::ROLE_OFFICE, User::ROLE_OFFICE_MANAGER])): ?>
+<?php if (
+    in_array((int)$model->state, [1, 2], true)
+    && in_array(Yii::$app->user->identity->role, [User::ROLE_ADMIN, User::ROLE_OFFICE, User::ROLE_OFFICE_MANAGER])
+    && $model->hasMarketItems()
+): ?>
     <p>
         <?= Html::a('Заполнить цены базара', ['orders/market-prices-fill', 'id' => $model->id], [
             'class' => 'btn btn-success btn-fill',

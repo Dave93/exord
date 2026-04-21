@@ -864,17 +864,12 @@ class OrdersController extends Controller
         }
 
         if ($in || $out) {
-            $hasMarket = $model->hasMarketItems();
-            $model->state = $hasMarket ? 4 : 2;
+            $model->state = 2;
             $model->save();
-            Yii::info("Заказ #{$id} успешно закрыт (state={$model->state})", 'iiko');
+            Yii::info("Заказ #{$id} успешно закрыт (state=2)", 'iiko');
 
             $d = date('d.m.Y H:i');
-            if ($hasMarket) {
-                $text = "Заказ ожидает заполнения цен базара: <b>#{$model->id}</b>\nЗаказчик: {$model->user->username}\nДата: {$d}";
-            } else {
-                $text = "Заказ закрыть: <b>#{$model->id}</b>\nЗаказчик: {$model->user->username}\nДата: {$d}";
-            }
+            $text = "Заказ закрыть: <b>#{$model->id}</b>\nЗаказчик: {$model->user->username}\nДата: {$d}";
             $bot = new TelegramBot();
             $bot->sendMessage(-1001879316029, $text, 'HTML');
         } else {
@@ -886,60 +881,67 @@ class OrdersController extends Controller
     }
 
     /**
-     * List of orders waiting for bazar price fill (state = 4).
+     * List of orders that have bazar items (products whose group has
+     * is_market = 1). Status-agnostic by design: the operational flow
+     * never closes orders, so filtering by state would yield an empty
+     * list. Defaults to state IN (1, 2); adjustable via filter.
      */
-    public function actionMarketPrices()
+    public function actionMarketPrices($start = null, $end = null)
     {
-        $searchModel = new OrderSearch();
-        $params = Yii::$app->request->queryParams;
-        $params['OrderSearch']['state'] = 4;
-        $dataProvider = $searchModel->search($params, false);
+        if ($start === null) {
+            $start = date('Y-m-d', strtotime('-14 days'));
+        }
+        if ($end === null) {
+            $end = date('Y-m-d');
+        }
+
+        $bazarOrderIds = (new Query())
+            ->select('DISTINCT oi.orderId')
+            ->from('order_items oi')
+            ->innerJoin('product_groups_link pgl', 'pgl.productId = oi.productId')
+            ->innerJoin('product_groups pg', 'pg.id = pgl.productGroupId')
+            ->where(['pg.is_market' => 1, 'oi.deleted_at' => null])
+            ->column();
+
+        $query = Orders::find()
+            ->where(['in', 'state', [1, 2]])
+            ->andWhere(['deleted_at' => null])
+            ->andWhere(['id' => $bazarOrderIds ?: [0]])
+            ->andWhere(['>=', 'date', date('Y-m-d', strtotime($start)) . ' 00:00:00'])
+            ->andWhere(['<=', 'date', date('Y-m-d', strtotime($end)) . ' 23:59:59'])
+            ->orderBy(['date' => SORT_DESC]);
+
+        $dataProvider = new \yii\data\ActiveDataProvider([
+            'query' => $query,
+            'pagination' => ['pageSize' => 100],
+            'sort' => false,
+        ]);
 
         return $this->render('market-prices', [
-            'searchModel' => $searchModel,
             'dataProvider' => $dataProvider,
+            'start' => $start,
+            'end' => $end,
         ]);
     }
 
     /**
-     * Fill market totals for bazar items in a closed order (state = 4).
-     * POST action:
-     *   - 'save'   → store values, stay in state 4
-     *   - 'finish' → validate all bazar items filled, transition to state 2
+     * Fill market totals for bazar items in an order. Order must have
+     * bazar items and must not be deleted; status doesn't change.
      */
     public function actionMarketPricesFill($id)
     {
         $model = $this->findModel($id);
 
-        if ((int)$model->state !== 4) {
-            Yii::$app->session->setFlash('error', "Заказ #{$model->id} не находится в статусе «Заполнение цен базара».");
+        if (!$model->hasMarketItems()) {
+            Yii::$app->session->setFlash('error', "Заказ #{$model->id} не содержит базарных позиций.");
             return $this->redirect(['orders/market-prices']);
         }
 
         $items = Orders::getOrderProducts($model->id, true);
 
         if (Yii::$app->request->isPost) {
-            $action = Yii::$app->request->post('action', 'save');
             $prices = Yii::$app->request->post('Prices', []);
-
             $saved = $this->saveMarketPrices($model, $items, $prices);
-
-            if ($action === 'finish') {
-                $missing = $this->findUnfilledMarketItems($model->id);
-                if (!empty($missing)) {
-                    Yii::$app->session->setFlash(
-                        'error',
-                        'Не у всех базарных позиций заполнена сумма: ' . implode(', ', $missing)
-                    );
-                    return $this->redirect(['orders/market-prices-fill', 'id' => $model->id]);
-                }
-
-                $model->state = 2;
-                $model->save(false, ['state']);
-                Yii::info("Заказ #{$model->id}: цены базара заполнены, переход в state=2", 'market-prices');
-                Yii::$app->session->setFlash('success', 'Цены базара заполнены, заказ завершён.');
-                return $this->redirect(['orders/view', 'id' => $model->id]);
-            }
 
             Yii::$app->session->setFlash('success', "Сохранено позиций: {$saved}");
             return $this->redirect(['orders/market-prices-fill', 'id' => $model->id]);
@@ -994,35 +996,6 @@ class OrdersController extends Controller
         }
 
         return $changed;
-    }
-
-    /**
-     * Returns human-readable identifiers of bazar items whose
-     * market_total_price is empty or zero.
-     *
-     * @param int $orderId
-     * @return string[] product names
-     */
-    protected function findUnfilledMarketItems($orderId)
-    {
-        $rows = (new Query())
-            ->select(['p.name'])
-            ->from('order_items oi')
-            ->innerJoin('products p', 'p.id = oi.productId')
-            ->innerJoin('product_groups_link pgl', 'pgl.productId = oi.productId')
-            ->innerJoin('product_groups pg', 'pg.id = pgl.productGroupId')
-            ->where([
-                'oi.orderId' => $orderId,
-                'pg.is_market' => 1,
-                'oi.deleted_at' => null,
-            ])
-            ->andWhere(['or',
-                ['oi.market_total_price' => null],
-                ['<=', 'oi.market_total_price', 0],
-            ])
-            ->all();
-
-        return array_map(function ($r) { return $r['name']; }, $rows);
     }
 
     public function actionSend($id)
