@@ -896,7 +896,8 @@ class OrdersController extends Controller
         }
 
         $bazarOrderIds = (new Query())
-            ->select('DISTINCT oi.orderId')
+            ->select('oi.orderId')
+            ->distinct()
             ->from('order_items oi')
             ->innerJoin('product_groups_link pgl', 'pgl.productId = oi.productId')
             ->innerJoin('product_groups pg', 'pg.id = pgl.productGroupId')
