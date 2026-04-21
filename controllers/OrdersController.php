@@ -889,27 +889,29 @@ class OrdersController extends Controller
     public function actionMarketPrices($start = null, $end = null)
     {
         if ($start === null) {
-            $start = date('Y-m-d', strtotime('-14 days'));
+            $start = date('Y-m-d');
         }
         if ($end === null) {
             $end = date('Y-m-d');
         }
 
-        $bazarOrderIds = (new Query())
+        $startDt = date('Y-m-d', strtotime($start)) . ' 00:00:00';
+        $endDt = date('Y-m-d', strtotime($end)) . ' 23:59:59';
+
+        $bazarOrderIdsSub = (new Query())
             ->select('oi.orderId')
             ->distinct()
             ->from('order_items oi')
             ->innerJoin('product_groups_link pgl', 'pgl.productId = oi.productId')
             ->innerJoin('product_groups pg', 'pg.id = pgl.productGroupId')
-            ->where(['pg.is_market' => 1, 'oi.deleted_at' => null])
-            ->column();
+            ->where(['pg.is_market' => 1, 'oi.deleted_at' => null]);
 
         $query = Orders::find()
             ->where(['in', 'state', [1, 2]])
             ->andWhere(['deleted_at' => null])
-            ->andWhere(['id' => $bazarOrderIds ?: [0]])
-            ->andWhere(['>=', 'date', date('Y-m-d', strtotime($start)) . ' 00:00:00'])
-            ->andWhere(['<=', 'date', date('Y-m-d', strtotime($end)) . ' 23:59:59'])
+            ->andWhere(['>=', 'date', $startDt])
+            ->andWhere(['<=', 'date', $endDt])
+            ->andWhere(['id' => $bazarOrderIdsSub])
             ->orderBy(['date' => SORT_DESC]);
 
         $dataProvider = new \yii\data\ActiveDataProvider([
@@ -918,10 +920,35 @@ class OrdersController extends Controller
             'sort' => false,
         ]);
 
+        $orderIds = array_map(function ($m) { return $m->id; }, $dataProvider->getModels());
+        $counts = [];
+        if (!empty($orderIds)) {
+            $rows = (new Query())
+                ->select([
+                    'oi.orderId',
+                    'total' => 'COUNT(*)',
+                    'filled' => 'SUM(CASE WHEN oi.market_total_price IS NOT NULL AND oi.market_total_price > 0 THEN 1 ELSE 0 END)',
+                ])
+                ->from('order_items oi')
+                ->innerJoin('product_groups_link pgl', 'pgl.productId = oi.productId')
+                ->innerJoin('product_groups pg', 'pg.id = pgl.productGroupId')
+                ->where(['pg.is_market' => 1, 'oi.deleted_at' => null])
+                ->andWhere(['oi.orderId' => $orderIds])
+                ->groupBy('oi.orderId')
+                ->all();
+            foreach ($rows as $row) {
+                $counts[$row['orderId']] = [
+                    'total' => (int)$row['total'],
+                    'filled' => (int)$row['filled'],
+                ];
+            }
+        }
+
         return $this->render('market-prices', [
             'dataProvider' => $dataProvider,
             'start' => $start,
             'end' => $end,
+            'counts' => $counts,
         ]);
     }
 

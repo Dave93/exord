@@ -9,37 +9,10 @@ use yii\helpers\Html;
 /* @var $dataProvider yii\data\ActiveDataProvider */
 /* @var $start string */
 /* @var $end string */
+/* @var $counts array orderId => ['total' => int, 'filled' => int] */
 
 $this->title = 'Цены базара';
 $this->params['breadcrumbs'][] = $this->title;
-
-$bazarCount = function ($orderId) {
-    return (int)(new \yii\db\Query())
-        ->from('order_items oi')
-        ->innerJoin('product_groups_link pgl', 'pgl.productId = oi.productId')
-        ->innerJoin('product_groups pg', 'pg.id = pgl.productGroupId')
-        ->where([
-            'oi.orderId' => $orderId,
-            'pg.is_market' => 1,
-            'oi.deleted_at' => null,
-        ])
-        ->count();
-};
-
-$bazarFilledCount = function ($orderId) {
-    return (int)(new \yii\db\Query())
-        ->from('order_items oi')
-        ->innerJoin('product_groups_link pgl', 'pgl.productId = oi.productId')
-        ->innerJoin('product_groups pg', 'pg.id = pgl.productGroupId')
-        ->where([
-            'oi.orderId' => $orderId,
-            'pg.is_market' => 1,
-            'oi.deleted_at' => null,
-        ])
-        ->andWhere(['is not', 'oi.market_total_price', null])
-        ->andWhere(['>', 'oi.market_total_price', 0])
-        ->count();
-};
 ?>
 <div class="card">
     <div class="header clearfix">
@@ -76,13 +49,12 @@ $bazarFilledCount = function ($orderId) {
                 'dataProvider' => $dataProvider,
                 'summary' => false,
                 'tableOptions' => ['class' => 'table table-hover'],
-                'rowOptions' => function ($model) use ($bazarCount, $bazarFilledCount) {
-                    $total = $bazarCount($model->id);
-                    $filled = $bazarFilledCount($model->id);
-                    if ($total === 0 || $filled === 0) {
+                'rowOptions' => function ($model) use ($counts) {
+                    $c = $counts[$model->id] ?? ['total' => 0, 'filled' => 0];
+                    if ($c['total'] === 0 || $c['filled'] === 0) {
                         return [];
                     }
-                    if ($filled < $total) {
+                    if ($c['filled'] < $c['total']) {
                         return ['class' => 'bg-orange'];
                     }
                     return ['class' => 'bg-green'];
@@ -113,10 +85,9 @@ $bazarFilledCount = function ($orderId) {
                     ],
                     [
                         'label' => 'Базарные позиции (заполнено / всего)',
-                        'value' => function ($model) use ($bazarCount, $bazarFilledCount) {
-                            $total = $bazarCount($model->id);
-                            $filled = $bazarFilledCount($model->id);
-                            return "{$filled} / {$total}";
+                        'value' => function ($model) use ($counts) {
+                            $c = $counts[$model->id] ?? ['total' => 0, 'filled' => 0];
+                            return "{$c['filled']} / {$c['total']}";
                         },
                         'contentOptions' => ['class' => 'text-center'],
                     ],
