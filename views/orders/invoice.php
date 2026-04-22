@@ -33,7 +33,7 @@ uasort($groupedProducts, function ($a, $b) {
     <tr>
         <td width="50%" valign="top" style="border: 0;">
             <div>Номер документа: <?= $model->id ?></div>
-            <div>Дата документа: <?= (!empty($model->sent_date) ? date('d.m.Y H:i', strtotime($model->sent_date)) : date('d.m.Y H:i')) ?></div>
+            <div>Дата документа: <?= (!empty($model->addDate) ? date('d.m.Y H:i', strtotime($model->addDate)) : date('d.m.Y H:i')) ?></div>
             <div>Оператор склада: <?= Yii::$app->user->identity->fullname ?> (<?= Yii::$app->user->identity->username ?>)</div>
         </td>
         <td width="50%" valign="top" style="border: 0;">
