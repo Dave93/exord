@@ -640,17 +640,11 @@ class MealOrdersController extends Controller
 
         $rows = $query->all();
 
-        $grandTotal = 0;
-        foreach ($rows as $row) {
-            $grandTotal += (float)$row['totalQuantity'];
-        }
-
         return $this->render('summary', [
             'rows' => $rows,
             'start' => date('d.m.Y', strtotime($start)),
             'end' => date('d.m.Y', strtotime($end)),
             'storeId' => $storeId,
-            'grandTotal' => $grandTotal,
         ]);
     }
 

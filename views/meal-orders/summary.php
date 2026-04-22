@@ -9,7 +9,6 @@ use yii\widgets\ActiveForm;
 /* @var $start string */
 /* @var $end string */
 /* @var $storeId string|null */
-/* @var $grandTotal float */
 
 $this->title = 'Сводка блюд';
 $this->params['breadcrumbs'][] = $this->title;
@@ -114,14 +113,6 @@ if (!empty($storeId)) {
                         <?php endforeach; ?>
                     <?php endif; ?>
                 </tbody>
-                <?php if (!empty($rows)): ?>
-                    <tfoot>
-                        <tr>
-                            <th colspan="3" class="text-right">Итого позиций: <?= count($rows) ?></th>
-                            <th class="text-right"><?= Yii::$app->formatter->asDecimal($grandTotal, 3) ?></th>
-                        </tr>
-                    </tfoot>
-                <?php endif; ?>
             </table>
         </div>
     </div>
