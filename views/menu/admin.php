@@ -65,6 +65,7 @@ use yii\helpers\Html;
             <li><?= Html::a('Ограничения по времени', ['product-time-limitation/index']) ?></li>
             <li><?= Html::a('Блюда', ['dishes/index']) ?></li>
             <li><?= Html::a('Все заказы блюд', ['meal-orders/index']) ?></li>
+            <li><?= Html::a('Сводка блюд', ['meal-orders/summary']) ?></li>
         </ul>
     </li>
     <li>

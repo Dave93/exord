@@ -31,7 +31,7 @@ class MealOrdersController extends Controller
                 'only' => ['*'],
                 'rules' => [
                     [
-                        'actions' => ['index', 'stock', 'view', 'delete', 'close', 'return-back', 'return-to-new', 'send', 'restore-item', 'get-changelog'],
+                        'actions' => ['index', 'stock', 'view', 'delete', 'close', 'return-back', 'return-to-new', 'send', 'restore-item', 'get-changelog', 'summary'],
                         'allow' => true,
                         'roles' => [
                             User::ROLE_ADMIN,
@@ -595,6 +595,51 @@ class MealOrdersController extends Controller
      * @param int $mealOrderId
      * @return string
      */
+    public function actionSummary($start = null, $end = null, $storeId = null)
+    {
+        if ($start === null) {
+            $start = date('Y-m-d');
+        }
+        if ($end === null) {
+            $end = date('Y-m-d');
+        }
+
+        $query = (new Query())
+            ->select([
+                'dishId' => 'd.id',
+                'dishName' => 'd.name',
+                'dishUnit' => 'd.unit',
+                'totalQuantity' => 'SUM(moi.quantity)',
+            ])
+            ->from(['moi' => 'meal_order_items'])
+            ->innerJoin(['mo' => 'meal_orders'], 'mo.id = moi.mealOrderId')
+            ->innerJoin(['d' => 'dishes'], 'd.id = moi.dishId')
+            ->where(['mo.deleted_at' => null])
+            ->andWhere(['moi.deleted_at' => null])
+            ->andWhere(['between', 'mo.date', $start, $end])
+            ->groupBy(['d.id', 'd.name', 'd.unit'])
+            ->orderBy(['d.name' => SORT_ASC]);
+
+        if (!empty($storeId)) {
+            $query->andWhere(['mo.storeId' => $storeId]);
+        }
+
+        $rows = $query->all();
+
+        $grandTotal = 0;
+        foreach ($rows as $row) {
+            $grandTotal += (float)$row['totalQuantity'];
+        }
+
+        return $this->render('summary', [
+            'rows' => $rows,
+            'start' => $start,
+            'end' => $end,
+            'storeId' => $storeId,
+            'grandTotal' => $grandTotal,
+        ]);
+    }
+
     public function actionGetChangelog($mealOrderId)
     {
         $changelog = MealOrderItemsChangelog::find()
