@@ -597,12 +597,26 @@ class MealOrdersController extends Controller
      */
     public function actionSummary($start = null, $end = null, $storeId = null)
     {
-        if ($start === null) {
-            $start = date('Y-m-d');
-        }
-        if ($end === null) {
-            $end = date('Y-m-d');
-        }
+        $normalizeDate = function ($value) {
+            if (empty($value)) {
+                return null;
+            }
+            if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $value)) {
+                return $value;
+            }
+            $dt = \DateTime::createFromFormat('d.m.Y', $value);
+            if ($dt === false) {
+                $ts = strtotime($value);
+                if ($ts === false) {
+                    return null;
+                }
+                return date('Y-m-d', $ts);
+            }
+            return $dt->format('Y-m-d');
+        };
+
+        $start = $normalizeDate($start) ?: date('Y-m-d');
+        $end = $normalizeDate($end) ?: date('Y-m-d');
 
         $query = (new Query())
             ->select([
@@ -633,8 +647,8 @@ class MealOrdersController extends Controller
 
         return $this->render('summary', [
             'rows' => $rows,
-            'start' => $start,
-            'end' => $end,
+            'start' => date('d.m.Y', strtotime($start)),
+            'end' => date('d.m.Y', strtotime($end)),
             'storeId' => $storeId,
             'grandTotal' => $grandTotal,
         ]);

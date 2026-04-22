@@ -78,7 +78,7 @@ if (!empty($storeId)) {
             <div class="col-xs-12">
                 <p>
                     <strong>Период:</strong>
-                    <?= date('d.m.Y', strtotime($start)) ?> &mdash; <?= date('d.m.Y', strtotime($end)) ?>
+                    <?= Html::encode($start) ?> &mdash; <?= Html::encode($end) ?>
                     <?php if ($storeName !== null): ?>
                         &nbsp;|&nbsp; <strong>Филиал:</strong> <?= Html::encode($storeName) ?>
                     <?php else: ?>
