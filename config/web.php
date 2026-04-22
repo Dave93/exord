@@ -8,6 +8,7 @@ $config = [
     'name' => 'EXORD',
     'language' => 'ru-RU',
     'sourceLanguage' => 'ru-RU',
+    'timeZone' => 'Asia/Tashkent',
     'basePath' => dirname(__DIR__),
     'bootstrap' => ['log'],
     'layout' => 'panel',
@@ -22,6 +23,10 @@ $config = [
         ],
         'cache' => [
             'class' => 'yii\caching\FileCache',
+        ],
+        'formatter' => [
+            'defaultTimeZone' => 'Asia/Tashkent',
+            'timeZone' => 'Asia/Tashkent',
         ],
         'user' => [
             'identityClass' => 'app\models\User',

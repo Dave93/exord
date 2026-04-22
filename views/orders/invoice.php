@@ -29,12 +29,21 @@ uasort($groupedProducts, function ($a, $b) {
 });
 ?>
 <div style="font-size: 20px; font-weight: bold">РАСХОДНАЯ НАКЛАДНАЯ</div>
-        <div>Номер документа: <?= $model->id ?></div>
-        <div>Дата документа: <?= (!empty($model->sent_date) ? date('d.m.Y', strtotime($model->sent_date)) : date('d.m.Y')) ?></div>
-        <div>Оператор склада: <?= Yii::$app->user->identity->fullname ?> (<?= Yii::$app->user->identity->username ?>)</div>
-        <div>Поставщик: Центральный склад Chain</div>
-        <div>Получатель: <?= $model->store->name ?></div>
-        <div>Примечание: <?= $model->comment ? $model->comment : '______________________________________' ?></div>
+<table width="100%" cellpadding="0" cellspacing="0" style="border: 0; margin-bottom: 5px;">
+    <tr>
+        <td width="50%" valign="top" style="border: 0;">
+            <div>Номер документа: <?= $model->id ?></div>
+            <div>Дата документа: <?= (!empty($model->sent_date) ? date('d.m.Y H:i', strtotime($model->sent_date)) : date('d.m.Y H:i')) ?></div>
+            <div>Оператор склада: <?= Yii::$app->user->identity->fullname ?> (<?= Yii::$app->user->identity->username ?>)</div>
+        </td>
+        <td width="50%" valign="top" style="border: 0;">
+            <div>Дата печати: <?= date('d.m.Y H:i') ?></div>
+            <div>Поставщик: Центральный склад Chain</div>
+            <div>Получатель: <?= $model->store->name ?></div>
+        </td>
+    </tr>
+</table>
+<div>Примечание: <?= $model->comment ? $model->comment : '______________________________________' ?></div>
 
 
 <meta http-equiv="content-type" content="application/vnd.ms-excel; charset=UTF-8">
