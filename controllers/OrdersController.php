@@ -53,7 +53,7 @@ class OrdersController extends Controller
                 'only' => ['*'],
                 'rules' => [
                     [
-                        'actions' => ['index', 'return', 'list', 'view', 'delete', 'close', 'try-again', 'return-back', 'return-to-new', 'restore-item', 'get-changelog', 'market-prices', 'market-prices-fill', 'market-prices-dashboard'],
+                        'actions' => ['index', 'return', 'list', 'view', 'delete', 'close', 'try-again', 'return-back', 'return-to-new', 'restore-item', 'get-changelog', 'market-prices', 'market-prices-fill', 'market-prices-dashboard', 'market-prices-dashboard-export-detail', 'market-prices-dashboard-export-summary'],
                         'allow' => true,
                         'roles' => [
                             User::ROLE_ADMIN,
@@ -81,7 +81,7 @@ class OrdersController extends Controller
                         ],
                     ],
                     [
-                        'actions' => ['buyer-orders', 'buyer', 'buyer-by-product', 'supplier-excel', 'view', 'market-prices', 'market-prices-fill', 'market-prices-dashboard'],
+                        'actions' => ['buyer-orders', 'buyer', 'buyer-by-product', 'supplier-excel', 'view', 'market-prices', 'market-prices-fill', 'market-prices-dashboard', 'market-prices-dashboard-export-detail', 'market-prices-dashboard-export-summary'],
                         'allow' => true,
                         'roles' => [
                             User::ROLE_BUYER
@@ -1090,6 +1090,129 @@ class OrdersController extends Controller
      */
     public function actionMarketPricesDashboard($start = null, $end = null, $storeId = null)
     {
+        [$startIso, $endIso, $baseQuery, $buyerStores] = $this->buildMarketPricesDashboardBase($start, $end, $storeId);
+
+        $detailQuery = $this->buildMarketPricesDetailQuery($baseQuery);
+
+        $totalCount = (clone $baseQuery)->count('*');
+
+        $pagination = new Pagination([
+            'totalCount' => (int)$totalCount,
+            'defaultPageSize' => 50,
+            'pageSizeLimit' => [10, 500],
+        ]);
+
+        $detailRows = $detailQuery
+            ->offset($pagination->offset)
+            ->limit($pagination->limit)
+            ->all();
+
+        $summaryRows = $this->buildMarketPricesSummaryQuery($baseQuery)->all();
+
+        return $this->render('market-prices-dashboard', [
+            'detailRows' => $detailRows,
+            'summaryRows' => $summaryRows,
+            'pagination' => $pagination,
+            'start' => $startIso,
+            'end' => $endIso,
+            'storeId' => $storeId,
+            'allowedStoreIds' => $buyerStores,
+        ]);
+    }
+
+    /**
+     * Exports the detail table of the market prices dashboard to XLSX.
+     * Honours the same filters (start/end/storeId) and buyer-scope as the
+     * dashboard page.
+     */
+    public function actionMarketPricesDashboardExportDetail($start = null, $end = null, $storeId = null)
+    {
+        [$startIso, $endIso, $baseQuery] = $this->buildMarketPricesDashboardBase($start, $end, $storeId);
+
+        $rows = $this->buildMarketPricesDetailQuery($baseQuery)->all();
+
+        $spreadsheet = new Spreadsheet();
+        $spreadsheet->setActiveSheetIndex(0);
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('Детализация');
+
+        $headers = ['Дата', 'Филиал', 'Продукт', 'Ед. изм.', 'Кол-во', 'Сумма'];
+        foreach ($headers as $i => $title) {
+            $sheet->setCellValueByColumnAndRow($i + 1, 1, $title);
+        }
+        $sheet->getStyle('A1:F1')->applyFromArray(['font' => ['bold' => true]]);
+
+        $r = 2;
+        foreach ($rows as $row) {
+            $sheet->setCellValueByColumnAndRow(1, $r, date('d.m.Y', strtotime($row['orderDate'])));
+            $sheet->setCellValueByColumnAndRow(2, $r, $row['storeName'] ?: '-');
+            $sheet->setCellValueByColumnAndRow(3, $r, $row['productName']);
+            $sheet->setCellValueByColumnAndRow(4, $r, $row['productUnit']);
+            $sheet->setCellValueByColumnAndRow(5, $r, $row['market_total_quantity'] !== null ? (float)$row['market_total_quantity'] : null);
+            $sheet->setCellValueByColumnAndRow(6, $r, $row['market_total_price'] !== null ? (float)$row['market_total_price'] : null);
+            $r++;
+        }
+
+        foreach (range('A', 'F') as $col) {
+            $sheet->getColumnDimension($col)->setAutoSize(true);
+        }
+
+        $filename = "market-prices-detail-{$startIso}_{$endIso}.xlsx";
+        $this->streamXlsx($spreadsheet, $filename);
+    }
+
+    /**
+     * Exports the per-product summary table of the market prices dashboard
+     * to XLSX, including an "Средняя сумма за ед." column computed as
+     * total_sum / total_quantity.
+     */
+    public function actionMarketPricesDashboardExportSummary($start = null, $end = null, $storeId = null)
+    {
+        [$startIso, $endIso, $baseQuery] = $this->buildMarketPricesDashboardBase($start, $end, $storeId);
+
+        $rows = $this->buildMarketPricesSummaryQuery($baseQuery)->all();
+
+        $spreadsheet = new Spreadsheet();
+        $spreadsheet->setActiveSheetIndex(0);
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('Сводка');
+
+        $headers = ['Продукт', 'Ед. изм.', 'Общее кол-во', 'Общая сумма', 'Средняя сумма за ед.'];
+        foreach ($headers as $i => $title) {
+            $sheet->setCellValueByColumnAndRow($i + 1, 1, $title);
+        }
+        $sheet->getStyle('A1:E1')->applyFromArray(['font' => ['bold' => true]]);
+
+        $r = 2;
+        foreach ($rows as $row) {
+            $totalQty = $row['totalQuantity'] !== null ? (float)$row['totalQuantity'] : 0.0;
+            $totalSum = $row['totalPrice'] !== null ? (float)$row['totalPrice'] : 0.0;
+            $avgPerUnit = $totalQty > 0 ? $totalSum / $totalQty : null;
+
+            $sheet->setCellValueByColumnAndRow(1, $r, $row['productName']);
+            $sheet->setCellValueByColumnAndRow(2, $r, $row['productUnit']);
+            $sheet->setCellValueByColumnAndRow(3, $r, $totalQty);
+            $sheet->setCellValueByColumnAndRow(4, $r, $totalSum);
+            $sheet->setCellValueByColumnAndRow(5, $r, $avgPerUnit);
+            $r++;
+        }
+
+        foreach (range('A', 'E') as $col) {
+            $sheet->getColumnDimension($col)->setAutoSize(true);
+        }
+
+        $filename = "market-prices-summary-{$startIso}_{$endIso}.xlsx";
+        $this->streamXlsx($spreadsheet, $filename);
+    }
+
+    /**
+     * Builds the filter state and base joined query shared by the market
+     * prices dashboard page and its XLSX exports.
+     *
+     * @return array [string $startIso, string $endIso, Query $baseQuery, array|null $buyerStores]
+     */
+    protected function buildMarketPricesDashboardBase($start, $end, $storeId)
+    {
         $normalizeDate = function ($value) {
             if (empty($value)) {
                 return null;
@@ -1142,7 +1265,12 @@ class OrdersController extends Controller
             $baseQuery->andWhere(['o.storeId' => $storeId]);
         }
 
-        $detailQuery = (clone $baseQuery)
+        return [$startIso, $endIso, $baseQuery, $buyerStores];
+    }
+
+    protected function buildMarketPricesDetailQuery(Query $baseQuery)
+    {
+        return (clone $baseQuery)
             ->select([
                 'orderId' => 'o.id',
                 'orderDate' => 'o.date',
@@ -1154,21 +1282,11 @@ class OrdersController extends Controller
             ])
             ->leftJoin(['s' => 'stores'], 's.id = o.storeId')
             ->orderBy(['o.date' => SORT_DESC, 'o.id' => SORT_DESC, 'p.name' => SORT_ASC]);
+    }
 
-        $totalCount = (clone $baseQuery)->count('*');
-
-        $pagination = new Pagination([
-            'totalCount' => (int)$totalCount,
-            'defaultPageSize' => 50,
-            'pageSizeLimit' => [10, 500],
-        ]);
-
-        $detailRows = $detailQuery
-            ->offset($pagination->offset)
-            ->limit($pagination->limit)
-            ->all();
-
-        $summaryRows = (clone $baseQuery)
+    protected function buildMarketPricesSummaryQuery(Query $baseQuery)
+    {
+        return (clone $baseQuery)
             ->select([
                 'productId' => 'p.id',
                 'productName' => 'p.name',
@@ -1177,18 +1295,17 @@ class OrdersController extends Controller
                 'totalPrice' => 'SUM(oi.market_total_price)',
             ])
             ->groupBy(['p.id', 'p.name', 'p.mainUnit'])
-            ->orderBy(['p.name' => SORT_ASC])
-            ->all();
+            ->orderBy(['p.name' => SORT_ASC]);
+    }
 
-        return $this->render('market-prices-dashboard', [
-            'detailRows' => $detailRows,
-            'summaryRows' => $summaryRows,
-            'pagination' => $pagination,
-            'start' => $startIso,
-            'end' => $endIso,
-            'storeId' => $storeId,
-            'allowedStoreIds' => $buyerStores,
-        ]);
+    protected function streamXlsx(Spreadsheet $spreadsheet, $filename)
+    {
+        $writer = IOFactory::createWriter($spreadsheet, 'Xlsx');
+        header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet; charset=utf-8');
+        header('Content-Disposition: attachment; filename="' . $filename . '"');
+        header('Cache-Control: max-age=0');
+        $writer->save('php://output');
+        Yii::$app->end();
     }
 
     public function actionSend($id)

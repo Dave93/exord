@@ -112,7 +112,14 @@ $formatMoney = function ($value) {
             </div>
         </div>
 
-        <h4>Детализация закупок</h4>
+        <?php $exportParams = ['start' => $start, 'end' => $end, 'storeId' => $storeId]; ?>
+
+        <div class="clearfix" style="margin-bottom: 10px;">
+            <h4 class="pull-left" style="margin: 0;">Детализация закупок</h4>
+            <?= Html::a('Экспорт в Excel', array_merge(['/orders/market-prices-dashboard-export-detail'], $exportParams), [
+                'class' => 'btn btn-success btn-sm pull-right',
+            ]) ?>
+        </div>
         <div class="table-responsive">
             <table class="table table-bordered table-striped table-hover">
                 <thead>
@@ -156,7 +163,12 @@ $formatMoney = function ($value) {
             ]) ?>
         <?php endif; ?>
 
-        <h4 style="margin-top: 30px;">Сводка по продуктам</h4>
+        <div class="clearfix" style="margin-top: 30px; margin-bottom: 10px;">
+            <h4 class="pull-left" style="margin: 0;">Сводка по продуктам</h4>
+            <?= Html::a('Экспорт в Excel', array_merge(['/orders/market-prices-dashboard-export-summary'], $exportParams), [
+                'class' => 'btn btn-success btn-sm pull-right',
+            ]) ?>
+        </div>
         <div class="table-responsive">
             <table class="table table-bordered table-striped table-hover">
                 <thead>
