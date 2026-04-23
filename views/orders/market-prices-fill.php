@@ -60,6 +60,7 @@ $this->params['breadcrumbs'][] = "#{$model->id}";
                             <th>Ед. изм.</th>
                             <th class="text-right">Кол-во заказа</th>
                             <th class="text-right">Факт приёма</th>
+                            <th class="text-right" style="width: 160px;">Кол-во с базара</th>
                             <th class="text-right" style="width: 180px;">Сумма за позицию</th>
                         </tr>
                     </thead>
@@ -72,6 +73,7 @@ $this->params['breadcrumbs'][] = "#{$model->id}";
                             $fact = $row['factSupplierQuantity'];
                         }
                         $price = $row['market_total_price'];
+                        $marketQty = isset($row['market_total_quantity']) ? $row['market_total_quantity'] : null;
                         if ($price !== null && $price !== '') {
                             $total += (float)$price;
                         }
@@ -81,6 +83,12 @@ $this->params['breadcrumbs'][] = "#{$model->id}";
                             <td><?= Html::encode($row['mainUnit']) ?></td>
                             <td class="text-right"><?= Html::encode($row['quantity']) ?></td>
                             <td class="text-right"><?= Html::encode($fact) ?></td>
+                            <td class="text-right">
+                                <input type="number" step="0.001" min="0"
+                                       class="form-control market-quantity-input"
+                                       name="Quantities[<?= Html::encode($row['productId']) ?>]"
+                                       value="<?= $marketQty !== null && $marketQty !== '' ? Html::encode((string)(float)$marketQty) : '' ?>">
+                            </td>
                             <td class="text-right">
                                 <input type="number" step="0.01" min="0"
                                        class="form-control market-price-input"
@@ -92,7 +100,7 @@ $this->params['breadcrumbs'][] = "#{$model->id}";
                     </tbody>
                     <tfoot>
                         <tr>
-                            <th colspan="4" class="text-right">Итого:</th>
+                            <th colspan="5" class="text-right">Итого:</th>
                             <th class="text-right"><span id="market-prices-total"><?= number_format($total, 2, '.', ' ') ?></span></th>
                         </tr>
                     </tfoot>

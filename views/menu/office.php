@@ -43,6 +43,7 @@ use yii\helpers\Html;
             <li><?= Html::a('Настройки', ['settings/index']) ?></li>
             <li><?= Html::a('Настройка наличии', ['availability/index']) ?></li>
             <li><?= Html::a('Сводка блюд', ['meal-orders/summary']) ?></li>
+            <li><?= Html::a('Дашборд цен базара', ['orders/market-prices-dashboard']) ?></li>
         </ul>
     </li>
     <li>

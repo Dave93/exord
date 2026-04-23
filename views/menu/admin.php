@@ -66,6 +66,7 @@ use yii\helpers\Html;
             <li><?= Html::a('Блюда', ['dishes/index']) ?></li>
             <li><?= Html::a('Все заказы блюд', ['meal-orders/index']) ?></li>
             <li><?= Html::a('Сводка блюд', ['meal-orders/summary']) ?></li>
+            <li><?= Html::a('Дашборд цен базара', ['orders/market-prices-dashboard']) ?></li>
         </ul>
     </li>
     <li>

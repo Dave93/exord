@@ -22,6 +22,7 @@ use app\models\OrderRecommendation;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use Yii;
 use yii\data\ArrayDataProvider;
+use yii\data\Pagination;
 use yii\db\mssql\PDO;
 use yii\db\Query;
 use yii\filters\AccessControl;
@@ -52,7 +53,7 @@ class OrdersController extends Controller
                 'only' => ['*'],
                 'rules' => [
                     [
-                        'actions' => ['index', 'return', 'list', 'view', 'delete', 'close', 'try-again', 'return-back', 'return-to-new', 'restore-item', 'get-changelog', 'market-prices', 'market-prices-fill'],
+                        'actions' => ['index', 'return', 'list', 'view', 'delete', 'close', 'try-again', 'return-back', 'return-to-new', 'restore-item', 'get-changelog', 'market-prices', 'market-prices-fill', 'market-prices-dashboard'],
                         'allow' => true,
                         'roles' => [
                             User::ROLE_ADMIN,
@@ -969,7 +970,8 @@ class OrdersController extends Controller
 
         if (Yii::$app->request->isPost) {
             $prices = Yii::$app->request->post('Prices', []);
-            $saved = $this->saveMarketPrices($model, $items, $prices);
+            $quantities = Yii::$app->request->post('Quantities', []);
+            $saved = $this->saveMarketPrices($model, $items, $prices, $quantities);
 
             Yii::$app->session->setFlash('success', "Сохранено позиций: {$saved}");
             return $this->redirect(['orders/market-prices-fill', 'id' => $model->id]);
@@ -982,27 +984,24 @@ class OrdersController extends Controller
     }
 
     /**
-     * Persists market_total_price values and logs changes.
-     * @return int number of items whose price was changed.
+     * Persists market_total_price / market_total_quantity values and logs
+     * changes. A position is counted as "changed" if at least one of the
+     * two fields changed.
+     *
+     * @return int number of items whose price or market quantity changed.
      */
-    protected function saveMarketPrices(Orders $model, array $items, array $prices)
+    protected function saveMarketPrices(Orders $model, array $items, array $prices, array $quantities = [])
     {
-        $changed = 0;
+        $changedProducts = [];
         $itemsByProduct = [];
         foreach ($items as $row) {
             $itemsByProduct[$row['productId']] = $row;
         }
 
-        foreach ($prices as $productId => $value) {
+        $productIds = array_unique(array_merge(array_keys($prices), array_keys($quantities)));
+
+        foreach ($productIds as $productId) {
             if (!isset($itemsByProduct[$productId])) {
-                continue;
-            }
-            $value = trim((string)$value);
-            if ($value === '') {
-                continue;
-            }
-            $newPrice = (float)$value;
-            if ($newPrice < 0) {
                 continue;
             }
 
@@ -1011,19 +1010,166 @@ class OrdersController extends Controller
                 continue;
             }
 
-            $oldPrice = $oi->market_total_price !== null ? (float)$oi->market_total_price : null;
-            if ($oldPrice !== null && abs($oldPrice - $newPrice) < 0.005) {
+            $attrs = [];
+
+            if (array_key_exists($productId, $prices)) {
+                $priceRaw = trim((string)$prices[$productId]);
+                if ($priceRaw !== '') {
+                    $newPrice = (float)$priceRaw;
+                    if ($newPrice >= 0) {
+                        $oldPrice = $oi->market_total_price !== null ? (float)$oi->market_total_price : null;
+                        if ($oldPrice === null || abs($oldPrice - $newPrice) >= 0.005) {
+                            $oi->market_total_price = $newPrice;
+                            $attrs['price'] = [$oldPrice, $newPrice];
+                        }
+                    }
+                }
+            }
+
+            if (array_key_exists($productId, $quantities)) {
+                $qtyRaw = trim((string)$quantities[$productId]);
+                if ($qtyRaw !== '') {
+                    $newQty = (float)$qtyRaw;
+                    if ($newQty >= 0) {
+                        $oldQty = $oi->market_total_quantity !== null ? (float)$oi->market_total_quantity : null;
+                        if ($oldQty === null || abs($oldQty - $newQty) >= 0.0005) {
+                            $oi->market_total_quantity = $newQty;
+                            $attrs['quantity'] = [$oldQty, $newQty];
+                        }
+                    }
+                }
+            }
+
+            if (empty($attrs)) {
                 continue;
             }
 
-            $oi->market_total_price = $newPrice;
-            if ($oi->save(false, ['market_total_price'])) {
-                OrderItemsChangelog::logPriceChange($model->id, $productId, $oldPrice, $newPrice);
-                $changed++;
+            $saveAttrs = [];
+            if (isset($attrs['price'])) {
+                $saveAttrs[] = 'market_total_price';
             }
+            if (isset($attrs['quantity'])) {
+                $saveAttrs[] = 'market_total_quantity';
+            }
+
+            if (!$oi->save(false, $saveAttrs)) {
+                continue;
+            }
+
+            if (isset($attrs['price'])) {
+                OrderItemsChangelog::logPriceChange($model->id, $productId, $attrs['price'][0], $attrs['price'][1]);
+            }
+            if (isset($attrs['quantity'])) {
+                OrderItemsChangelog::logMarketQuantityChange($model->id, $productId, $attrs['quantity'][0], $attrs['quantity'][1]);
+            }
+
+            $changedProducts[$productId] = true;
         }
 
-        return $changed;
+        return count($changedProducts);
+    }
+
+    /**
+     * Dashboard showing filled bazar prices/quantities. Two reports:
+     *   1. Paginated detail: date, store, product, market_total_quantity,
+     *      market_total_price — ordered by date desc.
+     *   2. Per-product summary across the period: total qty, total sum,
+     *      avg unit price (sum / qty).
+     * Filters: period (orders.date) and optional storeId.
+     */
+    public function actionMarketPricesDashboard($start = null, $end = null, $storeId = null)
+    {
+        $normalizeDate = function ($value) {
+            if (empty($value)) {
+                return null;
+            }
+            if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $value)) {
+                return $value;
+            }
+            $dt = \DateTime::createFromFormat('d.m.Y', $value);
+            if ($dt === false) {
+                $ts = strtotime($value);
+                if ($ts === false) {
+                    return null;
+                }
+                return date('Y-m-d', $ts);
+            }
+            return $dt->format('Y-m-d');
+        };
+
+        $startIso = $normalizeDate($start) ?: date('Y-m-d', strtotime('-7 days'));
+        $endIso = $normalizeDate($end) ?: date('Y-m-d');
+
+        $startDt = $startIso . ' 00:00:00';
+        $endDt = $endIso . ' 23:59:59';
+
+        $baseQuery = (new Query())
+            ->from(['oi' => 'order_items'])
+            ->innerJoin(['o' => 'orders'], 'o.id = oi.orderId')
+            ->innerJoin(['p' => 'products'], 'p.id = oi.productId')
+            ->innerJoin(['pgl' => 'product_groups_link'], 'pgl.productId = p.id')
+            ->innerJoin(['pg' => 'product_groups'], 'pg.id = pgl.productGroupId')
+            ->where(['pg.is_market' => 1])
+            ->andWhere(['oi.deleted_at' => null])
+            ->andWhere(['o.deleted_at' => null])
+            ->andWhere(['>=', 'o.date', $startDt])
+            ->andWhere(['<=', 'o.date', $endDt])
+            ->andWhere([
+                'or',
+                ['is not', 'oi.market_total_price', null],
+                ['is not', 'oi.market_total_quantity', null],
+            ]);
+
+        if (!empty($storeId)) {
+            $baseQuery->andWhere(['o.storeId' => $storeId]);
+        }
+
+        $detailQuery = (clone $baseQuery)
+            ->select([
+                'orderId' => 'o.id',
+                'orderDate' => 'o.date',
+                'storeName' => 's.name',
+                'productName' => 'p.name',
+                'productUnit' => 'p.mainUnit',
+                'market_total_quantity' => 'oi.market_total_quantity',
+                'market_total_price' => 'oi.market_total_price',
+            ])
+            ->leftJoin(['s' => 'stores'], 's.id = o.storeId')
+            ->orderBy(['o.date' => SORT_DESC, 'o.id' => SORT_DESC, 'p.name' => SORT_ASC]);
+
+        $totalCount = (clone $baseQuery)->count('*');
+
+        $pagination = new Pagination([
+            'totalCount' => (int)$totalCount,
+            'defaultPageSize' => 50,
+            'pageSizeLimit' => [10, 500],
+        ]);
+
+        $detailRows = $detailQuery
+            ->offset($pagination->offset)
+            ->limit($pagination->limit)
+            ->all();
+
+        $summaryRows = (clone $baseQuery)
+            ->select([
+                'productId' => 'p.id',
+                'productName' => 'p.name',
+                'productUnit' => 'p.mainUnit',
+                'totalQuantity' => 'SUM(oi.market_total_quantity)',
+                'totalPrice' => 'SUM(oi.market_total_price)',
+            ])
+            ->groupBy(['p.id', 'p.name', 'p.mainUnit'])
+            ->orderBy(['p.name' => SORT_ASC])
+            ->all();
+
+        return $this->render('market-prices-dashboard', [
+            'detailRows' => $detailRows,
+            'summaryRows' => $summaryRows,
+            'pagination' => $pagination,
+            'start' => $startIso,
+            'end' => $endIso,
+            'storeId' => $storeId,
+        ]);
     }
 
     public function actionSend($id)

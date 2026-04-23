@@ -27,6 +27,7 @@ class OrderItemsChangelog extends \yii\db\ActiveRecord
     const ACTION_UPDATED = 'updated';
     const ACTION_RESTORED = 'restored';
     const ACTION_PRICE_UPDATED = 'price_updated';
+    const ACTION_MARKET_QUANTITY_UPDATED = 'market_quantity_updated';
 
     /**
      * {@inheritdoc}
@@ -54,6 +55,7 @@ class OrderItemsChangelog extends \yii\db\ActiveRecord
                 self::ACTION_UPDATED,
                 self::ACTION_RESTORED,
                 self::ACTION_PRICE_UPDATED,
+                self::ACTION_MARKET_QUANTITY_UPDATED,
             ]],
             [['orderId'], 'exist', 'skipOnError' => true, 'targetClass' => Orders::class, 'targetAttribute' => ['orderId' => 'id']],
             [['productId'], 'exist', 'skipOnError' => true, 'targetClass' => Products::class, 'targetAttribute' => ['productId' => 'id']],
@@ -123,6 +125,7 @@ class OrderItemsChangelog extends \yii\db\ActiveRecord
             self::ACTION_UPDATED => 'Изменено',
             self::ACTION_RESTORED => 'Восстановлено',
             self::ACTION_PRICE_UPDATED => 'Изменена сумма базара',
+            self::ACTION_MARKET_QUANTITY_UPDATED => 'Изменено кол-во с базара',
         ];
 
         return $labels[$this->action] ?? $this->action;
@@ -178,6 +181,33 @@ class OrderItemsChangelog extends \yii\db\ActiveRecord
         $changelog->action = self::ACTION_PRICE_UPDATED;
         $changelog->old_price = $oldPrice;
         $changelog->new_price = $newPrice;
+        $changelog->userId = $userId;
+
+        return $changelog->save();
+    }
+
+    /**
+     * Logs a change of market_total_quantity on an order item.
+     *
+     * @param int $orderId
+     * @param string $productId
+     * @param float|null $oldQuantity
+     * @param float|null $newQuantity
+     * @param int|null $userId
+     * @return bool
+     */
+    public static function logMarketQuantityChange($orderId, $productId, $oldQuantity, $newQuantity, $userId = null)
+    {
+        if ($userId === null) {
+            $userId = Yii::$app->user->id;
+        }
+
+        $changelog = new self();
+        $changelog->orderId = $orderId;
+        $changelog->productId = $productId;
+        $changelog->action = self::ACTION_MARKET_QUANTITY_UPDATED;
+        $changelog->old_quantity = $oldQuantity;
+        $changelog->new_quantity = $newQuantity;
         $changelog->userId = $userId;
 
         return $changelog->save();
