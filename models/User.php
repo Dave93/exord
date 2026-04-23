@@ -42,6 +42,7 @@ class User extends ActiveRecord implements IdentityInterface
 {
     public $category;
     public $newPassword;
+    public $buyerStoreIds;
 
     const ROLE_ADMIN = 1;
     const ROLE_MANAGER = 2;
@@ -100,6 +101,7 @@ class User extends ActiveRecord implements IdentityInterface
             [['newPassword'], 'string', 'max' => 30],
             [['description'], 'string'],
             [['category'], 'safe'],
+            [['buyerStoreIds'], 'safe'],
             [['authKey', 'accessToken'], 'string', 'max' => 255],
             [['username'], 'unique'],
             [['terminalId'], 'string'],
@@ -135,8 +137,28 @@ class User extends ActiveRecord implements IdentityInterface
             'showPrice' => 'Показать сумму',
             'terminalId' => 'Ид филиала',
             'product_group_id' => 'Этаж товаров',
-            'oil_tg_id' => 'Ид в ТГ'
+            'oil_tg_id' => 'Ид в ТГ',
+            'buyerStoreIds' => 'Филиалы закупщика',
         ];
+    }
+
+    /**
+     * Returns store IDs assigned to a buyer user. Empty array means
+     * "no restriction" for filtering logic.
+     *
+     * @param int $userId
+     * @return string[]
+     */
+    public static function getBuyerStoreIds($userId)
+    {
+        if (empty($userId)) {
+            return [];
+        }
+        return (new Query())
+            ->select('store_id')
+            ->from('{{%user_buyer_stores}}')
+            ->where(['user_id' => $userId])
+            ->column();
     }
 
     /**

@@ -12,6 +12,7 @@ use yii\widgets\LinkPager;
 /* @var $start string */
 /* @var $end string */
 /* @var $storeId string|null */
+/* @var $allowedStoreIds array|null */
 
 $this->title = 'Цены базара — дашборд';
 $this->params['breadcrumbs'][] = ['label' => 'Цены базара', 'url' => ['orders/market-prices']];
@@ -70,7 +71,13 @@ $formatMoney = function ($value) {
             <div class="col-xs-3">
                 <div class="form-group">
                     <label>Филиал</label>
-                    <?= Html::dropDownList('storeId', $storeId, Stores::getList(), [
+                    <?php
+                    $storeOptions = Stores::getList();
+                    if (!empty($allowedStoreIds)) {
+                        $storeOptions = array_intersect_key($storeOptions, array_flip($allowedStoreIds));
+                    }
+                    ?>
+                    <?= Html::dropDownList('storeId', $storeId, $storeOptions, [
                         'class' => 'selectpicker form-control show-tick',
                         'prompt' => 'Все филиалы',
                         'data-header' => 'Выберите филиал',

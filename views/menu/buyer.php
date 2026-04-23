@@ -14,6 +14,12 @@ use yii\helpers\Html;
     <li class="<?= Dashboard::isNavActive('orders', 'buyer-orders') ? 'active' : '' ?>">
         <?= Html::a('Заказы', ['orders/buyer-orders'], ['class' => 'nav-link']) ?>
     </li>
+    <li class="<?= Dashboard::isNavActive('orders', 'market-prices') ? 'active' : '' ?>">
+        <?= Html::a('Цены базара', ['orders/market-prices'], ['class' => 'nav-link']) ?>
+    </li>
+    <li class="<?= Dashboard::isNavActive('orders', 'market-prices-dashboard') ? 'active' : '' ?>">
+        <?= Html::a('Дашборд цен базара', ['orders/market-prices-dashboard'], ['class' => 'nav-link']) ?>
+    </li>
     <li>
         <?= Html::a('Выйти (' . Yii::$app->user->identity->username . ')', ['/logout'], ['data-method' => 'POST']) ?>
     </li>

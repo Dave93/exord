@@ -19,6 +19,10 @@ if (!$model->isNewRecord)
         ->queryColumn();
 else
     $selected = [];
+
+if ($model->buyerStoreIds === null) {
+    $model->buyerStoreIds = $model->isNewRecord ? [] : User::getBuyerStoreIds($model->id);
+}
 ?>
 
 <div class="user-form">
@@ -61,6 +65,16 @@ else
             <?= $form->field($model, 'role')->dropDownList(User::$roles, ['class' => 'selectpicker form-control  show-tick', 'data-header' => "Выберите роль",]) ?>
 
             <?= $form->field($model, 'store_id')->dropDownList(Stores::getList(), ['class' => 'selectpicker form-control show-tick', 'prompt' => 'Все филиалы', 'data-header' => "Выберите филиал", 'data-live-search' => 'true']) ?>
+
+            <?= $form->field($model, 'buyerStoreIds')->listBox(Stores::getList(), [
+                'multiple' => true,
+                'unselect' => '',
+                'class' => 'selectpicker form-control show-tick',
+                'data-header' => 'Филиалы закупщика',
+                'data-live-search' => 'true',
+                'data-actions-box' => 'true',
+                'title' => 'Все филиалы',
+            ])->hint('Если ничего не выбрано — доступ ко всем филиалам в разделе «Цены базара».') ?>
 
             <?= $form->field($model, 'supplier_id')->dropDownList(Suppliers::getList(), ['class' => 'selectpicker form-control  show-tick', 'prompt' => 'Выберите поставщика', 'data-header' => "Выберите поставщика", 'data-live-search' => 'true']) ?>
 

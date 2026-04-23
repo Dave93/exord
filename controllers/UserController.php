@@ -96,6 +96,7 @@ class UserController extends Controller
                     $cm->category_id = $cat;
                     $cm->save();
                 }
+                $this->saveBuyerStores($model);
                 return $this->redirect(['view', 'id' => $model->id]);
             }
         }
@@ -134,6 +135,7 @@ class UserController extends Controller
                     $cm->category_id = $cat;
                     $cm->save();
                 }
+                $this->saveBuyerStores($model);
                 return $this->redirect(['view', 'id' => $model->id]);
             }
         }
@@ -172,5 +174,31 @@ class UserController extends Controller
         }
 
         throw new NotFoundHttpException('The requested page does not exist.');
+    }
+
+    /**
+     * Persists the buyer-stores link for the user: wipes current rows and
+     * inserts one per selected store. Empty selection means "no restriction".
+     */
+    protected function saveBuyerStores(User $model)
+    {
+        $db = Yii::$app->db;
+        $db->createCommand()->delete('{{%user_buyer_stores}}', ['user_id' => $model->id])->execute();
+
+        $ids = is_array($model->buyerStoreIds) ? $model->buyerStoreIds : [];
+        if (empty($ids)) {
+            return;
+        }
+
+        $rows = [];
+        foreach ($ids as $storeId) {
+            if ($storeId === null || $storeId === '') {
+                continue;
+            }
+            $rows[] = [$model->id, $storeId];
+        }
+        if (!empty($rows)) {
+            $db->createCommand()->batchInsert('{{%user_buyer_stores}}', ['user_id', 'store_id'], $rows)->execute();
+        }
     }
 }

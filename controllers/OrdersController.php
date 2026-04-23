@@ -81,7 +81,7 @@ class OrdersController extends Controller
                         ],
                     ],
                     [
-                        'actions' => ['buyer-orders', 'buyer', 'buyer-by-product', 'supplier-excel', 'view'],
+                        'actions' => ['buyer-orders', 'buyer', 'buyer-by-product', 'supplier-excel', 'view', 'market-prices', 'market-prices-fill', 'market-prices-dashboard'],
                         'allow' => true,
                         'roles' => [
                             User::ROLE_BUYER
@@ -915,6 +915,11 @@ class OrdersController extends Controller
             ->andWhere(['id' => $bazarOrderIdsSub])
             ->orderBy(['date' => SORT_DESC]);
 
+        $buyerStores = $this->getBuyerStoreRestriction();
+        if ($buyerStores !== null) {
+            $query->andWhere(['storeId' => $buyerStores]);
+        }
+
         $dataProvider = new \yii\data\ActiveDataProvider([
             'query' => $query,
             'pagination' => ['pageSize' => 100],
@@ -963,6 +968,12 @@ class OrdersController extends Controller
 
         if (!$model->hasMarketItems()) {
             Yii::$app->session->setFlash('error', "Заказ #{$model->id} не содержит базарных позиций.");
+            return $this->redirect(['orders/market-prices']);
+        }
+
+        $buyerStores = $this->getBuyerStoreRestriction();
+        if ($buyerStores !== null && !in_array($model->storeId, $buyerStores, true)) {
+            Yii::$app->session->setFlash('error', "Заказ #{$model->id} недоступен: филиал не входит в ваш список.");
             return $this->redirect(['orders/market-prices']);
         }
 
@@ -1120,7 +1131,14 @@ class OrdersController extends Controller
                 ['is not', 'oi.market_total_quantity', null],
             ]);
 
-        if (!empty($storeId)) {
+        $buyerStores = $this->getBuyerStoreRestriction();
+        if ($buyerStores !== null) {
+            if (!empty($storeId) && !in_array($storeId, $buyerStores, true)) {
+                $baseQuery->andWhere('1 = 0');
+            } else {
+                $baseQuery->andWhere(['o.storeId' => !empty($storeId) ? [$storeId] : $buyerStores]);
+            }
+        } elseif (!empty($storeId)) {
             $baseQuery->andWhere(['o.storeId' => $storeId]);
         }
 
@@ -1169,6 +1187,7 @@ class OrdersController extends Controller
             'start' => $startIso,
             'end' => $endIso,
             'storeId' => $storeId,
+            'allowedStoreIds' => $buyerStores,
         ]);
     }
 
@@ -2146,5 +2165,22 @@ class OrdersController extends Controller
 //            'start' => $start,
 //            'end' => $end
 //        ]);
+    }
+
+    /**
+     * Returns the list of store IDs the current buyer user is restricted
+     * to, or null if no restriction applies (non-buyer role, or buyer with
+     * empty "Филиалы закупщика" list — which means "all branches").
+     *
+     * @return array|null
+     */
+    protected function getBuyerStoreRestriction()
+    {
+        $user = Yii::$app->user->identity;
+        if ($user === null || $user->role != User::ROLE_BUYER) {
+            return null;
+        }
+        $ids = User::getBuyerStoreIds($user->id);
+        return empty($ids) ? null : $ids;
     }
 }
