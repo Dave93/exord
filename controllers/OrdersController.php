@@ -1158,7 +1158,7 @@ class OrdersController extends Controller
         }
 
         $filename = "market-prices-detail-{$startIso}_{$endIso}.xlsx";
-        $this->streamXlsx($spreadsheet, $filename);
+        return $this->streamXlsx($spreadsheet, $filename);
     }
 
     /**
@@ -1202,7 +1202,7 @@ class OrdersController extends Controller
         }
 
         $filename = "market-prices-summary-{$startIso}_{$endIso}.xlsx";
-        $this->streamXlsx($spreadsheet, $filename);
+        return $this->streamXlsx($spreadsheet, $filename);
     }
 
     /**
@@ -1301,11 +1301,14 @@ class OrdersController extends Controller
     protected function streamXlsx(Spreadsheet $spreadsheet, $filename)
     {
         $writer = IOFactory::createWriter($spreadsheet, 'Xlsx');
-        header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet; charset=utf-8');
-        header('Content-Disposition: attachment; filename="' . $filename . '"');
-        header('Cache-Control: max-age=0');
-        $writer->save('php://output');
-        Yii::$app->end();
+        $tmp = tempnam(sys_get_temp_dir(), 'xlsx');
+        $writer->save($tmp);
+        $content = file_get_contents($tmp);
+        @unlink($tmp);
+
+        return Yii::$app->response->sendContentAsFile($content, $filename, [
+            'mimeType' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        ]);
     }
 
     public function actionSend($id)
