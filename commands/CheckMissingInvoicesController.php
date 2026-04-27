@@ -28,6 +28,11 @@ class CheckMissingInvoicesController extends Controller
     public $send = false;
 
     /**
+     * @var bool Создавать накладную датой самого заказа вместо текущей даты
+     */
+    public $useOrderDate = false;
+
+    /**
      * @inheritdoc
      */
     public function options($actionID)
@@ -36,6 +41,7 @@ class CheckMissingInvoicesController extends Controller
             'from',
             'to',
             'send',
+            'useOrderDate',
         ]);
     }
 
@@ -48,6 +54,7 @@ class CheckMissingInvoicesController extends Controller
             'f' => 'from',
             't' => 'to',
             's' => 'send',
+            'u' => 'useOrderDate',
         ]);
     }
 
@@ -58,6 +65,7 @@ class CheckMissingInvoicesController extends Controller
      * php yii check-missing-invoices/index --from=2024-01-01 --to=2024-01-31
      * php yii check-missing-invoices/index -f 2024-01-01 -t 2024-01-31
      * php yii check-missing-invoices/index --from=2024-10-01 --to=2024-10-31 --send
+     * php yii check-missing-invoices/index --from=2024-10-01 --to=2024-10-31 --send --useOrderDate
      *
      * @return int Exit code
      */
@@ -170,14 +178,19 @@ class CheckMissingInvoicesController extends Controller
 
             foreach ($missingInvoices as $order) {
                 // Определяем дату для накладной
-                // Октябрьские накладные должны сесть как 1 ноября
-                $orderMonth = date('m', strtotime($order->addDate));
-                $orderYear = date('Y', strtotime($order->addDate));
-
-                if ($orderMonth == '10') {
-                    $customDate = $orderYear . '-11-01';
+                if ($this->useOrderDate) {
+                    // Накладная создаётся датой самого заказа
+                    $customDate = date('Y-m-d', strtotime($order->addDate));
                 } else {
-                    $customDate = null; // Используем текущую дату
+                    // Октябрьские накладные должны сесть как 1 ноября
+                    $orderMonth = date('m', strtotime($order->addDate));
+                    $orderYear = date('Y', strtotime($order->addDate));
+
+                    if ($orderMonth == '10') {
+                        $customDate = $orderYear . '-11-01';
+                    } else {
+                        $customDate = null; // Используем текущую дату
+                    }
                 }
 
                 $result = $iiko->supplierOutStockDoc($order, false, $customDate);
